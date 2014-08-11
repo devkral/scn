@@ -1,0 +1,115 @@
+
+def scn_unpack(_packedbytes):
+  return scn_format.unpack(_packedbytes).decode("utf-8")
+
+def scn_pack_bytes(_byteseq):
+  return scn_format.pack(bytes(_byteseq))
+
+def scn_unpack_bytes(_packedbytes):
+  return scn_format.unpack(_packedbytes)
+
+
+#just already available buffer means no []
+def scn_receive_old(_socket,max_ob_size=max_normal_size):
+  rettemp=[]
+  try:
+    _buffer=_socket.recv(4)
+  except socket.timeout:
+    return None
+  except Exception as e:
+    printdebug (e)
+    return None
+  while len(_buffer)>0 and _buffer[-1]!=bytes(sepm,"utf8"):
+    if _buffer[-1]==bytes(sepc,"utf8"):
+      rettemp+=[_buffer[:-1].decode("utf8"),]
+      _buffer=b""
+      if len(rettemp)>=2 and rettemp[-2]=="bytes":
+        if int(rettemp[-1])>0 and int(rettemp[-1])<max_ob_size:
+          _socket.sendall(b"y")
+          rettemp=rettemp[:-2]+[_socket.recv(rettemp[-1]).decode("utf8"),]
+        else:
+          _socket.sendall(b"n")
+    elif _buffer[-1]==b"\n" or _buffer[-1]==b"\0":
+      _buffer=_buffer[:-1]
+    try:
+      _buffer+=_socket.recv(1)
+    except socket.timeout:
+      return None
+    except Exception as e:
+      printdebug (e)
+      return None
+  rettemp+=[_buffer[:-1],]
+  return rettemp
+
+  def update_friend_auth_send(self,_socket,_name,_old_key,_pubkey_new):
+    tempkey2=RSA.importKey(_old_key)
+    signer=PKCS1_PSS.new(tempkey2)
+    _name_hashed=hashlib.SHA256(_stamp)
+    if not verifier.verify(_name_hashed,_signed_stamp): 
+      return False
+    if scn_friends.update_friend(_name,_pubkey):
+      scn_send("success"+sepm,_socket)
+    else:
+      scn_send("error"+sepc+"auth"+sepm,_socket)
+
+
+#pub auth
+  def update_friend_auth_recv(self,_socket,_name,_pubkey_new,_signed_stamp,_stamp):
+    if _pubkey_new==b"":
+      scn_send("error"+sepc+"key empty"+sepm,_socket)
+      return
+    _old_key=self.scn_friends.get_pubkey(self,_name)
+    if _old_key==None:
+      scn_send("error"+sepc+"name not exist"+sepm,_socket)
+      return
+    
+    tempkey2=RSA.importKey(_old_key)
+    verifier=PKCS1_PSS.new(tempkey2)
+    _name_hashed=hashlib.SHA256(_stamp)
+    if not verifier.verify(_name_hashed,_signed_stamp): 
+      return False
+    if scn_friends.update_friend(_name,_pubkey):
+      scn_send("success"+sepm,_socket)
+    else:
+      scn_send("error"+sepc+"auth"+sepm,_socket)
+
+
+  def parse_return(self,reqreturn):
+    temp=reqreturn.split(sepc,1)
+    if temp[0]=="error" and len(temp)==2:
+      print("Error: "+temp[1])
+      return None
+    elif temp[0]=="success" and len(temp)==2:
+      return temp[1].split(sepc)
+    else:
+      print("Error: invalid message")
+      return None
+
+#scn_friends: _nameid: pubkey,nickname
+class scn_friend_list_template(self):
+  friend_list=None
+  def __init__(self):
+    serv_list={}
+  def create_friend(self,_proposedname,_pubkey,nickname=None):
+    if _proposedname in self.friend_list:
+      count=1
+      while _proposedname+str(count) in self.friend_list:
+        count+=1
+    self.friend_list[_proposedname+str(count)]=[_pubkey,nickname]
+    return _proposedname+str(count)
+  def update_friend(self,_nameid,_pubkey,nickname=None):
+    self.friend_list[_nameid][0]=_pubkey
+    if nickname!=None:
+      self.friend_list[_nameid][1]=nickname
+    return True
+  def delete_friend(self,_nameid):
+    if _name in self.friend_list:
+      del self.friend_list[_nameid]
+      return True
+    else:
+      return False
+  def get_pubkey(self,_nameid):
+    if _name in self.friend_list:
+      return self.friend_list[_name][1]
+    else:
+      return None

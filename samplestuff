@@ -1,0 +1,108 @@
+
+class scn_name(object):
+  message=""
+  pub_cert=None
+  scn_services=None
+
+  def __init__(self):
+    self.message=""
+    self.pub_cert=None
+    self.scn_services={"admin":[]}
+  def set_message(self,a):
+    self.message=str(a)
+    return True
+  def get_message(self):
+    return self.message
+  def set_pub_cert(self,a):
+    self.pub_cert=a
+    return True
+  def get_pub_cert(self):
+    return self.pub_cert
+#"admin" is admin
+  def update_service(self,_servicename,_secrethashlist):
+    temp2=[]
+    for elem in _secrethashlist:
+      if check_hash(elem)==True:
+        temp2+=["","",elem] #TODO: dont overwrite address
+      else:
+        return False
+    self.scn_services[_servicename]=temp2
+    return True
+  def get(self,_servicename):
+    if _servicename not in self.scn_services:
+      return None
+    return self.scn_services[_servicename]
+
+#security related
+  def verify_secret(self,_servicename,_secret):
+    if hashlib.sha256(bytes(_secret)).hexdigest() in self.scn_services[_servicename]:
+      return True
+    else:
+      return False
+  def update_secret(self,_servicename,_secret,_new_secret):
+    if self.verify_secret(_servicename,_secret)==False:
+      return False
+    self.scn_services[_servicename][2]=hashlib.sha256(bytes(_new_secret)).hexdigest()
+    return True
+
+#auth with address ["",""]=unauth
+#authorize before
+  def auth(self,_servicename,_secret,_address):
+    _secrethash=hashlib.sha256(bytes(_secret)).hexdigest()
+    for elem in self.scn_services[_servicename]:
+      if elem.get_secret_hash()==_secrethash:
+        elem.set_address(_address)
+        return True
+    return False
+  
+
+class scn_name_list(object):
+  scn_names=None
+  def __init__(self):
+    self.scn_names={}
+  def get(self,_name):
+    if _name not in self.scn_names:
+      return None
+    return self.scn_names[_name]
+  def length(self, _name):
+    if not self.scn_names.__contains__(self,_name):
+      return 0
+    return len(self.scn_names[_name].scn_services)
+  def del_name(self,_name):
+    try:
+      self.scn_names.__delitem__(self,_name)
+    except Exception:
+      return False
+    return True
+  def create_name(self,_name,_secret):
+    if _name in self.scn_names:
+      return None
+    temp=scn_name()
+    temp.update_service("admin",[hashlib.sha256(bytes(_secret)).hexdigest(),])
+    self.scn_names[_name]=temp
+    return temp
+
+#secret should be machine generated
+
+
+
+#servername is not serviceurl
+class scn_serv_list_template(object):
+  server_list={}
+  view_dict=None
+  def __init__(self):
+    self.rewind()
+  def get(self,_servername,_name,_servicename):
+    if _servername not in self.server_list:
+      return None
+    return self.server_list[_servername] #serverurl,version,secret,cert
+  
+  def get_next(self):
+    if len(self.view_dict)==0:
+      return None
+    return self.view_dict.pop() #serverurl,version,service,secret,cert
+  def rewind(self):
+    self.view_dict=self.server_list.copy()
+
+  
+
