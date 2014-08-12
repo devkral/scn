@@ -7,15 +7,14 @@ import sys
 import os
 import os.path
 
-from Crypto import RSA
-from Crypto import Random
+from OpenSSL import SSL,crypto
 
 
 #import Enum from enum
 
-from scn_config import debug_mode,show_error_mode,buffersize,max_normal_size,protcount_max,min_name_length,max_name_length,max_user_services,max_service_nodes,key_size
+from scn_config import debug_mode, show_error_mode, buffersize, max_normal_size, protcount_max, min_name_length, max_name_length, max_user_services, max_service_nodes, key_size
 
-#from scn_config import scn_client_port
+# from scn_config import scn_client_port
 
 sepm="\x1D" #seperate messages (consist of commands)
 sepc="\x1E" #seperate commands
@@ -108,16 +107,11 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
         printdebug("Int error")
         printdebug(e)
         return None
-      if _size<max_ob_size:
-        _socket.sendall(b"y")
-        scn_format2=struct.Struct(">"+str(_size)+"s")
-        try:
+      try:
+        if _size<max_ob_size:
+          _socket.sendall(b"y")
+          scn_format2=struct.Struct(">"+str(_size)+"s")
           temp2=_socket.recv(_size)
-        except socket.timeout:
-          return None
-        except Exception as e:
-          printerror(e)
-          return None
           
         if len(temp2)==_size:
           temp=temp[:-2]+[scn_format2.unpack(temp2)[0],]
@@ -131,13 +125,14 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
           pass
         else:
           printdebug("Bytesequence: should be closed with either sepc or sepm")
-        
-      else:
-        try:
+        else:
           _socket.sendall(b"n")
-        except Exception as e:
-          printerror(e)
-          return None
+       
+      except socket.timeout or SSL.WantReadError:
+        return None
+      except Exception as e:
+        printerror(e)
+        return None
     
     if _buffer!="" and _buffer.find(sepm)!=-1:
       break
@@ -160,38 +155,58 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
 
 
 def generate_certs(self,_path,_passphrase=None):
-  #init a new random generator
-  random_generator=Random.new().read
-  #feed RSA generator with the read function to Random.new()
-  _key=RSA.generate(key_size,random_generator)
+  _key = crypto.PKey()
+  _key=RSA.generate(crypto.TYPE_RSA,key_size*8)
   privkey=None
   if _passphrase==None:
-    privkey=_key.exportKey('PEM')
+    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key)
   else:
-    privkey=_key.exportKey('PEM', _passphrase)
-  pubkey=_key.publickey().exportKey('PEM')
+    #TODO: expose cipher choice
+    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key,"CAMELLIA256",passphrase)
+#don't forget similar section in check_certs if updated
+  _cert = crypto.X509()
+  _cert.set_serial_number(0)
+  #_cert.gmtime_adj_notBefore(notBefore)
+  #_cert.gmtime_adj_notAfter(notAfter)
+  _cert.set_issuer("")
+  _cert.set_subject("")
+  _cert.set_pubkey(_key)
+  #TODO: expose hash choice
+  _cert.sign(_key, "sha256")
   with open(_path+".priv", 'w') as writeout:
     writeout.write(privkey)
     os.chmod(_path+".priv",0o700)
   with open(_path+".pub", 'w') as writeout:
-    writeout.write(pubkey)
+    writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
 
-def check_certs(self,_path):
+
+def check_certs(self,_path,_passphrase=None):
   if os.path.exists(_path+".priv")==False:
     return False
   if os.path.exists(_path+".pub")==False:
-    printdebug("Publickey doesn't exist. Generate new")
+    printdebug("Publiccert doesn't exist. Generate new")
     success=False
     with open(_path+".priv", 'r') as readin:
-      pubkey=RSA.importKey(readin.read(-1)).publickey().exportKey('PEM')
+      if _passphrase==None:
+        _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read())
+      else:
+        _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read(),_passphrase)
+      _cert = crypto.X509()
+      _cert.set_serial_number(0)
+      #_cert.gmtime_adj_notBefore(notBefore)
+      #_cert.gmtime_adj_notAfter(notAfter)
+      _cert.set_issuer("")
+      _cert.set_subject("")
+      _cert.set_pubkey(_key)
       with open(_path+".pub", 'w') as writeout:
-        writeout.write(pubkey)
+        writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
         success=True
     return success
   return True
 
-      
-      
+
+
+
 
 def init_config_folder(self,_dir):
   if os.path.exists(_dir)==False:

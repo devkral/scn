@@ -5,7 +5,8 @@ import signal
 import sys
 import socketserver
 import hashlib
-import ssl
+
+from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc,sepu
 from scn_base import scn_base_server,scn_send,scn_receive,printdebug
@@ -301,6 +302,8 @@ or self.scn_names.contains(_store_name)==False:
 
 class scn_server_handler(socketserver.BaseRequestHandler):
   linkback=None
+  def setup(self):
+    pass
   def handle(self):
     print("handler begin")
     self.request.settimeout(10)

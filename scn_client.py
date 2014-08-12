@@ -7,7 +7,9 @@ import time
 import sqlite3
 import socket
 import socketserver
-import ssl
+
+
+from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc,sepu
 from scn_base import scn_base_client,scn_send,scn_receive,printdebug,printerror ,scn_send_bytes, init_config_folder,check_certs,generate_certs
@@ -211,24 +213,25 @@ class scn_client(scn_base_client):
     tempdata=self.scn_servs.get_node(_servername)[0].split(sepu)
     if len(tempdata)==1:
       tempdata+=[scn_server_port,]
-    tempsocket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#TODO: python ssl interface is crap: can't read key from memory, nor create key
-#TODO: ditch and switch to pyopenssl
-#tempsocket=ssl.wrap_socket(tempsocket,cert_reqs=ssl.CERT_OPTIONAL,ssl_version=ssl.PROTOCOL_TLSv1_2)
-    tempsocket.connect((tempdata[0],int(tempdata[1])))
+    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
+    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
+    tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tempsocket = SSL.Connection(temp_context,tempsocket)
     tempsocket.settimeout(10)
+    tempsocket.connect((tempdata[0],int(tempdata[1])))
     return tempsocket
   
   def connect_to_ip(self,_url):
     tempdata=_url.split(sepu)
     if len(tempdata)==1:
       tempdata+=[scn_server_port,]
-    tempsocket=socket.socket()
-#TODO: python ssl interface is crap: can't read key from memory, nor create key
-#TODO: ditch and switch to pyopenssl
-#tempsocket=ssl.wrap_socket(tempsocket,cert_reqs=ssl.CERT_OPTIONAL,ssl_version=ssl.PROTOCOL_TLSv1_2)
-    tempsocket.connect((tempdata[0],int(tempdata[1])))
+    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
+    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tempsocket = SSL.Connection(temp_context,tempsocket)
     tempsocket.settimeout(10)
+    tempsocket.connect((tempdata[0],int(tempdata[1])))
     return tempsocket
 
   def update_service(self,_servername,_name,_service,_secrethashstring):
