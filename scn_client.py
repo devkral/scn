@@ -12,7 +12,7 @@ import socketserver
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc,sepu
-from scn_base import scn_base_client,scn_send,scn_receive,printdebug,printerror ,scn_send_bytes, init_config_folder,check_certs,generate_certs
+from scn_base import scn_base_client, scn_send, scn_receive, printdebug, printerror, scn_send_bytes, init_config_folder, check_certs, generate_certs
 #,scn_check_return
 from scn_config import scn_client_port,secret_size,client_show_incomming_commands,default_config_folder,scn_server_port
 
@@ -205,8 +205,11 @@ class scn_client(scn_base_client):
     if check_certs(self.config_path+"scn_client_cert")==False:
       printdebug("private key not found. Generate new...")
       generate_certs(self.config_path+"scn_client_cert")
+    with open(self.config_path+"scn_client_cert"+".priv", 'r') as readinprivkey:
+      self.priv_cert=readinprivkey.read()
     with open(self.config_path+"scn_client_cert"+".pub", 'r') as readinpubkey:
       self.pub_cert=readinpubkey.read()
+
     self.scn_servs=scn_servs_sql(self.config_path+"scn_client_db")
 #priv
   def connect_to(self,_servername):
@@ -459,20 +462,20 @@ class scn_client(scn_base_client):
       else:
         try:
           if len(command)>1:
-            serveranswer=self.clientactions[command[0]](self,*command[1].split(sepc))
+            serveranswer = self.clientactions[command[0]](self,*command[1].split(sepc))
           else:
-            serveranswer=self.clientactions[command[0]](self)
+            serveranswer = self.clientactions[command[0]](self)
         except TypeError as e:
           printdebug(command)
           printdebug(e)
           printerror("Invalid number of parameters")
         except Exception as e:
           printerror(e)
-      if serveranswer!=None:
+      if serveranswer != None:
         print(serveranswer[0])
         if len(serveranswer)>1:
-          print(*serveranswer[1:],sep=", ")
-      if client_show_incomming_commands==True and len(self._incommingbuffer)>0:
+          print(*serveranswer[1:],sep = ", ")
+      if client_show_incomming_commands == True and len(self._incommingbuffer) > 0:
         print(self._incommingbuffer.pop(0))
       time.sleep(1)
   

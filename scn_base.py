@@ -125,7 +125,6 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
           pass
         else:
           printdebug("Bytesequence: should be closed with either sepc or sepm")
-        else:
           _socket.sendall(b"n")
        
       except socket.timeout or SSL.WantReadError:
@@ -156,13 +155,13 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
 
 def generate_certs(self,_path,_passphrase=None):
   _key = crypto.PKey()
-  _key=RSA.generate(crypto.TYPE_RSA,key_size*8)
+  _key=crypto.generate(crypto.TYPE_RSA,key_size*8)
   privkey=None
   if _passphrase==None:
     privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key)
   else:
     #TODO: expose cipher choice
-    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key,"CAMELLIA256",passphrase)
+    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key,"CAMELLIA256",_passphrase)
 #don't forget similar section in check_certs if updated
   _cert = crypto.X509()
   _cert.set_serial_number(0)
@@ -180,7 +179,7 @@ def generate_certs(self,_path,_passphrase=None):
     writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
 
 
-def check_certs(self,_path,_passphrase=None):
+def check_certs(_path,_passphrase=None):
   if os.path.exists(_path+".priv")==False:
     return False
   if os.path.exists(_path+".pub")==False:
@@ -208,7 +207,7 @@ def check_certs(self,_path,_passphrase=None):
 
 
 
-def init_config_folder(self,_dir):
+def init_config_folder(_dir):
   if os.path.exists(_dir)==False:
     os.mkdir(_dir,0o700)
   else:

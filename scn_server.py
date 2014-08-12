@@ -147,7 +147,6 @@ class scn_name_sql(object):
       state=False
     return state
 
-
 class scn_name_list_sqlite(object):
   db_path=None
   def __init__(self, db):
@@ -163,8 +162,6 @@ class scn_name_list_sqlite(object):
     except Exception as u:
       printdebug(u)
       con.rollback()
-
-    
     try:
       con.execute('''CREATE TABLE if not exists scn_node(scn_name TEXT,servicename TEXT,nodename TEXT, nodeid INTEGER, addrtype TEXT, addr TEXT, hashed_secret BLOB, PRIMARY KEY(scn_name,servicename,nodeid),FOREIGN KEY(scn_name) REFERENCES scn_name(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
       con.commit()
@@ -261,6 +258,11 @@ class scn_server(scn_base_server):
     self.special_services_unauth={"test":self.info ,"callback":self.callback}
     self.name=_name
     self.version="1"
+    with open(self.config_path+"scn_server_cert"+".priv", 'r') as readinprivkey:
+      self.priv_cert=readinprivkey.read()
+    with open(self.config_path+"scn_server_cert"+".pub", 'r') as readinpubkey:
+      self.pub_cert=readinpubkey.read()
+
   def callback(self,_socket,_name,_store_name):
     if self.scn_names.contains(_name)==False:
       scn_send("error"+sepc+"name not exists"+sepm,_socket)
@@ -326,7 +328,16 @@ class scn_server_handler(socketserver.BaseRequestHandler):
 
 #socketserver.ThreadingMixIn, 
 class scn_sock_server(socketserver.TCPServer):
-  pass
+  linkback=None
+  def __init__(self, server_address, HandlerClass,_linkback):
+    socketserver.TCPServer.__init__(self, server_address, HandlerClass)
+    self.linkback=_linkback
+    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
+    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
+    temp_context.use_privatekey(crypto.crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
+
+    self.socket = SSL.Connection(temp_context,self.socket)
 
 server=None
 
@@ -336,12 +347,12 @@ def signal_handler(signal, frame):
 #  server.shutdown()
   sys.exit(0)
 if __name__ == "__main__":
-  rec_pre=scn_server(default_config_folder,server_host+"_scn")
-  rec=scn_server_handler
+  rec_pre = scn_server(default_config_folder,server_host+"_scn")
+  rec = scn_server_handler
   rec.linkback=rec_pre
   
   # Create the server, binding to localhost on port 9999
-  server = scn_sock_server((server_host, scn_server_port), rec)  
+  server = scn_sock_server((server_host, scn_server_port), rec,rec_pre) 
   signal.signal(signal.SIGINT, signal_handler)
   # Activate the server; this will keep running until you
   # interrupt the program with Ctrl-C
