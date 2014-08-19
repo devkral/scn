@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 import os
-import os.path
 
 #max_client_receive_it=5
 max_user_services=10
@@ -12,7 +11,7 @@ protcount_max=30
 buffersize=512
 secret_size=512 #only relevant for client because server uses hash
 key_size=4096
-default_config_folder=os.path.join(os.path.expandvars("~"),".scn"+os.sep)
+default_config_folder=os.getenv("HOME")+os.sep+".scn"+os.sep
 
 debug_mode=True
 show_error_mode=True

@@ -9,7 +9,7 @@ import hashlib
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc,sepu
-from scn_base import scn_base_server,scn_send,scn_receive,printdebug
+from scn_base import scn_base_server,scn_send,scn_receive,printdebug,init_config_folder,check_certs,generate_certs
 
 from scn_config import scn_server_port,default_config_folder,server_host
 
@@ -252,16 +252,22 @@ class scn_server(scn_base_server):
   callback={}
 
   def __init__(self,_config_path,_name):
-    self.config_path=_config_path
-    self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
-    self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
-    self.special_services_unauth={"test":self.info ,"callback":self.callback}
-    self.name=_name
     self.version="1"
+    self.name=_name
+    self.config_path=_config_path
+    init_config_folder(self.config_path)
+    if check_certs(self.config_path+"scn_server_cert")==False:
+      printdebug("private key not found. Generate new...")
+      generate_certs(self.config_path+"scn_server_cert")
+      printdebug("Finished")
     with open(self.config_path+"scn_server_cert"+".priv", 'r') as readinprivkey:
       self.priv_cert=readinprivkey.read()
     with open(self.config_path+"scn_server_cert"+".pub", 'r') as readinpubkey:
       self.pub_cert=readinpubkey.read()
+    self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
+    self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
+    self.special_services_unauth={"test":self.info ,"callback":self.callback}
+    printdebug("Server init finished")
 
   def callback(self,_socket,_name,_store_name):
     if self.scn_names.contains(_name)==False:

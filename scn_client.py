@@ -11,10 +11,10 @@ import socketserver
 
 from OpenSSL import SSL,crypto
 
-from scn_base import sepm,sepc,sepu
+from scn_base import sepm, sepc, sepu
 from scn_base import scn_base_client, scn_send, scn_receive, printdebug, printerror, scn_send_bytes, init_config_folder, check_certs, generate_certs
 #,scn_check_return
-from scn_config import scn_client_port,secret_size,client_show_incomming_commands,default_config_folder,scn_server_port
+from scn_config import scn_client_port, secret_size, client_show_incomming_commands, default_config_folder, scn_server_port
 
 
 #scn_servs: _servicename: _server,version,_name:secret

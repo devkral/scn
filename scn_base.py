@@ -153,9 +153,9 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
   return temp
 
 
-def generate_certs(self,_path,_passphrase=None):
+def generate_certs(_path,_passphrase=None):
   _key = crypto.PKey()
-  _key=crypto.generate(crypto.TYPE_RSA,key_size*8)
+  _key.generate_key(crypto.TYPE_RSA,key_size)
   privkey=None
   if _passphrase==None:
     privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key)
@@ -167,15 +167,15 @@ def generate_certs(self,_path,_passphrase=None):
   _cert.set_serial_number(0)
   #_cert.gmtime_adj_notBefore(notBefore)
   #_cert.gmtime_adj_notAfter(notAfter)
-  _cert.set_issuer("")
-  _cert.set_subject("")
+#  _cert.set_issuer("scn")
+#  _cert.set_subject("scn_cert")
   _cert.set_pubkey(_key)
   #TODO: expose hash choice
   _cert.sign(_key, "sha256")
-  with open(_path+".priv", 'w') as writeout:
+  with open(_path+".priv", 'wb') as writeout:
     writeout.write(privkey)
     os.chmod(_path+".priv",0o700)
-  with open(_path+".pub", 'w') as writeout:
+  with open(_path+".pub", 'wb') as writeout:
     writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
 
 
@@ -194,10 +194,10 @@ def check_certs(_path,_passphrase=None):
       _cert.set_serial_number(0)
       #_cert.gmtime_adj_notBefore(notBefore)
       #_cert.gmtime_adj_notAfter(notAfter)
-      _cert.set_issuer("")
-      _cert.set_subject("")
+      #_cert.set_issuer("")
+      #_cert.set_subject("")
       _cert.set_pubkey(_key)
-      with open(_path+".pub", 'w') as writeout:
+      with open(_path+".pub", 'wb') as writeout:
         writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
         success=True
     return success
@@ -209,7 +209,7 @@ def check_certs(_path,_passphrase=None):
 
 def init_config_folder(_dir):
   if os.path.exists(_dir)==False:
-    os.mkdir(_dir,0o700)
+    os.makedirs(_dir,0o700)
   else:
     os.chmod(_dir,0o700)
     
