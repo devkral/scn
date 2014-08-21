@@ -218,9 +218,11 @@ class scn_client(scn_base_client):
       tempdata+=[scn_server_port,]
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
+#certs broken
+#    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tempsocket = SSL.Connection(temp_context,tempsocket)
+    #tempsocket.set_connect_state()
     tempsocket.settimeout(10)
     tempsocket.connect((tempdata[0],int(tempdata[1])))
     return tempsocket
@@ -233,6 +235,7 @@ class scn_client(scn_base_client):
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tempsocket = SSL.Connection(temp_context,tempsocket)
+    #tempsocket.set_connect_state()
     tempsocket.settimeout(10)
     tempsocket.connect((tempdata[0],int(tempdata[1])))
     return tempsocket
@@ -413,6 +416,7 @@ class scn_client(scn_base_client):
     _socket=self.connect_to_ip(_url)
     scn_send("info"+sepm,_socket)
     _server_response=scn_receive(_socket)
+#certs broken
     _server_cert=None #_socket.getpeercert()
     if _server_response[0]=="success" and self.scn_servs.update_node(_servername,_url,_server_response[2],_server_cert)==True:
       return ["success",]

@@ -260,9 +260,9 @@ class scn_server(scn_base_server):
       printdebug("private key not found. Generate new...")
       generate_certs(self.config_path+"scn_server_cert")
       printdebug("Finished")
-    with open(self.config_path+"scn_server_cert"+".priv", 'r') as readinprivkey:
+    with open(self.config_path+"scn_server_cert"+".priv", 'rt') as readinprivkey:
       self.priv_cert=readinprivkey.read()
-    with open(self.config_path+"scn_server_cert"+".pub", 'r') as readinpubkey:
+    with open(self.config_path+"scn_server_cert"+".pub", 'rt') as readinpubkey:
       self.pub_cert=readinpubkey.read()
     self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
     self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
@@ -338,12 +338,23 @@ class scn_sock_server(socketserver.TCPServer):
   def __init__(self, server_address, HandlerClass,_linkback):
     socketserver.TCPServer.__init__(self, server_address, HandlerClass)
     self.linkback=_linkback
+
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
-    temp_context.use_privatekey(crypto.crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
-
+    #temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
+    #certs broken
+    #temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
     self.socket = SSL.Connection(temp_context,self.socket)
+    self.socket.set_accept_state()
+  def shutdown_request(self, request):
+    """Called to shutdown and close an individual request."""
+    try:
+      #explicitly shutdown.  socket.close() merely releases
+      #the socket and waits for GC to perform the actual close.
+      request.shutdown()
+    except OSError:
+      pass #some platforms may raise ENOTCONN here
+    self.close_request(request)
 
 server=None
 

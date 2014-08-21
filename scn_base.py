@@ -169,6 +169,7 @@ def generate_certs(_path,_passphrase=None):
   #_cert.gmtime_adj_notAfter(notAfter)
 #  _cert.set_issuer("scn")
 #  _cert.set_subject("scn_cert")
+  _cert.set_version(0)
   _cert.set_pubkey(_key)
   #TODO: expose hash choice
   _cert.sign(_key, "sha256")
