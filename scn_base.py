@@ -170,6 +170,15 @@ def generate_certs(_path,_passphrase=None):
 #  _cert.set_issuer("scn")
 #  _cert.set_subject("scn_cert")
   _cert.set_version(0)
+  _cert.add_extensions([
+  crypto.X509Extension("basicConstraints", True, "CA:TRUE, pathlen:0"),
+  crypto.X509Extension("keyUsage", True, "keyCertSign, cRLSign"),
+  crypto.X509Extension("subjectKeyIdentifier", False, "hash", subject=_cert), ])
+  _cert.add_extensions([
+  crypto.X509Extension("authorityKeyIdentifier", False, "keyid:always",issuer=_cert)
+  ])
+
+
   _cert.set_pubkey(_key)
   #TODO: expose hash choice
   _cert.sign(_key, "sha256")

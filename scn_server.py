@@ -341,7 +341,8 @@ class scn_sock_server(socketserver.TCPServer):
 
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    #temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
+    temp_context.set_cipher_list("HIGH")
+    temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
     #certs broken
     #temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
     self.socket = SSL.Connection(temp_context,self.socket)

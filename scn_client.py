@@ -218,11 +218,14 @@ class scn_client(scn_base_client):
       tempdata+=[scn_server_port,]
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    temp_context.set_cipher_list("HIGH")
+
+    #temp_context.set_verify(SSL.VERIFY_NONE)
 #certs broken
 #    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tempsocket = SSL.Connection(temp_context,tempsocket)
-    #tempsocket.set_connect_state()
+    tempsocket.set_connect_state()
     tempsocket.settimeout(10)
     tempsocket.connect((tempdata[0],int(tempdata[1])))
     return tempsocket
@@ -233,9 +236,12 @@ class scn_client(scn_base_client):
       tempdata+=[scn_server_port,]
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    temp_context.set_cipher_list("HIGH")
+
+    #temp_context.set_verify(SSL.VERIFY_NONE)
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tempsocket = SSL.Connection(temp_context,tempsocket)
-    #tempsocket.set_connect_state()
+    tempsocket.set_connect_state()
     tempsocket.settimeout(10)
     tempsocket.connect((tempdata[0],int(tempdata[1])))
     return tempsocket
