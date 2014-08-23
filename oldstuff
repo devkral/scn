@@ -1,3 +1,49 @@
+"""
+  printdebug("Publiccert doesn't exist. Generate new")
+  success=False
+  _cert = crypto.X509()
+  _cert.get_subject().CN = "scn.node"
+  _cert.set_issuer(_cert.get_subject())
+  _cert.set_version(0)
+  _cert.add_extensions([
+    crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE, pathlen:0"),
+    crypto.X509Extension(b"keyUsage", True, b"keyCertSign, cRLSign"),
+    crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=_cert), ])
+  _cert.add_extensions([
+    crypto.X509Extension(b"authorityKeyIdentifier", False, b"keyid:always",issuer=_cert),])
+
+  _cert.set_pubkey(_key)
+  #TODO: expose hash choice
+  _cert.sign(_key, "sha512")
+  with open(_path+".pub", 'wb') as writeout:
+    writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
+    success=True
+  return success"""
+
+
+
+
+
+
+
+"""
+  _key = crypto.PKey()
+  _key.generate_key(crypto.TYPE_RSA,key_size)
+  privkey=None
+  if _passphrase==None:
+    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key)
+  else:
+    #TODO: expose cipher choice
+    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key,"CAMELLIA256",_passphrase)
+  with open(_path+".priv", 'wb') as writeout:
+    writeout.write(privkey)
+    os.chmod(_path+".priv",0o700)
+  try:
+    os.remove(_path+".pub")
+  except FileNotFoundError:
+    pass
+  check_certs(_path,_passphrase)"""
+
 
 def scn_unpack(_packedbytes):
   return scn_format.unpack(_packedbytes).decode("utf-8")

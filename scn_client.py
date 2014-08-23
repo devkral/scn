@@ -12,7 +12,7 @@ import socketserver
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
-from scn_base import scn_base_client, scn_send, scn_receive, printdebug, printerror, scn_send_bytes, init_config_folder, check_certs, generate_certs
+from scn_base import scn_base_client, scn_send, scn_receive, printdebug, printerror, scn_send_bytes, scn_socket_close, init_config_folder, check_certs, generate_certs
 #,scn_check_return
 from scn_config import scn_client_port, secret_size, client_show_incomming_commands, default_config_folder, scn_server_port
 
@@ -217,16 +217,14 @@ class scn_client(scn_base_client):
     if len(tempdata)==1:
       tempdata+=[scn_server_port,]
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
-    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    temp_context.set_cipher_list("HIGH")
+    #temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    #temp_context.set_cipher_list("HIGH")
 
-    #temp_context.set_verify(SSL.VERIFY_NONE)
-#certs broken
-#    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
+    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tempsocket = SSL.Connection(temp_context,tempsocket)
-    tempsocket.set_connect_state()
     tempsocket.settimeout(10)
+    tempsocket = SSL.Connection(temp_context,tempsocket)
+    #connect with ssl handshake
     tempsocket.connect((tempdata[0],int(tempdata[1])))
     return tempsocket
   
@@ -238,12 +236,20 @@ class scn_client(scn_base_client):
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
 
-    #temp_context.set_verify(SSL.VERIFY_NONE)
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tempsocket = SSL.Connection(temp_context,tempsocket)
-    tempsocket.set_connect_state()
     tempsocket.settimeout(10)
-    tempsocket.connect((tempdata[0],int(tempdata[1])))
+    printdebug("Success setup socket")
+    tempsocket = SSL.Connection(temp_context,tempsocket)
+    #connect with ssl handshake
+    print((tempdata[0],int(tempdata[1])))
+    try:
+      tempsocket.connect((tempdata[0],int(tempdata[1])))
+      tempsocket.do_handshake()
+    except Exception as e:
+      printerror("Connection failed")
+      printerror(tempsocket.state_string())
+      raise(e)
+      #printdebug(tempsocket.state_string())
     return tempsocket
 
   def update_service(self,_servername,_name,_service,_secrethashstring):
@@ -253,7 +259,7 @@ class scn_client(scn_base_client):
     scn_send_bytes(temp[3],_socket)
     scn_send_bytes(_secrethashstring,_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
   
   def get_service_secrethash(self,_servername,_name,_service):
@@ -262,7 +268,7 @@ class scn_client(scn_base_client):
     scn_send("get_service_secrethash"+sepc+_name+sepc+_service,_socket)
     scn_send_bytes(temp[3],_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
 #pub
@@ -272,7 +278,7 @@ class scn_client(scn_base_client):
     scn_send("register_name"+sepc+_name+sepc,_socket)
     scn_send_bytes(_secret,_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     if _server_response[0]=="success":
       self.scn_servs.update_service(_servername,_name,"admin",_secret)
     return _server_response
@@ -284,7 +290,7 @@ class scn_client(scn_base_client):
     _server_response=scn_receive(_socket)
     if _server_response[0]=="success":
       self.scn_servs.delete_name(_name)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
   def update_name_cert(self,_servername,_name,_cert):
     _socket=self.connect_to(_servername)
@@ -293,7 +299,7 @@ class scn_client(scn_base_client):
     scn_send_bytes(temp[3],_socket)
     scn_send_bytes(_cert,_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   def update_name_message(self,_servername,_name,_message):
@@ -302,7 +308,7 @@ class scn_client(scn_base_client):
     scn_send("update_message"+sepc+_name+sepc,_socket)
     scn_send_bytes(temp[3],_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   def delete_service(self,_servername,_name,_service):
@@ -311,7 +317,7 @@ class scn_client(scn_base_client):
     scn_send("delete_service"+sepc+_name+sepc+_service+sepc,_socket)
     scn_send_bytes(temp[3],_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()  
+    scn_socket_close(_socket)
     return _server_response
   
   def serve_service_ip(self,_servername,_name,_service):
@@ -321,7 +327,7 @@ class scn_client(scn_base_client):
     scn_send_bytes(temp[3],_socket)
     scn_send(scn_client_port+sepc+"ip"+sepm,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()  
+    scn_socket_close(_socket)
     return _server_response
   
   def unserve_service(self,_servername,_name,_service):
@@ -330,7 +336,7 @@ class scn_client(scn_base_client):
     scn_send("unserve"+sepc+_name+sepc+_service+sepc,_socket)
     scn_send_bytes(temp[3],_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
     #temp=self.scn_servs.get_(_servername,_name,_servicename)
 
@@ -342,7 +348,7 @@ class scn_client(scn_base_client):
     scn_send_bytes(temp[3],_socket)
     scn_send_bytes(_secret,_socket,True)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     if _server_response[0]=="success":
       self.scn_servs.update_service(_servername,_name,_service,_secret)
     return _server_response
@@ -366,14 +372,14 @@ class scn_client(scn_base_client):
       else:
         scn_send(args[count]+sepc,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   def get_service(self,_servername,_name,_service):
     _socket=self.connect_to(_servername)
     scn_send("get_service"+sepc+_name+sepc+_service+sepm,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   
@@ -381,14 +387,14 @@ class scn_client(scn_base_client):
     _socket=self.connect_to(_servername)
     scn_send("get_name_message"+sepc+_name+sepc+_service+sepm,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   def get_name_cert(self,_servername,_name,_service):
     _socket=self.connect_to(_servername)
     scn_send("get_name_cert"+sepc+_name+sepc+_service+sepm,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   def use_special_service_unauth(self,_servername,_name,_service,*args):
@@ -409,22 +415,29 @@ class scn_client(scn_base_client):
       else:
         scn_send(args[count]+sepc,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
   def info(self,_servername):
     _socket=self.connect_to(_servername)
     scn_send("info"+sepm,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   def update_node(self,_servername,_url):
+    printdebug("Success do something")
     _socket=self.connect_to_ip(_url)
+    printdebug("Success connect")
     scn_send("info"+sepm,_socket)
+    printdebug("Success send")
     _server_response=scn_receive(_socket)
-#certs broken
-    _server_cert=None #_socket.getpeercert()
-    if _server_response[0]=="success" and self.scn_servs.update_node(_servername,_url,_server_response[2],_server_cert)==True:
+    printdebug("Success receive 1")
+    #_server_cert=_socket.getpeercert()
+    scn_send("get_server_cert"+sepm,_socket)
+    _server_response2=scn_receive(_socket)
+    scn_socket_close(_socket)
+    printdebug("Success communication")
+    if _server_response[0]=="success" and _server_response2[0]=="success" and self.scn_servs.update_node(_servername,_url,_server_response[2],_server_response2[1])==True:
       return ["success",]
     else:
       return ["error","node update failed"]
@@ -447,7 +460,7 @@ class scn_client(scn_base_client):
     _socket=self.connect_to(_servername)
     scn_send(command+sepm,_socket)
     _server_response=scn_receive(_socket)
-    _socket.close()
+    scn_socket_close(_socket)
     return _server_response
 
   clientactions={"register":register_name,"delname":delete_name,"updcert":update_name_cert,"updmessage": update_name_message,"updservice": update_service,"delservice":delete_service,"getservicehash": get_service_secrethash,"serveip": serve_service_ip,"unserve": unserve_service,"updsecret": update_secret,"use_auth": use_special_service_auth,"use_unauth":use_special_service_unauth,"getmessage":get_name_message,"getcert":get_name_cert,"info":info,"updserver": update_node, "delserver": delete_node,"getlist": get_node_list,"getnode":get_node}

@@ -6,6 +6,7 @@ import re
 import sys
 import os
 import os.path
+from subprocess import Popen,PIPE
 
 from OpenSSL import SSL,crypto
 
@@ -78,6 +79,9 @@ def scn_send_bytes(_byteseq,_socket,end=False):
   else:
     return False
 
+def scn_socket_close(_socket):
+  _socket.sendall(scn_format.pack(b"close"))
+  _socket.shutdown()
 
 def scn_check_return(reqreturn):
   temp=reqreturn.split(sepc,1)
@@ -100,6 +104,9 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
         temp+=_buffer.split(sepc)[:-1]
         _buffer=_buffer.split(sepc)[-1]
 
+    if len(temp)>=1 and temp[-1]=="close":
+      printdebug("Correct close")
+      _socket.close()
     if len(temp)>=2 and temp[-2]=="bytes":
       try:
         _size=int(temp[-1])
@@ -154,68 +161,43 @@ def scn_receive(_socket,max_ob_size=max_normal_size):
 
 
 def generate_certs(_path,_passphrase=None):
-  _key = crypto.PKey()
-  _key.generate_key(crypto.TYPE_RSA,key_size)
-  privkey=None
+  genproc=None
   if _passphrase==None:
-    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key)
+    genproc=Popen(["openssl", "req", "-x509", "-nodes", "-newkey", "rsa:"+str(key_size), "-keyout",_path+".priv", "-out",_path+".pub"],stdin=PIPE,stdout=PIPE, stderr=PIPE,universal_newlines=True)
+    _answer=genproc.communicate("IA\n\n\n\nscn.nodes\n\nsecure communication nodes\n")
   else:
-    #TODO: expose cipher choice
-    privkey=crypto.dump_privatekey(crypto.FILETYPE_PEM,_key,"CAMELLIA256",_passphrase)
-#don't forget similar section in check_certs if updated
-  _cert = crypto.X509()
-  _cert.set_serial_number(0)
-  #_cert.gmtime_adj_notBefore(notBefore)
-  #_cert.gmtime_adj_notAfter(notAfter)
-#  _cert.set_issuer("scn")
-#  _cert.set_subject("scn_cert")
-  _cert.set_version(0)
-  _cert.add_extensions([
-  crypto.X509Extension("basicConstraints", True, "CA:TRUE, pathlen:0"),
-  crypto.X509Extension("keyUsage", True, "keyCertSign, cRLSign"),
-  crypto.X509Extension("subjectKeyIdentifier", False, "hash", subject=_cert), ])
-  _cert.add_extensions([
-  crypto.X509Extension("authorityKeyIdentifier", False, "keyid:always",issuer=_cert)
-  ])
+    genproc=Popen(["openssl", "req", "-x509", "-aes256", "-newkey", "rsa:"+str(key_size),"-keyout",_path+".priv", "-out",_path+".pub"], stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    _answer=genproc.communicate(_passphrase.strip("\n")+"\n"+_passphrase.strip("\n")+"\nIA\n\n\n\nscn.nodes\n\nsecure communication nodes\n")
 
-
-  _cert.set_pubkey(_key)
-  #TODO: expose hash choice
-  _cert.sign(_key, "sha256")
-  with open(_path+".priv", 'wb') as writeout:
-    writeout.write(privkey)
-    os.chmod(_path+".priv",0o700)
-  with open(_path+".pub", 'wb') as writeout:
-    writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
-
+  #printdebug(_answer[0])
+  printerror(_answer[1])
 
 def check_certs(_path,_passphrase=None):
-  if os.path.exists(_path+".priv")==False:
+  if os.path.exists(_path+".priv")==False or os.path.exists(_path+".pub")==False:
     return False
-  if os.path.exists(_path+".pub")==False:
-    printdebug("Publiccert doesn't exist. Generate new")
-    success=False
-    with open(_path+".priv", 'r') as readin:
-      if _passphrase==None:
-        _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read())
-      else:
-        _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read(),_passphrase)
-      _cert = crypto.X509()
-      _cert.set_serial_number(0)
-      #_cert.gmtime_adj_notBefore(notBefore)
-      #_cert.gmtime_adj_notAfter(notAfter)
-      #_cert.set_issuer("")
-      #_cert.set_subject("")
-      _cert.set_pubkey(_key)
-      with open(_path+".pub", 'wb') as writeout:
-        writeout.write(crypto.dump_certificate(crypto.FILETYPE_PEM,_cert))
-        success=True
-    return success
-  return True
+  _key=None
+  with open(_path+".priv", 'r') as readin:
+    if _passphrase==None:
+      _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read())
+    else:
+      _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read(),_passphrase)
+  if _key==None:
+    return False
 
-
-
-
+  if os.path.exists(_path+".pub")==True:
+    is_ok=False
+    with open(_path+".pub", 'r') as readin:
+      try:
+        _c=SSL.Context(SSL.TLSv1_2_METHOD)
+        _c.use_privatekey(_key)
+        _c.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,readin.read()))
+        _c.check_privatekey()
+        is_ok=True
+      except Exception as e:
+        printerror(e)
+    if is_ok==True:
+      return True
+  return False
 
 def init_config_folder(_dir):
   if os.path.exists(_dir)==False:
@@ -224,9 +206,7 @@ def init_config_folder(_dir):
     os.chmod(_dir,0o700)
     
   
-  
 
-  
 
 #service_types:
 #  "admin": special service, not disclosed

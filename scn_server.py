@@ -245,6 +245,7 @@ class scn_server(scn_base_server):
   is_active=True
   priv_cert=None
   pub_cert=None
+  server_context=None
   config_path=""
   actions={"register_name":scn_base_server.register_name,"delete_name":scn_base_server.delete_name,"update_cert":scn_base_server.update_cert,"update_message": scn_base_server.update_message,"update_service": scn_base_server.update_service,"delete_service":scn_base_server.delete_service,"get_service_secrethash": scn_base_server.get_service_secrethash,"serve": scn_base_server.serve_service,"unserve": scn_base_server.unserve_service,"update_secret": scn_base_server.update_secret,"use_special_service_auth": scn_base_server.use_special_service_auth,"use_special_service_unauth":scn_base_server.use_special_service_unauth,"get_name_message":scn_base_server.get_name_message,"get_name_cert":scn_base_server.get_name_cert,"get_server_cert":scn_base_server.get_server_cert,"info":scn_base_server.info}
 
@@ -257,9 +258,9 @@ class scn_server(scn_base_server):
     self.config_path=_config_path
     init_config_folder(self.config_path)
     if check_certs(self.config_path+"scn_server_cert")==False:
-      printdebug("private key not found. Generate new...")
+      printdebug("Certificate(s) not found. Generate new...")
       generate_certs(self.config_path+"scn_server_cert")
-      printdebug("Finished")
+      printdebug("Certificate generation complete")
     with open(self.config_path+"scn_server_cert"+".priv", 'rt') as readinprivkey:
       self.priv_cert=readinprivkey.read()
     with open(self.config_path+"scn_server_cert"+".pub", 'rt') as readinpubkey:
@@ -267,6 +268,12 @@ class scn_server(scn_base_server):
     self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
     self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
     self.special_services_unauth={"test":self.info ,"callback":self.callback}
+
+    """self.server_context = SSL.Context(SSL.TLSv1_2_METHOD)
+    #tserver_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    #server_context.set_cipher_list("HIGH")
+    self.server_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.priv_cert))
+    self.server_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.pub_cert))"""
     printdebug("Server init finished")
 
   def callback(self,_socket,_name,_store_name):
@@ -310,52 +317,103 @@ or self.scn_names.contains(_store_name)==False:
 
 class scn_server_handler(socketserver.BaseRequestHandler):
   linkback=None
+  sec_socket=None
   def setup(self):
-    pass
+    print("construct request")
+    self.sec_socket=self.request
+
   def handle(self):
     print("handler begin")
-    self.request.settimeout(10)
+    self.sec_socket.settimeout(10)
+    while True:
+      try:
+        temp=scn_receive(self.sec_socket)
+        if temp==None:
+          scn_send("error"+sepc+"no input"+sepm,self.sec_socket)
+          break
+        elif temp[0] in self.linkback.actions:
+          try:
+            self.linkback.actions[temp[0]](self.linkback,self.sec_socket,*temp[1:])
+          except TypeError as e:
+            scn_send("error"+sepc+"invalid number args"+sepm,self.sec_socket)
+        else:
+          scn_send("error"+sepc+"no such function"+sepm,self.sec_socket)
+      except BrokenPipeError:
+        break
+      except Exception as e:
+        printdebug(e)
+        break
+    
+    print("handler end")
+  def finish(self):
+    """
     try:
-      temp=scn_receive(self.request)
-      if temp==None:
-        scn_send("error"+sepc+"no input"+sepm,self.request)
-      elif temp[0] in self.linkback.actions:
-        try:
-          self.linkback.actions[temp[0]](self.linkback,self.request,*temp[1:])
-        except TypeError as e:
-          scn_send("error"+sepc+"invalid number args"+sepm,self.request)
-      else:
-        scn_send("error"+sepc+"no such function"+sepm,self.request)
-    except BrokenPipeError:
-      pass
+      self.sec_socket.close()
     except Exception as e:
-      printdebug(e)
-      
+      printdebug(e)"""
+    print("deconstruct request")
+
+#from pyopenssl examples, public domain
+class SSLWrapper:
+    """
+    This whole class exists just to filter out a parameter
+    passed in to the shutdown() method in SimpleXMLRPC.doPOST()
+    """
+    def __init__(self, conn):
+        """
+        Connection is not yet a new-style class,
+        so I'm making a proxy instead of subclassing.
+        """
+        self.__dict__["conn"] = conn
+    def __getattr__(self,name):
+        return getattr(self.__dict__["conn"], name)
+    def __setattr__(self,name, value):
+        setattr(self.__dict__["conn"], name, value)
+    def shutdown(self, how=1):
+        """
+        SimpleXMLRpcServer.doPOST calls shutdown(1),
+        and Connection.shutdown() doesn't take
+        an argument. So we just discard the argument.
+        """
+        self.__dict__["conn"].shutdown()
+    def accept(self):
+        """
+        This is the other part of the shutdown() workaround.
+        Since servers create new sockets, we have to infect
+        them with our magic. :)
+        """
+        c, a = self.__dict__["conn"].accept()
+        return (SSLWrapper(c), a)
+
+import socket
 
 #socketserver.ThreadingMixIn, 
 class scn_sock_server(socketserver.TCPServer):
   linkback=None
   def __init__(self, server_address, HandlerClass,_linkback):
-    socketserver.TCPServer.__init__(self, server_address, HandlerClass)
+    socketserver.BaseServer.__init__(self, server_address, HandlerClass)
     self.linkback=_linkback
 
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
     temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
-    #certs broken
-    #temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
-    self.socket = SSL.Connection(temp_context,self.socket)
-    self.socket.set_accept_state()
+    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
+    self.socket = SSLWrapper(SSL.Connection(temp_context,socket.socket(self.address_family, self.socket_type)))
+    #self.socket.set_accept_state()
+    self.server_bind()
+    self.server_activate()
+
+"""
   def shutdown_request(self, request):
-    """Called to shutdown and close an individual request."""
     try:
       #explicitly shutdown.  socket.close() merely releases
       #the socket and waits for GC to perform the actual close.
       request.shutdown()
     except OSError:
       pass #some platforms may raise ENOTCONN here
-    self.close_request(request)
+    self.close_request(request)"""
+
 
 server=None
 
@@ -382,4 +440,4 @@ if __name__ == "__main__":
   #rec_pre.handle_actions()  
   #server.handle_request()
   server.serve_forever()
-  printdebug("Server started")
+  printdebug("Server closed")
