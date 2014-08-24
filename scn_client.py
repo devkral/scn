@@ -222,10 +222,11 @@ class scn_client(scn_base_client):
 
     temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #tempsocket.settimeout(10)
+#don't use settimeout, pyopenssl error
     tempsocket = SSL.Connection(temp_context,tempsocket)
     #connect with ssl handshake
     tempsocket.connect((tempdata[0],int(tempdata[1])))
+    tempsocket.do_handshake()
     return tempsocket
   
   def connect_to_ip(self,_url):
@@ -237,19 +238,11 @@ class scn_client(scn_base_client):
     temp_context.set_cipher_list("HIGH")
 
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #tempsocket.settimeout(10)
-    printdebug("Success setup socket")
+#don't use settimeout, pyopenssl error
     tempsocket = SSL.Connection(temp_context,tempsocket)
     #connect with ssl handshake
-    print((tempdata[0],int(tempdata[1])))
-    try:
-      tempsocket.connect((tempdata[0],int(tempdata[1])))
-      tempsocket.do_handshake()
-    except Exception as e:
-      printerror("Connection failed")
-      printerror(tempsocket.state_string())
-      raise(e)
-      #printdebug(tempsocket.state_string())
+    tempsocket.connect((tempdata[0],int(tempdata[1])))
+    tempsocket.do_handshake()
     return tempsocket
 
   def update_service(self,_servername,_name,_service,_secrethashstring):
@@ -425,18 +418,12 @@ class scn_client(scn_base_client):
     return _server_response
 
   def update_node(self,_servername,_url):
-    printdebug("Success do something")
     _socket=self.connect_to_ip(_url)
-    printdebug("Success connect")
     scn_send("info"+sepm,_socket)
-    printdebug("Success send")
     _server_response=scn_receive(_socket)
-    printdebug("Success receive 1")
-    #_server_cert=_socket.getpeercert()
     scn_send("get_server_cert"+sepm,_socket)
     _server_response2=scn_receive(_socket)
     scn_socket_close(_socket)
-    printdebug("Success communication")
     if _server_response[0]=="success" and _server_response2[0]=="success" and self.scn_servs.update_node(_servername,_url,_server_response[2],_server_response2[1])==True:
       return ["success",]
     else:
