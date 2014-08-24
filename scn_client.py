@@ -222,7 +222,7 @@ class scn_client(scn_base_client):
 
     temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tempsocket.settimeout(10)
+    #tempsocket.settimeout(10)
     tempsocket = SSL.Connection(temp_context,tempsocket)
     #connect with ssl handshake
     tempsocket.connect((tempdata[0],int(tempdata[1])))
@@ -237,7 +237,7 @@ class scn_client(scn_base_client):
     temp_context.set_cipher_list("HIGH")
 
     tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tempsocket.settimeout(10)
+    #tempsocket.settimeout(10)
     printdebug("Success setup socket")
     tempsocket = SSL.Connection(temp_context,tempsocket)
     #connect with ssl handshake

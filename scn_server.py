@@ -324,7 +324,7 @@ class scn_server_handler(socketserver.BaseRequestHandler):
 
   def handle(self):
     print("handler begin")
-    self.sec_socket.settimeout(10)
+    #self.sec_socket.settimeout(10)
     while True:
       try:
         temp=scn_receive(self.sec_socket)
@@ -353,38 +353,6 @@ class scn_server_handler(socketserver.BaseRequestHandler):
       printdebug(e)"""
     print("deconstruct request")
 
-#from pyopenssl examples, public domain
-class SSLWrapper:
-    """
-    This whole class exists just to filter out a parameter
-    passed in to the shutdown() method in SimpleXMLRPC.doPOST()
-    """
-    def __init__(self, conn):
-        """
-        Connection is not yet a new-style class,
-        so I'm making a proxy instead of subclassing.
-        """
-        self.__dict__["conn"] = conn
-    def __getattr__(self,name):
-        return getattr(self.__dict__["conn"], name)
-    def __setattr__(self,name, value):
-        setattr(self.__dict__["conn"], name, value)
-    def shutdown(self, how=1):
-        """
-        SimpleXMLRpcServer.doPOST calls shutdown(1),
-        and Connection.shutdown() doesn't take
-        an argument. So we just discard the argument.
-        """
-        self.__dict__["conn"].shutdown()
-    def accept(self):
-        """
-        This is the other part of the shutdown() workaround.
-        Since servers create new sockets, we have to infect
-        them with our magic. :)
-        """
-        c, a = self.__dict__["conn"].accept()
-        return (SSLWrapper(c), a)
-
 import socket
 
 #socketserver.ThreadingMixIn, 
@@ -399,12 +367,12 @@ class scn_sock_server(socketserver.TCPServer):
     temp_context.set_cipher_list("HIGH")
     temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
     temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
-    self.socket = SSLWrapper(SSL.Connection(temp_context,socket.socket(self.address_family, self.socket_type)))
+    self.socket = SSL.Connection(temp_context,socket.socket(self.address_family, self.socket_type))
     #self.socket.set_accept_state()
     self.server_bind()
     self.server_activate()
 
-"""
+
   def shutdown_request(self, request):
     try:
       #explicitly shutdown.  socket.close() merely releases
@@ -412,7 +380,7 @@ class scn_sock_server(socketserver.TCPServer):
       request.shutdown()
     except OSError:
       pass #some platforms may raise ENOTCONN here
-    self.close_request(request)"""
+    self.close_request(request)
 
 
 server=None
