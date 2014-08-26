@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 #import hashlib
 import sys
-import os
+#import os
 #import threading
 import time
 import sqlite3
@@ -12,9 +12,9 @@ import socketserver
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
-from scn_base import scn_base_client, scn_send, scn_receive, printdebug, printerror, scn_send_bytes, scn_socket_close, init_config_folder, check_certs, generate_certs
+from scn_base import scn_base_client, scn_socket, printdebug, printerror, scn_check_return,init_config_folder, check_certs, generate_certs
 #,scn_check_return
-from scn_config import scn_client_port, secret_size, client_show_incomming_commands, default_config_folder, scn_server_port
+from scn_config import scn_client_port, client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max
 
 
 #scn_servs: _servicename: _server,version,_name:secret
@@ -213,218 +213,78 @@ class scn_client(scn_base_client):
     self.scn_servs=scn_servs_sql(self.config_path+"scn_client_db")
 #priv
   def connect_to(self,_servername):
-    tempdata=self.scn_servs.get_node(_servername)[0].split(sepu)
-    if len(tempdata)==1:
-      tempdata+=[scn_server_port,]
+    tempdata=self.scn_servs.get_node(_servername)
+    tempconnectdata=tempdata[0].split(sepu)
+    if len(tempconnectdata)==1:
+      tempconnectdata+=[scn_server_port,]
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
-    #temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    #temp_context.set_cipher_list("HIGH")
-
+    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    temp_context.set_cipher_list("HIGH")
+    print(tempdata[2])
     temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[2]))
-    tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#don't use settimeout, pyopenssl error
-    tempsocket = SSL.Connection(temp_context,tempsocket)
-    #connect with ssl handshake
-    tempsocket.connect((tempdata[0],int(tempdata[1])))
-    tempsocket.do_handshake()
+    for count in range(0,3):
+      tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      #don't use settimeout, pyopenssl error
+      tempsocket = SSL.Connection(temp_context,tempsocket)
+      try:
+        #connect with ssl handshake
+        tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
+        tempsocket.do_handshake()
+        break
+      except Exception as e:
+        if count<2:
+          printdebug(e)
+        else:
+          raise(e)
     return tempsocket
   
   def connect_to_ip(self,_url):
-    tempdata=_url.split(sepu)
-    if len(tempdata)==1:
-      tempdata+=[scn_server_port,]
+    tempconnectdata=_url.split(sepu)
+    if len(tempconnectdata)==1:
+      tempconnectdata+=[scn_server_port,]
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
 
-    tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#don't use settimeout, pyopenssl error
-    tempsocket = SSL.Connection(temp_context,tempsocket)
-    #connect with ssl handshake
-    tempsocket.connect((tempdata[0],int(tempdata[1])))
-    tempsocket.do_handshake()
+    for count in range(0,3):
+      tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      #don't use settimeout, pyopenssl error
+      tempsocket = SSL.Connection(temp_context,tempsocket)
+      try:
+        #connect with ssl handshake
+        tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
+        tempsocket.do_handshake()
+        break
+      except Exception as e:
+        if count<2:
+          printdebug(e)
+        else:
+          raise(e)
     return tempsocket
 
-  def update_service(self,_servername,_name,_service,_secrethashstring):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
-    scn_send("update_service"+sepc+_name+sepc+_service,_socket)
-    scn_send_bytes(temp[3],_socket)
-    scn_send_bytes(_secrethashstring,_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
+  def update_node(self,_url,_servername=None):
+    _socket=scn_socket(self.connect_to_ip(_url))
+    _socket.send("info"+sepm)
+    if scn_check_return(_socket) == False:
+      _socket.close()
+      return
+    if _servername == None:
+      _servername=_socket.receive_one()
+    else:
+      _socket.receive_one()
+    _version=_socket.receive_one()
+    _socket.receive_one()#_serversecretsize=
+    if _socket.is_end() == False:
+      printerror("is not end before executing second command")
+      _socket.close()
+      return
+    _socket.send("get_server_cert"+sepm)
+    if scn_check_return(_socket) == False:
+      _socket.close()
+      return
+    _cert=_socket.receive_bytes(0,max_cert_size)
   
-  def get_service_secrethash(self,_servername,_name,_service):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
-    scn_send("get_service_secrethash"+sepc+_name+sepc+_service,_socket)
-    scn_send_bytes(temp[3],_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-#pub
-  def register_name(self,_servername,_name):
-    _socket=self.connect_to(_servername)
-    _secret=os.urandom(secret_size)
-    scn_send("register_name"+sepc+_name+sepc,_socket)
-    scn_send_bytes(_secret,_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    if _server_response[0]=="success":
-      self.scn_servs.update_service(_servername,_name,"admin",_secret)
-    return _server_response
-  def delete_name(self,_servername,_name):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
-    scn_send("delete_name"+sepc+_name+sepc,_socket)
-    scn_send_bytes(temp[3],_socket,True)
-    _server_response=scn_receive(_socket)
-    if _server_response[0]=="success":
-      self.scn_servs.delete_name(_name)
-    scn_socket_close(_socket)
-    return _server_response
-  def update_name_cert(self,_servername,_name,_cert):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
-    scn_send("update_cert"+sepc+_name+sepc,_socket)
-    scn_send_bytes(temp[3],_socket)
-    scn_send_bytes(_cert,_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-  def update_name_message(self,_servername,_name,_message):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
-    scn_send("update_message"+sepc+_name+sepc,_socket)
-    scn_send_bytes(temp[3],_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-  def delete_service(self,_servername,_name,_service):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,_service)
-    scn_send("delete_service"+sepc+_name+sepc+_service+sepc,_socket)
-    scn_send_bytes(temp[3],_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-  
-  def serve_service_ip(self,_servername,_name,_service):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,_service)
-    scn_send("serve"+sepc+_name+sepc+_service+sepc,_socket)
-    scn_send_bytes(temp[3],_socket)
-    scn_send(scn_client_port+sepc+"ip"+sepm,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-  
-  def unserve_service(self,_servername,_name,_service):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,_service)
-    scn_send("unserve"+sepc+_name+sepc+_service+sepc,_socket)
-    scn_send_bytes(temp[3],_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-    #temp=self.scn_servs.get_(_servername,_name,_servicename)
-
-  def update_secret(self,_servername,_name,_service):
-    _secret=os.urandom(secret_size)
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,_service)
-    scn_send("update_secret"+sepc+_name+sepc+_service+sepc,_socket)
-    scn_send_bytes(temp[3],_socket)
-    scn_send_bytes(_secret,_socket,True)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    if _server_response[0]=="success":
-      self.scn_servs.update_service(_servername,_name,_service,_secret)
-    return _server_response
-  def use_special_service_auth(self,_servername,_name,_service,*args):
-    _socket=self.connect_to(_servername)
-    temp=self.scn_servs.get_service(_servername,_name,_service)
-    scn_send("use_special_service_auth"+sepc+_name+sepc+_service+sepc,_socket)
-    scn_send_bytes(temp[3],_socket)
-    is_bytes=False
-    is_end=False
-    for count in range(0,len(args)):
-      if count==len(args)-1:
-        is_end==True
-      if is_bytes==True:
-        scn_send_bytes(args[count],_socket,is_end)
-        is_bytes=False
-      elif args[count]=="bytes":
-        is_bytes=True
-      elif count==len(args)-1:
-        scn_send(args[count]+sepm,_socket)
-      else:
-        scn_send(args[count]+sepc,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-  def get_service(self,_servername,_name,_service):
-    _socket=self.connect_to(_servername)
-    scn_send("get_service"+sepc+_name+sepc+_service+sepm,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-  
-  def get_name_message(self,_servername,_name,_service):
-    _socket=self.connect_to(_servername)
-    scn_send("get_name_message"+sepc+_name+sepc+_service+sepm,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-  def get_name_cert(self,_servername,_name,_service):
-    _socket=self.connect_to(_servername)
-    scn_send("get_name_cert"+sepc+_name+sepc+_service+sepm,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-  def use_special_service_unauth(self,_servername,_name,_service,*args):
-    _socket=self.connect_to(_servername)
-    scn_send("use_special_service_unauth"+sepc+_name+sepc+_service+sepc,_socket)
-    is_bytes=False
-    is_end=False
-    for count in range(0,len(args)):
-      if count==len(args)-1:
-        is_end==True
-      if is_bytes==True:
-        scn_send_bytes(args[count],_socket,is_end)
-        is_bytes=False
-      elif args[count]=="bytes":
-        is_bytes=True
-      elif count==len(args)-1:
-        scn_send(args[count]+sepm,_socket)
-      else:
-        scn_send(args[count]+sepc,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-  def info(self,_servername):
-    _socket=self.connect_to(_servername)
-    scn_send("info"+sepm,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
-    return _server_response
-
-  def update_node(self,_servername,_url):
-    _socket=self.connect_to_ip(_url)
-    scn_send("info"+sepm,_socket)
-    _server_response=scn_receive(_socket)
-    scn_send("get_server_cert"+sepm,_socket)
-    _server_response2=scn_receive(_socket)
-    scn_socket_close(_socket)
-    if _server_response[0]=="success" and _server_response2[0]=="success" and self.scn_servs.update_node(_servername,_url,_server_response[2],_server_response2[1])==True:
+    if self.scn_servs.update_node(_servername,_url,_version,_cert)==True:
       return ["success",]
     else:
       return ["error","node update failed"]
@@ -445,13 +305,42 @@ class scn_client(scn_base_client):
 
   def call_command(self,_servername,command):
     _socket=self.connect_to(_servername)
-    scn_send(command+sepm,_socket)
-    _server_response=scn_receive(_socket)
-    scn_socket_close(_socket)
+    _socket.send(command)
+    _server_response = []
+    for protcount in range(0,protcount_max):
+      _server_response += [_socket.receive_one(100),]
+    _socket.close()
+    return _server_response
+    
+  
+  def serve_service_ip(self,_servername,_name,_service):
+    _socket=scn_socket(self.connect_to(_servername))
+    temp=self.scn_servs.get_service(_servername,_name,_service)
+    _socket.send("serve"+sepc+_name+sepc+_service+sepc)
+    _socket.send_bytes(temp[3])
+    _socket.send(scn_client_port+sepc+"ip"+sepm)
+    _server_response=scn_check_return(_socket)
+    _socket.close()
     return _server_response
 
-  clientactions={"register":register_name,"delname":delete_name,"updcert":update_name_cert,"updmessage": update_name_message,"updservice": update_service,"delservice":delete_service,"getservicehash": get_service_secrethash,"serveip": serve_service_ip,"unserve": unserve_service,"updsecret": update_secret,"use_auth": use_special_service_auth,"use_unauth":use_special_service_unauth,"getmessage":get_name_message,"getcert":get_name_cert,"info":info,"updserver": update_node, "delserver": delete_node,"getlist": get_node_list,"getnode":get_node}
-
+  clientactions={"register": scn_base_client.register_name, \
+                 "delname": scn_base_client.delete_name, \
+                 "updcert": scn_base_client.update_name_cert, \
+                 "updmessage": scn_base_client.update_name_message, \
+                 "updservice": scn_base_client.update_service, \
+                 "delservice": scn_base_client.delete_service, \
+                 "getservicehash": scn_base_client.get_service_secrethash, \
+                 "serveip": serve_service_ip, \
+                 "unserve": scn_base_client.unserve_service, \
+                 "updsecret": scn_base_client.update_secret, \
+                 "getmessage": scn_base_client.get_name_message, \
+                 "getcert": scn_base_client.get_name_cert, \
+                 "info": scn_base_client.info, \
+                 "updserver": update_node, \
+                 "delserver": delete_node, \
+                 "getlist": get_node_list, \
+                 "getnode":get_node}
+#,"use_auth": use_special_service_auth,"use_unauth":use_special_service_unauth
   def debug(self):
     while self.is_active==True:
       serveranswer=None
@@ -472,7 +361,8 @@ class scn_client(scn_base_client):
       else:
         try:
           if len(command)>1:
-            serveranswer = self.clientactions[command[0]](self,*command[1].split(sepc))
+            tempcom=command[1].split(sepc)
+            serveranswer = self.clientactions[command[0]](self,*tempcom)
           else:
             serveranswer = self.clientactions[command[0]](self)
         except TypeError as e:

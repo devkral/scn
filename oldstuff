@@ -1,3 +1,125 @@
+
+
+def scn_send(_string,_socket):
+  temp=bytes(_string,"utf-8")
+  start=0
+  while start < len(temp):
+    _socket.sendall(scn_format.pack(temp[start:start+buffersize]))
+    start+=buffersize
+  _socket.sendall(scn_format.pack(temp[start:start+buffersize-(len(temp)%buffersize)]))
+
+def scn_send_bytes(_byteseq,_socket,end=False):
+  len_byte_seq=len(_byteseq)
+  _socket.sendall(scn_format.pack(b"bytes"+bytes(sepc,"utf8")+bytes(str(len_byte_seq),"utf8")+bytes(sepc,"utf8")))
+  _socket.setblocking(True)
+  is_accepting=str(_socket.recv(buffersize),"utf8").replace("\0","").replace("\n","")
+  print(is_accepting)
+  if is_accepting=="y":
+    temp_format_bytes=struct.Struct(">"+str(buffersize+1)+"s")
+    if end==False:
+      _socket.sendall(temp_format_bytes.pack(_byteseq+bytes(sepc)))
+    else:
+      _socket.sendall(temp_format_bytes.pack(_byteseq+bytes(sepm)))
+    print("FInisisi")
+    #_socket.setblocking(False)
+    return True
+  else:
+    return False
+
+
+
+def scn_receive(_socket,max_ob_size=max_normal_size):
+  _buffer=""
+  temp=[]
+  for protcount in range(0,protcount_max):
+    #cleanup buffer
+    _buffer=_buffer.replace("\n","").replace("\0","")
+    #split buffer
+    if len(_buffer)>0:
+      if _buffer[-1]==sepc:
+        temp+=_buffer.split(sepc)[:-1]
+        _buffer=""
+      else:
+        #if sepm, buffer ends with sepm
+        temp+=_buffer.split(sepc)[:-1]
+        _buffer=_buffer.split(sepc)[-1]
+    #case bytewise transfer
+    print(_buffer)
+    print(temp)
+    if len(temp)>=2 and temp[-2]=="bytes":
+      print("byteiiii")
+      _socket.setblocking(True)
+      try:
+        _size=int(temp[-1])
+      except Exception as e:
+        printdebug("Bytesequence: Conversion into len (Int) failed")
+        printdebug(e)
+        try:
+          print("answered")
+          _socket.sendall(b"n")
+        except Exception:
+          pass
+        return None
+      try:
+        if _size<max_ob_size:
+          
+          print("answered")
+          _socket.sendall(b"y")
+          scn_format2=struct.Struct(">"+str(_size)+"s")
+          temp2=_socket.recv(_size)
+          #check if size fits
+          if len(temp2)==_size:
+            temp=temp[:-2]+[scn_format2.unpack(temp2)[0],]
+          else:
+            printerror("Bytesequence: Incorrect size")
+            printerror(temp2)
+            return None
+          #because ssl sockets support no peek
+          checkif_sepm=_socket.recv(buffersize)
+          if checkif_sepm==bytes(sepm):
+            return temp
+          elif checkif_sepm==bytes(sepc):
+            pass
+          else:
+            printdebug("Bytesequence: should be closed with either sepc or sepm")
+        else:
+          printdebug("Bytesequence: too big")
+          _socket.sendall(b"n")
+
+      except socket.timeout or SSL.WantReadError:
+        printerror("Bytesequence: Timeout or SSL.WantReadError")
+        return None
+      except Exception as e:
+        printerror("Bytesequence: error while receiving")
+        printerror(e)
+        return None
+      print("bytes over")
+    
+    if _buffer!="" and _buffer.find(sepm)!=-1:
+      break
+
+    try:
+      temp3=_socket.recv(buffersize)
+    except socket.timeout or SSL.WantReadError:
+      printdebug("Command: Timeout or SSL.WantReadError")
+      return None
+    except Exception as e:
+      printerror("Command: error while receiving")
+      printerror(e)
+      return None
+    
+    if len(temp3)==buffersize:
+      _buffer+=scn_format.unpack(temp3)[0].decode("utf-8")
+    else:
+      printerror("Main: Invalid size:"+str(len(temp3)))
+      printerror(temp3)
+      return None
+  temp+=[_buffer.split(sepm,1)[0],] #sepm should be end, if not don't care
+  return temp
+
+
+
+
 """
   printdebug("Publiccert doesn't exist. Generate new")
   success=False

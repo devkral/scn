@@ -2,15 +2,18 @@
 import os
 
 #max_client_receive_it=5
-max_user_services=10
-max_service_nodes=10
+max_user_services=10 #how many services can a user have
+max_service_nodes=10 #how many nodes can a service have
 min_name_length=6
-max_name_length=30
-max_normal_size=20000
-protcount_max=30
+max_name_length=15
+max_message_length=30
+max_cmd_size=30
+protcount_max=10 
 buffersize=512
-secret_size=512 #only relevant for client because server uses hash
+#hex_hashsize=64
+secret_size=512 #size of generated secret
 key_size=4096
+max_cert_size=10000
 default_config_folder=os.getenv("HOME")+os.sep+".scn"+os.sep
 
 debug_mode=True

@@ -9,7 +9,7 @@ import hashlib
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc,sepu
-from scn_base import scn_base_server,scn_send,scn_receive,printdebug,init_config_folder,check_certs,generate_certs
+from scn_base import scn_base_server,scn_socket,printdebug,init_config_folder,check_certs,generate_certs
 
 from scn_config import scn_server_port,default_config_folder,server_host
 
@@ -278,80 +278,73 @@ class scn_server(scn_base_server):
 
   def callback(self,_socket,_name,_store_name):
     if self.scn_names.contains(_name)==False:
-      scn_send("error"+sepc+"name not exists"+sepm,_socket)
+      _socket.send("error"+sepc+"name not exists"+sepm)
       return
     if _name not in self.callback:
       self.callback[_name]=[]
     self.callback[_name]+=[("ip",str(_socket.getpeername()[0])+sepu+str(_socket.getpeername()[1])),]
-    scn_send( "success"+sepm,_socket)
+    _socket.send( "success"+sepm)
   def tunnel_callback(self,_socket,_name,_store_name,_tunnelnumber):
     if self.scn_names.contains(_name)==False:
-      scn_send("error"+sepc+"name not exists"+sepm,_socket)
+      _socket.send("error"+sepc+"name not exists"+sepm)
       return
     if _name not in self.callback:
       self.callback[_name]=[]
     self.callback[_name]+=[("tunnel",_tunnelnumber),]
-    scn_send( "success"+sepm,_socket)
+    _socket.send("success"+sepm)
 
   def auth_callback(self,_socket,_name,_store_name,_secret):
     if self.scn_names.contains(_name)==False or \
  self.service_auth(_store_name,"callback",_secret)==False \
 or self.scn_names.contains(_store_name)==False:
-      scn_send("error"+sepc+"auth failed"+sepm,_socket)
+      _socket.send("error"+sepc+"auth failed"+sepm)
       return
     if _name not in self.callback:
       self.callback[_name]=[]
     self.callback[_name]+=[("name",_store_name),]
-    scn_send("success"+sepm,_socket)
+    _socket.send("success"+sepm)
     
   def retrieve_callback(self,_socket,_name,_secret):
     if self.scn_names.contains(_name)==False or self.service_auth(_name,"callback",_secret)==False:
-      scn_send("error"+sepc+"auth failed"+sepm,_socket)
+      _socket.send("error"+sepc+"auth failed"+sepm)
       return
     temp=""
     for elem in self.callback[_name]:
       temp+=sepc+elem[0]+sepu+elem[1]
-    scn_send("success"+temp+sepm,_socket)
+    _socket.send("success"+temp+sepm)
     return 
 
 
 class scn_server_handler(socketserver.BaseRequestHandler):
   linkback=None
-  sec_socket=None
-  def setup(self):
-    print("construct request")
-    self.sec_socket=self.request
 
   def handle(self):
     print("handler begin")
-    #self.sec_socket.settimeout(10)
+    sc=scn_socket(self.request)
     while True:
       try:
-        temp=scn_receive(self.sec_socket)
+        temp=sc.receive_one()
         if temp==None:
-          scn_send("error"+sepc+"no input"+sepm,self.sec_socket)
+          sc.send("error"+sepc+"no input"+sepm)
           break
-        elif temp[0] in self.linkback.actions:
-          try:
-            self.linkback.actions[temp[0]](self.linkback,self.sec_socket,*temp[1:])
-          except TypeError as e:
-            scn_send("error"+sepc+"invalid number args"+sepm,self.sec_socket)
+        elif temp in self.linkback.actions:
+          self.linkback.actions[temp](self.linkback,sc)
         else:
-          scn_send("error"+sepc+"no such function"+sepm,self.sec_socket)
+          sc.send("error"+sepc+"no such function"+sepm)
       except BrokenPipeError:
         break
-      except Exception as e:
-        printdebug(e)
-        break
+      #except Exception as e:
+      #  printdebug(e)
+      #  break
     
     print("handler end")
-  def finish(self):
+#  def finish(self):
     """
     try:
       self.sec_socket.close()
     except Exception as e:
       printdebug(e)"""
-    print("deconstruct request")
+#    print("deconstruct request")
 
 import socket
 
