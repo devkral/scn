@@ -244,8 +244,6 @@ values(?,admin,'init',0,'','',?)''', (_name,hashlib.sha256(bytes(_secret)).hexdi
 
 class scn_server(scn_base_server):
   is_active=True
-  priv_cert=None
-  pub_cert=None
   server_context=None
   config_path=""
   actions={"register_name":scn_base_server.register_name,"delete_name":scn_base_server.delete_name,"update_cert":scn_base_server.update_cert,"update_message": scn_base_server.update_message,"update_service": scn_base_server.update_service,"delete_service":scn_base_server.delete_service,"get_service_secrethash": scn_base_server.get_service_secrethash,"serve": scn_base_server.serve_service,"unserve": scn_base_server.unserve_service,"update_secret": scn_base_server.update_secret,"use_special_service_auth": scn_base_server.use_special_service_auth,"use_special_service_unauth":scn_base_server.use_special_service_unauth,"get_name_message":scn_base_server.get_name_message,"get_name_cert":scn_base_server.get_name_cert,"get_server_cert":scn_base_server.get_server_cert,"info":scn_base_server.info}
@@ -262,19 +260,14 @@ class scn_server(scn_base_server):
       printdebug("Certificate(s) not found. Generate new...")
       generate_certs(self.config_path+"scn_server_cert")
       printdebug("Certificate generation complete")
-    with open(self.config_path+"scn_server_cert"+".priv", 'rt') as readinprivkey:
+    with open(self.config_path+"scn_server_cert"+".priv", 'rb') as readinprivkey:
       self.priv_cert=readinprivkey.read()
-    with open(self.config_path+"scn_server_cert"+".pub", 'rt') as readinpubkey:
+    with open(self.config_path+"scn_server_cert"+".pub", 'rb') as readinpubkey:
       self.pub_cert=readinpubkey.read()
     self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
     self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
     self.special_services_unauth={"test":self.info ,"callback":self.callback}
 
-    """self.server_context = SSL.Context(SSL.TLSv1_2_METHOD)
-    #tserver_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    #server_context.set_cipher_list("HIGH")
-    self.server_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.priv_cert))
-    self.server_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.pub_cert))"""
     printdebug("Server init finished")
 
   def callback(self,_socket,_name,_store_name):
@@ -320,7 +313,6 @@ class scn_server_handler(socketserver.BaseRequestHandler):
   linkback=None
 
   def handle(self):
-    print("handler begin")
     self.request.setblocking(True)
     sc=scn_socket(self.request)
     while True:
@@ -332,18 +324,12 @@ class scn_server_handler(socketserver.BaseRequestHandler):
         elif temp in self.linkback.actions:
           self.linkback.actions[temp](self.linkback,sc)
         else:
-          sc.send("error"+sepc+"no such function"+sepm)
+          sc.send("error"+sepc+temp+": no such function"+sepm)
       except BrokenPipeError:
         break
       except Exception as e:
         printdebug(e)
         break
-    
-    print("handler end")
-#  def finish(self):
-    
-#    print("deconstruct request")
-
 
 #socketserver.ThreadingMixIn, 
 class scn_sock_server(socketserver.TCPServer):
@@ -371,6 +357,7 @@ class scn_sock_server(socketserver.TCPServer):
     except OSError:
       pass #some platforms may raise ENOTCONN here
     except Exception as e:
+      printerror("Exception while shutdown")
       printerror(e)
     self.close_request(request)
 

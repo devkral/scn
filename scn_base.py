@@ -60,7 +60,7 @@ def printerror(string):
   if show_error_mode==True:
     print(string,file=sys.stderr)
 
-scn_format=struct.Struct(">"+str(buffersize)+"s")
+
 
 
 def scn_check_return(_socket):
@@ -74,12 +74,21 @@ def scn_check_return(_socket):
     return False
 
 class scnRejectException(Exception):
-  pass
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
 
 class scnNoByteseq(Exception):
-  pass
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
 class scnReceiveError(Exception):
-  pass
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
 
 
 #a socket wrapper maybe used in future
@@ -96,11 +105,9 @@ class scn_socket(object):
       self.is_end_state=True
       self._buffer=""
       if len(temp[0][:-1])<minlength:
-        printdebug("Command too short")
-        raise(scnReceiveError)
+        raise(scnReceiveError("Command too short"))
       if len(temp[0][:-1])>maxlength:
-        printdebug("Command too long")
-        raise(scnReceiveError)
+        raise(scnReceiveError("Command too long"))
       return temp[0][:-1]
     #  printdebug("seperator not found")
     #  return None
@@ -109,26 +116,33 @@ class scn_socket(object):
     else:
       self._buffer=""
     if len(temp[0])<minlength:
-      printdebug("Command too short")
-      raise(scnReceiveError)
+      raise(scnReceiveError("Command too short"))
     if len(temp[0])>maxlength:
-      printdebug("Command too long")
-      raise(scnReceiveError)
+      raise(scnReceiveError("Command too long"))
     else:
       return temp[0]
   def load_socket(self):
-    print("loadsocket")
     temp=None
     try:
-      temp1=self._socket.recv(buffersize)
-      temp=scn_format.unpack(temp1)[0].decode("utf-8").replace("\n","").replace("\0","")
+      #cleanup stub data. No problem because "" must be in form ""sepc
+      for protcount in range(0,protcount_max):
+        temp1=self._socket.recv(buffersize)
+        tmp_scn_format=struct.Struct(">"+str(len(temp1))+"s")
+        temp=tmp_scn_format.unpack(temp1)[0].decode("utf-8").replace("\n","").replace("\0","")
+        if temp!="":
+          break
     except BrokenPipeError:
       printdebug("Command: BrokenPipe") 
-    except socket.timeout or SSL.WantReadError:
+      temp=None
+    except (socket.timeout, SSL.WantReadError):
       printdebug("Command: Timeout or SSL.WantReadError")
+    #except (socket.ECONNRESET, socket.EPIPE):
+    #  pass
+      temp=None
     except Exception as e:
       printerror("Command: error while receiving")
       printerror(e)
+      temp=None
     return temp
 
   def is_end(self):
@@ -151,57 +165,61 @@ class scn_socket(object):
     else:
       temp2=self.load_socket()
       if temp2==None:
-        return None
+        raise(scnReceiveError)
       self._buffer+=temp2
       return self.decode_command(minlength,maxlength)
 
   #if no max size is specified, take _minsize as min max
   def receive_bytes(self,min_size,max_size=None):
     if self.receive_one()!="bytes":
-      printerror("No byte sequence")
-      raise(scnNoByteseq)
+      raise(scnNoByteseq("No byte sequence"))
     try:
       _request_size=int(self.receive_one())
     except Exception as e:
       printerror("Bytesequence: Conversion into len (Int) failed")
       printerror(e)
       self.send("error"+sepc+"int conversion"+sepm)
-      raise(scnNoByteseq)
-    if max_size==None and _request_size==min_size:
+      raise(scnNoByteseq("int convert"))
+    if max_size==None and _request_size==min_size+1: #for sepc/sepm
       self.send("success"+sepm)
-    elif max_size>=_request_size and _request_size<=min_size:
+    elif min_size<=_request_size and _request_size<=max_size+1: #for sepc/sepm
       self.send("success"+sepm)
     else:
+      printdebug(str(min_size)+","+str(max_size)+" ("+str(_request_size)+")")
       self.send("error"+sepc+"size"+sepm)
-      raise(scnNoByteseq)
+      raise(scnNoByteseq("size"))
     scn_format2=struct.Struct(">"+str(_request_size)+"s")
-    temp2=self._socket.recv(_request_size)
-    return scn_format2.unpack(temp2)[0]
+    temp=self._socket.recv(_request_size)
+    temp=scn_format2.unpack(temp[0:_request_size])[0]
+    if temp[-1]==sepm:
+      self.is_end_state=True
+    return temp[0:-1]
   def send(self,_string):
     temp=bytes(_string,"utf-8")
-    start=0
-    while start < len(temp):
-      self._socket.sendall(scn_format.pack(temp[start:start+buffersize]))
-      start+=buffersize
-    self._socket.sendall(scn_format.pack(temp[start:start+buffersize-(len(temp)%buffersize)]))
+    tmp_scn_format=struct.Struct(">"+str(len(temp))+"s")
+    temp=tmp_scn_format.pack(temp)
+    self._socket.sendall(temp)
+
   def send_bytes(self,_byteseq,end=False):
+    if end==True:
+      _byteseq+=bytes(sepm,"utf8")
+    else:
+      _byteseq+=bytes(sepc,"utf8")
+    tmp_scn_format=struct.Struct(">"+str(len(_byteseq))+"s")
+    _byteseq=tmp_scn_format.pack(_byteseq)
+    len_byte_seq=len(_byteseq)
     try:
-      len_byte_seq=len(_byteseq)
       self.send("bytes"+sepc+str(len_byte_seq)+sepc)
       is_accepting=self.receive_one()
       if is_accepting=="success":
-        if end==True:
-          _byteseq+=bytes(sepm)
-        else:
-          _byteseq+=bytes(sepc)
-        start=0
-        while start < len(_byteseq):
-          self._socket.sendall(scn_format.pack(_byteseq[start:start+buffersize]))
-          start+=buffersize
-        self._socket.sendall(scn_format.pack(_byteseq[start:start+buffersize-(len(_byteseq)%buffersize)]))
+        self._socket.sendall(tmp_scn_format.pack(_byteseq))
       else:
-        printdebug(is_accepting)
-        raise(scnRejectException)
+        eerrtemp=is_accepting
+        for protcount in range(0,protcount_max):
+          if self.is_end()==True:
+            break
+          eerrtemp+=","+self.receive_one()
+        raise(scnRejectException("reject:"+eerrtemp))
     except BrokenPipeError as e:
       printdebug("Bytesequence: BrokenPipe")
       raise(e)
@@ -420,8 +438,6 @@ class scn_base_server(object):
     for elem in self.scn_names.get(_name).get(_service):
       temp+=sepc+str(elem[0])+sepu+str(elem[3])
     _socket.send("success"+temp+sepm)
-
-
 
 #normal
 

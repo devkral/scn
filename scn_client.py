@@ -205,9 +205,9 @@ class scn_client(scn_base_client):
     if check_certs(self.config_path+"scn_client_cert")==False:
       printdebug("private key not found. Generate new...")
       generate_certs(self.config_path+"scn_client_cert")
-    with open(self.config_path+"scn_client_cert"+".priv", 'r') as readinprivkey:
+    with open(self.config_path+"scn_client_cert"+".priv", 'rb') as readinprivkey:
       self.priv_cert=readinprivkey.read()
-    with open(self.config_path+"scn_client_cert"+".pub", 'r') as readinpubkey:
+    with open(self.config_path+"scn_client_cert"+".pub", 'rb') as readinpubkey:
       self.pub_cert=readinpubkey.read()
 
     self.scn_servs=scn_servs_sql(self.config_path+"scn_client_db")
@@ -280,11 +280,14 @@ class scn_client(scn_base_client):
       printerror("is not end before executing second command")
       _socket.close()
       return
-#    _socket.send("get_server_cert"+sepm)
-#    if scn_check_return(_socket) == False:
-#      _socket.close()
-#      return
-    _cert=None #_socket.receive_bytes(0,max_cert_size)
+    else:
+      print("go to second")
+    _socket.send("get_server_cert"+sepm)
+    if scn_check_return(_socket) == False:
+      print("stay cold")
+      _socket.close()
+      return
+    _cert=_socket.receive_bytes(0,max_cert_size)
   
     if self.scn_servs.update_node(_servername,_url,_version,_cert)==True:
       return ["success",]
@@ -305,9 +308,9 @@ class scn_client(scn_base_client):
     return ["success",temp[0],temp[1],temp[2]]
 
 
-  def call_command(self,_servername,command):
+  def call_command(self,_servername,_command):
     _socket=self.connect_to(_servername)
-    _socket.send(command)
+    _socket.send(_command)
     _server_response = []
     for protcount in range(0,protcount_max):
       _server_response += [_socket.receive_one(100),]
@@ -359,8 +362,8 @@ class scn_client(scn_base_client):
           printdebug(e)
 
       elif command[0] not in self.clientactions:
-        #print(command)
-        printerror("No such function")
+        print(command)
+        printerror("No such function client")
       else:
         try:
           if len(command)>1:
