@@ -4,12 +4,13 @@ import sqlite3
 import signal
 import sys
 import socketserver
+import socket
 import hashlib
 
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc,sepu
-from scn_base import scn_base_server,scn_socket,printdebug,init_config_folder,check_certs,generate_certs
+from scn_base import scn_base_server,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs
 
 from scn_config import scn_server_port,default_config_folder,server_host
 
@@ -320,6 +321,7 @@ class scn_server_handler(socketserver.BaseRequestHandler):
 
   def handle(self):
     print("handler begin")
+    self.request.setblocking(True)
     sc=scn_socket(self.request)
     while True:
       try:
@@ -333,20 +335,15 @@ class scn_server_handler(socketserver.BaseRequestHandler):
           sc.send("error"+sepc+"no such function"+sepm)
       except BrokenPipeError:
         break
-      #except Exception as e:
-      #  printdebug(e)
-      #  break
+      except Exception as e:
+        printdebug(e)
+        break
     
     print("handler end")
 #  def finish(self):
-    """
-    try:
-      self.sec_socket.close()
-    except Exception as e:
-      printdebug(e)"""
+    
 #    print("deconstruct request")
 
-import socket
 
 #socketserver.ThreadingMixIn, 
 class scn_sock_server(socketserver.TCPServer):
@@ -373,8 +370,15 @@ class scn_sock_server(socketserver.TCPServer):
       request.shutdown()
     except OSError:
       pass #some platforms may raise ENOTCONN here
+    except Exception as e:
+      printerror(e)
     self.close_request(request)
 
+  def close_request(self,request):
+    try:
+      request.close()
+    except Exception as e:
+      printerror(e)
 
 server=None
 

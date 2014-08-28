@@ -73,6 +73,14 @@ def scn_check_return(_socket):
       printerror(_socket.receive_one())
     return False
 
+class scnRejectException(Exception):
+  pass
+
+class scnNoByteseq(Exception):
+  pass
+class scnReceiveError(Exception):
+  pass
+
 
 #a socket wrapper maybe used in future
 class scn_socket(object):
@@ -89,10 +97,10 @@ class scn_socket(object):
       self._buffer=""
       if len(temp[0][:-1])<minlength:
         printdebug("Command too short")
-        return None
+        raise(scnReceiveError)
       if len(temp[0][:-1])>maxlength:
         printdebug("Command too long")
-        return None
+        raise(scnReceiveError)
       return temp[0][:-1]
     #  printdebug("seperator not found")
     #  return None
@@ -102,18 +110,20 @@ class scn_socket(object):
       self._buffer=""
     if len(temp[0])<minlength:
       printdebug("Command too short")
-      return None
+      raise(scnReceiveError)
     if len(temp[0])>maxlength:
       printdebug("Command too long")
-      return None
+      raise(scnReceiveError)
     else:
       return temp[0]
   def load_socket(self):
+    print("loadsocket")
     temp=None
     try:
       temp1=self._socket.recv(buffersize)
       temp=scn_format.unpack(temp1)[0].decode("utf-8").replace("\n","").replace("\0","")
-        
+    except BrokenPipeError:
+      printdebug("Command: BrokenPipe") 
     except socket.timeout or SSL.WantReadError:
       printdebug("Command: Timeout or SSL.WantReadError")
     except Exception as e:
@@ -124,6 +134,7 @@ class scn_socket(object):
   def is_end(self):
     return self.is_end_state
   # 1 arg: set maxlength, 2 args: set minlength, maxlength
+  
   def receive_one(self,minlength=max_cmd_size,maxlength=None):
     self.is_end_state=False
     if maxlength==None:
@@ -134,7 +145,7 @@ class scn_socket(object):
     elif self._buffer==sepm or self._buffer==sepc:
       temp2=self.load_socket()
       if temp2==None:
-        return None
+        raise(scnReceiveError)
       self._buffer=temp2
       return self.decode_command(minlength,maxlength)
     else:
@@ -148,21 +159,21 @@ class scn_socket(object):
   def receive_bytes(self,min_size,max_size=None):
     if self.receive_one()!="bytes":
       printerror("No byte sequence")
-      return None
+      raise(scnNoByteseq)
     try:
       _request_size=int(self.receive_one())
     except Exception as e:
       printerror("Bytesequence: Conversion into len (Int) failed")
       printerror(e)
       self.send("error"+sepc+"int conversion"+sepm)
-      return None
+      raise(scnNoByteseq)
     if max_size==None and _request_size==min_size:
       self.send("success"+sepm)
     elif max_size>=_request_size and _request_size<=min_size:
       self.send("success"+sepm)
     else:
       self.send("error"+sepc+"size"+sepm)
-      return None
+      raise(scnNoByteseq)
     scn_format2=struct.Struct(">"+str(_request_size)+"s")
     temp2=self._socket.recv(_request_size)
     return scn_format2.unpack(temp2)[0]
@@ -188,13 +199,12 @@ class scn_socket(object):
           self._socket.sendall(scn_format.pack(_byteseq[start:start+buffersize]))
           start+=buffersize
         self._socket.sendall(scn_format.pack(_byteseq[start:start+buffersize-(len(_byteseq)%buffersize)]))
-        return True
       else:
-        return False
-    except Exception as e:
-      #handle it in future
+        printdebug(is_accepting)
+        raise(scnRejectException)
+    except BrokenPipeError as e:
+      printdebug("Bytesequence: BrokenPipe")
       raise(e)
-      #return False
   def close(self):
     self._socket.shutdown()
 

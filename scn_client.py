@@ -236,6 +236,7 @@ class scn_client(scn_base_client):
           printdebug(e)
         else:
           raise(e)
+    tempsocket.setblocking(True)
     return tempsocket
   
   def connect_to_ip(self,_url):
@@ -260,6 +261,7 @@ class scn_client(scn_base_client):
           printdebug(e)
         else:
           raise(e)
+    tempsocket.setblocking(True)
     return tempsocket
 
   def update_node(self,_url,_servername=None):
@@ -278,11 +280,11 @@ class scn_client(scn_base_client):
       printerror("is not end before executing second command")
       _socket.close()
       return
-    _socket.send("get_server_cert"+sepm)
-    if scn_check_return(_socket) == False:
-      _socket.close()
-      return
-    _cert=_socket.receive_bytes(0,max_cert_size)
+#    _socket.send("get_server_cert"+sepm)
+#    if scn_check_return(_socket) == False:
+#      _socket.close()
+#      return
+    _cert=None #_socket.receive_bytes(0,max_cert_size)
   
     if self.scn_servs.update_node(_servername,_url,_version,_cert)==True:
       return ["success",]
@@ -357,6 +359,7 @@ class scn_client(scn_base_client):
           printdebug(e)
 
       elif command[0] not in self.clientactions:
+        #print(command)
         printerror("No such function")
       else:
         try:
