@@ -314,7 +314,12 @@ class scn_base_base(object):
     _socket.send("success"+sepc)
     _socket.send_bytes(self.pub_cert,True)
 
-
+  def pong(self,_socket):
+    _socket.send("success"+sepm)
+  def ping(self,_socket):
+    _socket.send("pong"+sepm)
+    return scn_check_return(_socket)
+  
 
 #service_types:
 #  "admin": special service, not disclosed
@@ -713,8 +718,6 @@ class scn_base_server(scn_base_base):
     if _socket.is_end()==True:
       _socket.send("success"+sepm)
     self.special_services_unauth[_service](self,_socket)
-  def s_ping(self,_socket):
-    _socket.send("success"+sepm)
 
 
 

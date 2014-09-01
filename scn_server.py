@@ -286,7 +286,8 @@ class scn_server(scn_base_server):
            "use_special_service_unauth":scn_base_server.s_use_special_service_unauth,
            "get_name_message":scn_base_server.s_get_name_message,
            "get_cert":scn_base_base.s_get_cert,
-           "info":scn_base_base.s_info}
+           "info":scn_base_base.s_info,
+           "pong":scn_base_base.pong}
 
 
   callback={}
