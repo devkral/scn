@@ -71,6 +71,14 @@ def printerror(inp):
 
 
 
+#not name saved with cert but name on server
+def scn_verify_cert(_name,pub_cert,_certhash):
+  temphash=hashlib.sha256(bytes(_name,"utf8"))
+  temphash.update(pub_cert)
+  if temphash.hexdigest==_certhash:
+    return True
+  else:
+    return False
 
 def scn_check_return(_socket):
   if _socket.receive_one()=="success":
@@ -339,18 +347,25 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
     try:
-      _secret=_socket.receive_bytes(0,secret_size)
+      _secrethash=str(_socket.receive_bytes(0,hash_hex_size),"utf8")
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"secrethash"+sepc+str(e)+sepm)
+      return
+    try:
+      _certhash=str(_socket.receive_bytes(0,hash_hex_size),"utf8")
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"certhash"+sepc+str(e)+sepm)
       return
     #TODO: check if is_end
-    if check_invalid_name(_name)==False:
+    if check_invalid_name(_name)==False or \
+       check_hash(_secrethash)==False or \
+       check_hash(_certhash)==False:
       _socket.send("error"+sepc+"invalid characters"+sepm)
       return
     if self.scn_names.get(_name)!=None:
       _socket.send("error"+sepc+"name exists already"+sepm)
       return
-    temp=self.scn_names.create_name(_name,_secret)
+    temp=self.scn_names.create_name(_name,_secrethash,_certhash)
     if temp==None:
       _socket.send("error"+sepc+"creation failed"+sepm)
       return
@@ -440,10 +455,15 @@ class scn_base_server(scn_base_base):
     temp2=[]
     for count in range(0,len(temphashes)):
       _hash_name_split=temphashes[count].split(sepu)
-      if len(_hash_name_split)==2 and check_hash(_hash_name_split[0])==True and check_invalid_name(_hash_name_split[1])==True:
+      if len(_hash_name_split)==3 and \
+         check_invalid_name(_hash_name_split[0])==True and \
+         check_hash(_hash_name_split[1])==True and \
+         check_hash(_hash_name_split[2])==True:
         temp2+=[_hash_name_split,]
-      elif len(_hash_name_split)==1 and check_hash(_hash_name_split[0])==True:
-        temp2+=[(_hash_name_split[0],""),]
+      elif len(_hash_name_split)==2 and \
+           check_hash(_hash_name_split[0])==True and \
+           check_hash(_hash_name_split[1])==True:
+        temp2+=[("",_hash_name_split[0],_hash_name_split[1]),]
       else:
         _socket.send("error"+sepc+"invalid hash or name"+sepm)
         return
@@ -452,6 +472,26 @@ class scn_base_server(scn_base_base):
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
+
+  def s_get_service_secrethash(self,_socket,_service):
+    try:
+      _name=_socket.receive_one(min_name_length,max_name_length)
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
+      return
+    try:
+      _secret=_socket.receive_bytes(0,secret_size)
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
+      return
+    if self.admin_auth(_name,_secret)==False:
+      _socket.send("error"+sepc+"auth failed"+sepm)
+      return
+    temp=""
+    for elem in self.scn_names.get(_name).get(_service):
+      temp+=sepc+str(elem[0])+sepu+str(elem[3])
+    _socket.send("success"+temp+sepm)
+
 
   def s_delete_service(self,_socket):
     try:
@@ -472,26 +512,6 @@ class scn_base_server(scn_base_base):
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
-    
-  def s_get_service_secrethash(self,_socket,_service):
-    try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
-      return
-    try:
-      _secret=_socket.receive_bytes(0,secret_size)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
-      return
-    if self.admin_auth(_name,_secret)==False:
-      _socket.send("error"+sepc+"auth failed"+sepm)
-      return
-    temp=""
-    for elem in self.scn_names.get(_name).get(_service):
-      temp+=sepc+str(elem[0])+sepu+str(elem[3])
-    _socket.send("success"+temp+sepm)
-
 #normal
 
 #priv
@@ -662,8 +682,8 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"service not exist"+sepm)
     else:
       temp=""
-      for elem in self.scn_names.get(_name).get(_service):
-        temp+=sepc+elem[1]+sepu+elem[2]
+      for elem in self.scn_ip_store.get(_name,_service):
+        temp+=sepc+elem[0]+sepu+elem[1]+sepu+elem[2] #addrtype, addr, _certhash
       _socket.send("success"+temp+sepm)
 
 
@@ -716,7 +736,6 @@ class scn_base_client(scn_base_base):
   scn_servs=None
   scn_friends=None
   
-  
   def c_update_service(self,_servername,_name,_service,_secrethashstring):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,"admin")
@@ -752,7 +771,10 @@ class scn_base_client(scn_base_base):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
     _socket.send("register_name"+sepc+_name+sepc)
-    _socket.send_bytes(_secret,True)
+    _socket.send_bytes(hashlib.sha256(_secret).hexdigest())
+    temphash=hashlib.sha256(bytes(_name,"utf8"))
+    temphash.update(self.pub_cert)
+    _socket.send_bytes(temphash.hexdigest(),True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:

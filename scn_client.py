@@ -460,14 +460,38 @@ class scn_client(scn_base_client):
         tempsocket.do_handshake()
         break
       except Exception as e:
-        if count<2:
-          printdebug(e)
-        else:
-          raise(e)
+        raise(e)
     tempsocket.setblocking(True)
     return tempsocket
+  
+  def c_connect_to_node(self,_servername,_name,_service="main"):
+    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
+    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    temp_context.set_cipher_list("HIGH")
+    tempsocket=None
+    for elem in self.get_service(_servername,_name,_service):
+      if elem[0]=="ip":
+        tempconnectdata=elem[1].split(sepu)
+        if len(tempconnectdata)==1:
+          tempconnectdata+=[scn_server_port,]
+        for count in range(0,3):
+          tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          #don't use settimeout, pyopenssl error
+          tempsocket = SSL.Connection(temp_context,tempsocket)
+          try:
+            #connect with ssl handshake
+            tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
+            tempsocket.do_handshake()
+            break
+          except Exception as e:
+            raise(e)
+    if tempsocket == None:
+      return None
+    tempsocket.setblocking(True)
+    tempsocket.send("hello"+sepc+_service+sepm)
+    return tempsocket
 
-  def c_update_node(self,_url,_servername=None):
+  def c_add_node(self,_url,_servername=None):
     _socket=scn_socket(self.connect_to_ip(_url))
     _socket.send("info"+sepm)
     if scn_check_return(_socket) == False:
@@ -478,17 +502,53 @@ class scn_client(scn_base_client):
     else:
       _socket.receive_one()
     _socket.receive_one()#version
-    _socket.receive_one()#_serversecretsize=
+    _socket.receive_one()#_serversecretsize
     if _socket.is_end() == False:
-      printerror("not end before second command")
+      printerror("Error: is_end false before second command")
       _socket.close()
       return False
+    elif self.scn_servs.get_node(_servername)!=None:
+      printerror("Error: node exists already")
+      _socket.close()
+      return False
+
     _socket.send("get_cert"+sepm)
     if scn_check_return(_socket) == False:
       _socket.close()
       return False
     _cert=_socket.receive_bytes(0,max_cert_size)
-  
+    _socket.close()
+    if self.scn_servs.update_node(_servername,_url,_cert)==True:
+      return True
+    else:
+      printdebug("node update failed")
+      return False
+
+  def c_update_node(self,_url,_servername):
+    if self.scn_servs.get_node(_servername)==None:
+      printerror("Error: Node doesn't exist")
+      return False
+    _socket=scn_socket(self.connect_to_ip(_url))
+    #neccessary?
+    #masquerade, nobody should know if this server is being added or updated
+    #_socket.send("info"+sepm)
+    #if scn_check_return(_socket) == False:
+    #  _socket.close()
+    #  return False
+    #_socket.receive_one()
+    #_socket.receive_one()#version
+    #_socket.receive_one()#_serversecretsize
+    #if _socket.is_end() == False:
+    #  printerror("Error: is_end false before second command")
+    #  _socket.close()
+    #  return False
+
+    _socket.send("get_cert"+sepm)
+    if scn_check_return(_socket) == False:
+      _socket.close()
+      return False
+    _cert=_socket.receive_bytes(0,max_cert_size)
+    _socket.close()
     if self.scn_servs.update_node(_servername,_url,_cert)==True:
       return True
     else:
@@ -540,7 +600,8 @@ class scn_client(scn_base_client):
                  "delservice": scn_base_client.c_delete_service, 
                  "serveip": c_serve_service_ip, 
                  "unserve": scn_base_client.c_unserve_service, 
-                 "updsecret": scn_base_client.c_update_secret, 
+                 "updsecret": scn_base_client.c_update_secret,
+                 "addserver": c_add_node,
                  "updserver": c_update_node, 
                  "delserver": c_delete_node}
   clientactions_list = {"getservicehash": scn_base_client.c_get_service_secrethash, 

@@ -24,17 +24,45 @@ class ip_store(object):
     self.db_pers=dbpers
     self.db_temp_keep_alive=tempfile.NamedTemporaryFile()
     self.db_pers=self.db_temp_keep_alive.name
-    con=sqlite3.connect(self.db_pers)
-    con.execute('''CREATE TABLE if not exists scn_ip_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT  );''')
-    con.commit()
-    con.close()
-
-    con=sqlite3.connect(self.db_tmp)
-    con.execute('''CREATE TABLE if not exists scn_ip_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT  );''')
-    con.commit()
-    con.close()
+    try:
+      con=sqlite3.connect(self.db_pers)
+      con.execute('''CREATE TABLE if not exists scn_ip_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT, hashed_pub_cert TEXT, PRIMARY KEY(name,service,hashed_pub_cert)  );''')
+      con.commit()
+      con.close()
+    except Exception as e:
+      printerror(e)
+      return
+    try:
+      con=sqlite3.connect(self.db_tmp)
+      con.execute('''CREATE TABLE if not exists scn_ip_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT,hashed_pub_cert TEXT, PRIMARY KEY(name,service,pub_cert_hash)  );''')
+      con.commit()
+      con.close()
+    except Exception as e:
+      printerror(e)
+      return
   
-
+  def det_con(self,_service):
+    if _service=="main" or _service=="notify":
+      return sqlite3.connect(self.db_tmp)
+    elif _service=="store":
+      return sqlite3.connect(self.db_pers)
+    else:
+      return None
+  def get(self,_name,_service):
+    nodelist=None
+    con=self.det_con(_service)
+    try:
+      cur = con.cursor()
+      cur.execute('''SELECT addr_type,addr,hashed_pub_cert FROM scn_ip_store WHERE name=? AND service=? ORDER BY clientid''',(_name,_service))
+      nodelist=cur.fetchmany()
+    except Exception as u:
+      printdebug(u)
+      return None
+    return nodelist
+  def update(self,_name,_service,_pub_cert_hash,_addr_type,_addr):
+    pass
+  def delete(self,_name,_service,_pub_cert_hash):
+    pass
 
 class scn_name_sql(object):
 #  message=""
@@ -69,38 +97,25 @@ class scn_name_sql(object):
       printdebug(u)
       return None
     return message
-  def set_pub_cert(self,_cert):
-    try:
-      cur = self.dbcon.cursor()
-      cur.execute('''UPDATE scn_name SET pub_cert=? WHERE name=?''',(_cert,self.name))
-      self.dbcon.commit()
-    except Exception as u:
-      printdebug(u)
-      self.dbcon.rollback()
-      return False
-    return True
-  def get_pub_cert(self):
-    pub_cert=None
-    try:
-      cur = self.dbcon.cursor()
-      cur.execute('''SELECT pub_cert FROM scn_name WHERE name=?''',(self.name,))
-      pub_cert=cur.fetchone()
-    except Exception as u:
-      printdebug(u)
-      return None
-    return pub_cert
 
 #=get_service
-  def get(self,_servicename):
+  def get(self,_servicename,_nodeid=None):
     ob=None
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret FROM scn_node WHERE scn_name=? AND servicename=? ORDER BY nodeid''',(self.name,_servicename))
+      if _nodeid==None:
+        cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret
+        FROM scn_node WHERE scn_name=? AND servicename=?
+        ORDER BY nodeid''',(self.name,_servicename))
+      else:
+        cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret
+        FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?''',(self.name,_servicename,_nodeid))
+
       if cur.rowcount>0:
         ob=cur.fetchmany()
     except Exception as u:
       printdebug(u)
-    return ob
+    return ob #nodeid,nodename,hashed_pub_cert,hashed_secret
 
 
 #"admin" is admin
@@ -114,7 +129,7 @@ class scn_name_sql(object):
       for c in range(0,max(a,b)):
         if c<=a:
           cur.execute('''INSERT OR REPLACE into
-          scn_node(scn_name,servicename,nodename, nodeid, hashed_pub_cert, hashed_secret)
+          scn_node(scn_name,servicename, nodeid, nodename, hashed_pub_cert, hashed_secret)
           values(?,?,?,?,?,?)''',
           self.name,_servicename,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2])
         elif c<b:
@@ -171,7 +186,7 @@ class scn_name_list_sqlite(object):
       printdebug(u)
       con.rollback()
     try:
-      con.execute('''CREATE TABLE if not exists scn_node(scn_name TEXT,servicename TEXT,nodename TEXT, nodeid INTEGER, hashed_pub_cert TEXT, hashed_secret TEXT, PRIMARY KEY(scn_name,servicename,nodeid),FOREIGN KEY(scn_name) REFERENCES scn_name(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
+      con.execute('''CREATE TABLE if not exists scn_node(scn_name TEXT,servicename TEXT, nodeid INTEGER, nodename TEXT, hashed_pub_cert TEXT, hashed_secret TEXT, PRIMARY KEY(scn_name,servicename,nodeid),FOREIGN KEY(scn_name) REFERENCES scn_name(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
       con.commit()
     except Exception as u:
       printdebug(u)
@@ -233,7 +248,7 @@ class scn_name_list_sqlite(object):
       con.close()
     return state
 
-  def create_name(self,_name,_secret):
+  def create_name(self,_name,_secrethash,_certhash):
     if self.get(_name)!=None:
       return None
     try:
@@ -244,8 +259,8 @@ class scn_name_list_sqlite(object):
       cur = con.cursor()
       cur.execute('''INSERT into scn_name(name,message) values(?,'')''', (_name,))
       cur.execute('''INSERT into scn_node
-(scn_name,servicename,nodename,nodeid,addrtype,addr,hashed_secret)
-values(?,'admin','init',0,'','',?)''', (_name,hashlib.sha256(bytes(_secret)).hexdigest()))
+      (scn_name,servicename,nodeid,nodename,hashed_secret,hashed_pub_cert)
+      values(?,'admin',0, 'init',?,?)''', (_name,_secrethash,_certhash))
       con.commit()
     except Exception as u:
       printdebug(u)
