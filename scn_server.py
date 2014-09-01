@@ -148,6 +148,7 @@ class scn_name_sql(object):
       state=False
     return state
 
+
 class scn_name_list_sqlite(object):
   db_path=None
   def __init__(self, db):
@@ -155,7 +156,7 @@ class scn_name_list_sqlite(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return
     try:
       con.execute('''CREATE TABLE if not exists scn_name(name TEXT, message TEXT, pub_cert BLOB  );''')
@@ -175,6 +176,7 @@ class scn_name_list_sqlite(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
+      printerror(u)
       return None
     ob=None
     try:
@@ -191,6 +193,7 @@ class scn_name_list_sqlite(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
+      printerror(u)
       return 0
     length=0
     try:
@@ -208,6 +211,9 @@ class scn_name_list_sqlite(object):
     except Exception as u:
       printdebug(u)
       return False
+    if self.get(_name)==None:
+      printdebug("Deletion of non-existent name")
+      return True
     state=True
     try:
       cur = con.cursor()
@@ -222,7 +228,7 @@ class scn_name_list_sqlite(object):
     return state
 
   def create_name(self,_name,_secret):
-    if self.contains(_name)==True:
+    if self.get(_name)!=None:
       return None
     try:
       con=sqlite3.connect(self.db_path)
@@ -230,13 +236,13 @@ class scn_name_list_sqlite(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''INSERT into scn_name(name,message,pub_cert) values(?,'',NULL)''', _name)
+      cur.execute('''INSERT into scn_name(name,message,pub_cert) values(?,'',NULL)''', (_name,))
       cur.execute('''INSERT into scn_node
 (scn_name,servicename,nodename,nodeid,addrtype,addr,hashed_secret)
-values(?,admin,'init',0,'','',?)''', (_name,hashlib.sha256(bytes(_secret)).hexdigest()))
+values(?,'admin','init',0,'','',?)''', (_name,hashlib.sha256(bytes(_secret)).hexdigest()))
+      con.commit()
     except Exception as u:
       printdebug(u)
-    
     return self.get(_name)
 
 #secret should be machine generated
@@ -326,6 +332,7 @@ class scn_server_handler(socketserver.BaseRequestHandler):
         else:
           sc.send("error"+sepc+temp+": no such function"+sepm)
       except BrokenPipeError:
+        printdebug("Socket closed") 
         break
       except Exception as e:
         printdebug(e)
