@@ -524,7 +524,7 @@ class scn_client(scn_base_client):
       printdebug("node update failed")
       return False
 
-  def c_update_node(self,_url,_servername):
+  def c_update_node(self,_url,_servername): #, update_cert_hook):
     if self.scn_servs.get_node(_servername)==None:
       printerror("Error: Node doesn't exist")
       return False
@@ -547,9 +547,11 @@ class scn_client(scn_base_client):
     if scn_check_return(_socket) == False:
       _socket.close()
       return False
-    _cert=_socket.receive_bytes(0,max_cert_size)
+    _newcert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
-    if self.scn_servs.update_node(_servername,_url,_cert)==True:
+    if _newcert!=self.scn_servs.get_node(_servername):
+      printdebug("Certs missmatch, update because of missing hook")
+    if self.scn_servs.update_node(_servername,_url,_newcert)==True:
       return True
     else:
       printdebug("node update failed")
