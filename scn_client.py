@@ -467,7 +467,7 @@ class scn_client(scn_base_client):
     tempsocket.setblocking(True)
     return tempsocket
 
-  def update_node(self,_url,_servername=None):
+  def c_update_node(self,_url,_servername=None):
     _socket=scn_socket(self.connect_to_ip(_url))
     _socket.send("info"+sepm)
     if scn_check_return(_socket) == False:
@@ -480,10 +480,10 @@ class scn_client(scn_base_client):
     _socket.receive_one()#version
     _socket.receive_one()#_serversecretsize=
     if _socket.is_end() == False:
-      printerror("is not end before executing second command")
+      printerror("not end before second command")
       _socket.close()
       return False
-    _socket.send("get_server_cert"+sepm)
+    _socket.send("get_cert"+sepm)
     if scn_check_return(_socket) == False:
       _socket.close()
       return False
@@ -495,18 +495,18 @@ class scn_client(scn_base_client):
       printdebug("node update failed")
       return False
     
-  def delete_node(self,_servername):
-    if self.scn_servs.del_node(_servername)==True:
-      return self.scn_friends.delete_server(_name)
+  def c_delete_node(self,_nodename):
+    if self.scn_servs.del_node(_nodename)==True:
+      return self.scn_friends.delete_server(_nodename)
     else:
       printerror("node deletion failed")
       return False
   #deprecated
-  def get_node_list(self):
+  def c_get_node_list(self):
     print(self.scn_servs.get_list())
     return True
 
-  def get_node(self,_nodename):
+  def c_get_node(self,_nodename):
     temp=self.scn_servs.get_node(_nodename)
     print(temp[0],temp[1],temp[2])
     return True
@@ -523,7 +523,7 @@ class scn_client(scn_base_client):
     return True
     
   
-  def serve_service_ip(self,_servername,_name,_service):
+  def c_serve_service_ip(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,_service)
     _socket.send("serve"+sepc+_name+sepc+_service+sepc)
@@ -533,23 +533,22 @@ class scn_client(scn_base_client):
     _socket.close()
     return _server_response
 
-  clientactions_bool = {"register": scn_base_client.register_name, 
-                 "delname": scn_base_client.delete_name, 
-                 "updcert": scn_base_client.update_name_cert, 
-                 "updmessage": scn_base_client.update_name_message, 
-                 "updservice": scn_base_client.update_service, 
-                 "delservice": scn_base_client.delete_service, 
-                 "serveip": serve_service_ip, 
-                 "unserve": scn_base_client.unserve_service, 
-                 "updsecret": scn_base_client.update_secret, 
-                 "updserver": update_node, 
-                 "delserver": delete_node}
-  clientactions_list = {"getservicehash": scn_base_client.get_service_secrethash, 
-                        "getmessage": scn_base_client.get_name_message, 
-                        "getcert": scn_base_client.get_name_cert, 
-                        "info": scn_base_client.info, 
-                        "getlist": get_node_list, 
-                        "getnode": get_node}
+  clientactions_bool = {"register": scn_base_client.c_register_name, 
+                 "delname": scn_base_client.c_delete_name, 
+                 "updmessage": scn_base_client.c_update_name_message, 
+                 "updservice": scn_base_client.c_update_service, 
+                 "delservice": scn_base_client.c_delete_service, 
+                 "serveip": c_serve_service_ip, 
+                 "unserve": scn_base_client.c_unserve_service, 
+                 "updsecret": scn_base_client.c_update_secret, 
+                 "updserver": c_update_node, 
+                 "delserver": c_delete_node}
+  clientactions_list = {"getservicehash": scn_base_client.c_get_service_secrethash, 
+                        "getmessage": scn_base_client.c_get_name_message, 
+                        "getcert": scn_base_client.c_get_cert, 
+                        "info": scn_base_client.c_info, 
+                        "getlist": c_get_node_list, 
+                        "getnode": c_get_node}
 #,"use_auth": use_special_service_auth,"use_unauth":use_special_service_unauth
   def debug(self):
     while self.is_active == True:

@@ -6,16 +6,34 @@ import sys
 import socketserver
 import socket
 import hashlib
+import tempfile
 
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc,sepu
-from scn_base import scn_base_server,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs
+from scn_base import scn_base_server,scn_base_base,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs
 
 from scn_config import scn_server_port,default_config_folder,server_host
 
 
+class ip_store(object):
+  db_pers=None
+  db_tmp=None
+  db_temp_keep_alive=None
+  def __init__(self,dbpers):
+    self.db_pers=dbpers
+    self.db_temp_keep_alive=tempfile.NamedTemporaryFile()
+    self.db_pers=self.db_temp_keep_alive.name
+    con=sqlite3.connect(self.db_pers)
+    con.execute('''CREATE TABLE if not exists scn_ip_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT  );''')
+    con.commit()
+    con.close()
 
+    con=sqlite3.connect(self.db_tmp)
+    con.execute('''CREATE TABLE if not exists scn_ip_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT  );''')
+    con.commit()
+    con.close()
+  
 
 
 class scn_name_sql(object):
@@ -77,7 +95,7 @@ class scn_name_sql(object):
     ob=None
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''SELECT nodename,addrtype,addr,hashed_secret FROM scn_node WHERE scn_name=? AND servicename=?''',(self.name,_servicename))
+      cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret FROM scn_node WHERE scn_name=? AND servicename=? ORDER BY nodeid''',(self.name,_servicename))
       if cur.rowcount>0:
         ob=cur.fetchmany()
     except Exception as u:
@@ -94,13 +112,14 @@ class scn_name_sql(object):
       a=len(_secrethashlist)
       b=cur.rowcount
       for c in range(0,max(a,b)):
-        if c<a and c<b:
-          cur.execute('''UPDATE scn_node SET nodename=?, hashed_secret=? WHERE scn_name=? AND servicename=? AND nodeid=? ''',(_secrethashlist[c][0],_secrethashlist[c][1], self.name,_servicename,c))
-        elif c<a:
-          cur.execute('''INSERT into scn_node values(?,?,?,'','',?)''', self.name,_servicename,c,_secrethashlist[c])
+        if c<=a:
+          cur.execute('''INSERT OR REPLACE into
+          scn_node(scn_name,servicename,nodename, nodeid, hashed_pub_cert, hashed_secret)
+          values(?,?,?,?,?,?)''',
+          self.name,_servicename,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2])
         elif c<b:
           cur.execute('''DELETE FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?);''',(self.name,_servicename,c))
-        self.dbcon.commit()
+      self.dbcon.commit()
     except Exception as u:
       self.dbcon.rollback()
       printdebug(u)
@@ -120,34 +139,21 @@ class scn_name_sql(object):
       state=False
     return state
 
-  def update_secret(self,_servicename,_secret,_newsecret):
+  def update_secret(self,_servicename,_secret,_newsecret_hash,_pub_cert_hash=None):
     if self.verify_secret(_servicename,_secret)==False:
       return False
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE servicename=? AND scn_name=? AND hashed_secret=?''',(hashlib.sha256(bytes(_newsecret)).hexdigest(),_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
-      cur.commit()
+      if _pub_cert_hash!=None:
+        cur.execute('''UPDATE scn_node SET hashed_secret=?, hashed_pub_cert=? WHERE servicename=? AND scn_name=? AND hashed_secret=?''',(_newsecret_hash,_pub_cert_hash,_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
+      else:
+        cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE servicename=? AND scn_name=? AND hashed_secret=?''',(_newsecret_hash,_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
+      self.dbcon.commit()
     except Exception as u:
       printdebug(u)
       cur.rollback()
       return False
     return True
-
-#auth with address ["",""]=unauth
-#authorize before
-  def auth(self,_servicename,_secret,_address):
-    _secrethash=hashlib.sha256(bytes(_secret)).hexdigest()
-    state=False
-    try:
-      cur = self.dbcon.cursor()
-      cur.execute('''UPDATE scn_node SET addrtype=?,addr=? WHERE scn_name=? AND servicename=? AND hashed_secret=?''',(_address[0],_address[1],self.name,_servicename,_secrethash))
-      cur.commit()
-    except Exception as u:
-      printdebug(u)
-      cur.rollback()
-      state=False
-    return state
-
 
 class scn_name_list_sqlite(object):
   db_path=None
@@ -159,13 +165,13 @@ class scn_name_list_sqlite(object):
       printerror(u)
       return
     try:
-      con.execute('''CREATE TABLE if not exists scn_name(name TEXT, message TEXT, pub_cert BLOB  );''')
+      con.execute('''CREATE TABLE if not exists scn_name(name TEXT, message TEXT  );''')
       con.commit()
     except Exception as u:
       printdebug(u)
       con.rollback()
     try:
-      con.execute('''CREATE TABLE if not exists scn_node(scn_name TEXT,servicename TEXT,nodename TEXT, nodeid INTEGER, addrtype TEXT, addr TEXT, hashed_secret BLOB, PRIMARY KEY(scn_name,servicename,nodeid),FOREIGN KEY(scn_name) REFERENCES scn_name(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
+      con.execute('''CREATE TABLE if not exists scn_node(scn_name TEXT,servicename TEXT,nodename TEXT, nodeid INTEGER, hashed_pub_cert TEXT, hashed_secret TEXT, PRIMARY KEY(scn_name,servicename,nodeid),FOREIGN KEY(scn_name) REFERENCES scn_name(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
       con.commit()
     except Exception as u:
       printdebug(u)
@@ -236,7 +242,7 @@ class scn_name_list_sqlite(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''INSERT into scn_name(name,message,pub_cert) values(?,'',NULL)''', (_name,))
+      cur.execute('''INSERT into scn_name(name,message) values(?,'')''', (_name,))
       cur.execute('''INSERT into scn_node
 (scn_name,servicename,nodename,nodeid,addrtype,addr,hashed_secret)
 values(?,'admin','init',0,'','',?)''', (_name,hashlib.sha256(bytes(_secret)).hexdigest()))
@@ -252,7 +258,20 @@ class scn_server(scn_base_server):
   is_active=True
   server_context=None
   config_path=""
-  actions={"register_name":scn_base_server.register_name,"delete_name":scn_base_server.delete_name,"update_cert":scn_base_server.update_cert,"update_message": scn_base_server.update_message,"update_service": scn_base_server.update_service,"delete_service":scn_base_server.delete_service,"get_service_secrethash": scn_base_server.get_service_secrethash,"serve": scn_base_server.serve_service,"unserve": scn_base_server.unserve_service,"update_secret": scn_base_server.update_secret,"use_special_service_auth": scn_base_server.use_special_service_auth,"use_special_service_unauth":scn_base_server.use_special_service_unauth,"get_name_message":scn_base_server.get_name_message,"get_name_cert":scn_base_server.get_name_cert,"get_server_cert":scn_base_server.get_server_cert,"info":scn_base_server.info}
+  actions={"register_name": scn_base_server.s_register_name,
+           "delete_name": scn_base_server.s_delete_name,
+           "update_message": scn_base_server.s_update_message,
+           "update_service": scn_base_server.s_update_service,
+           "delete_service":scn_base_server.s_delete_service,
+           "get_service_secrethash": scn_base_server.s_get_service_secrethash,
+           "serve": scn_base_server.s_serve_service,
+           "unserve": scn_base_server.s_unserve_service,
+           "update_secret": scn_base_server.s_update_secret,
+           "use_special_service_auth": scn_base_server.s_use_special_service_auth,
+           "use_special_service_unauth":scn_base_server.s_use_special_service_unauth,
+           "get_name_message":scn_base_server.s_get_name_message,
+           "get_cert":scn_base_base.s_get_cert,
+           "info":scn_base_base.s_info}
 
 
   callback={}
@@ -272,7 +291,7 @@ class scn_server(scn_base_server):
       self.pub_cert=readinpubkey.read()
     self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
     self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
-    self.special_services_unauth={"test":self.info ,"callback":self.callback}
+    self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
 
     printdebug("Server init finished")
 

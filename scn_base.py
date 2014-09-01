@@ -11,6 +11,7 @@ import pprint
 import traceback
 import os
 import os.path
+import hashlib
 from subprocess import Popen,PIPE
 
 from OpenSSL import SSL,crypto
@@ -20,7 +21,7 @@ from OpenSSL import SSL,crypto
 
 #import Enum from enum
 
-from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_services, max_service_nodes, secret_size, key_size,protcount_max
+from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_services, max_service_nodes, secret_size, key_size,protcount_max,hash_hex_size
 
 # from scn_config import scn_client_port
 
@@ -291,6 +292,22 @@ def init_config_folder(_dir):
   
 
 
+
+class scn_base_base(object):
+  name=""
+  version=""
+  priv_cert=None
+  pub_cert=b"\0"
+  
+  def s_info(self,_socket):
+    _socket.send("success"+sepc+self.name+sepc+str(self.version)+sepc+str(secret_size)+sepm)
+
+  def s_get_cert(self,_socket):
+    _socket.send("success"+sepc)
+    _socket.send_bytes(self.pub_cert,True)
+
+
+
 #service_types:
 #  "admin": special service, not disclosed
 #  "main": points to current used computer
@@ -302,14 +319,10 @@ def init_config_folder(_dir):
 
 
 #services in 
-class scn_base_server(object):
+class scn_base_server(scn_base_base):
   scn_names=None #scn_name_list()
   special_services={}
   special_services_unauth={}
-  name=""
-  version=""
-  priv_cert=None
-  pub_cert=b"\0"
   tunnel={}
 #priv
   def admin_auth(self, _name,_secret):
@@ -319,7 +332,7 @@ class scn_base_server(object):
 
   
 #admin
-  def register_name(self,_socket):
+  def s_register_name(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -344,7 +357,7 @@ class scn_base_server(object):
     _socket.send("success"+sepm)
 
 #second level auth would be good as 30 days grace
-  def delete_name(self,_socket):
+  def s_delete_name(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -366,35 +379,7 @@ class scn_base_server(object):
       _socket.send("error"+sepc+"deleting failed"+sepm)
       return
 
-  def update_cert(self,_socket):
-    try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
-      return
-    try:
-      _secret=_socket.receive_bytes(0,secret_size)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
-      return
-    if self.admin_auth(_name,_secret)==False:
-      _socket.send("error"+sepc+"auth failed"+sepm)
-      return
-    _cert=_socket.receive_bytes(0,max_cert_size)
-    #TODO: check if is_end
-    ob=self.scn_names.get(_name)
-    #here some checks
-    if ob!=None:
-      if ob.set_cert(_cert)==True:
-        _socket.send("success"+sepm)
-        return
-      else:
-        _socket.send("error"+sepm)
-        return
-    else:
-      _socket.send("error"+sepm)
-      return
-  def update_message(self,_socket):
+  def s_update_message(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -426,7 +411,7 @@ class scn_base_server(object):
       return
 
 #"admin" updates admin group
-  def update_service(self,_socket):
+  def s_update_service(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -441,7 +426,7 @@ class scn_base_server(object):
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     #64 is the size of sha256 in hex, format sepc hash sepu name sepc ...
-    _secrethashstring=str(_socket.receive_bytes(0, 64*max_name_length*max_user_services+2*max_user_services), "utf8")
+    _secrethashstring=str(_socket.receive_bytes(0, hash_hex_size*max_name_length*max_user_services+2*max_user_services), "utf8")
     if self.scn_names.length(_name)>=max_user_services+1:
       _socket.send("error"+sepc+"limit"+sepm)
       return
@@ -468,7 +453,7 @@ class scn_base_server(object):
     else:
       _socket.send("error"+sepm)
 
-  def delete_service(self,_socket):
+  def s_delete_service(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -488,7 +473,7 @@ class scn_base_server(object):
     else:
       _socket.send("error"+sepm)
     
-  def get_service_secrethash(self,_socket,_service):
+  def s_get_service_secrethash(self,_socket,_service):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -521,7 +506,7 @@ class scn_base_server(object):
 
 #pub auth
 #_socket.socket.getpeername()[1]] how to get port except by giving it
-  def serve_service(self,_socket,_port,connect_type="ip"):
+  def s_serve_service(self,_socket,_port,connect_type="ip"):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -558,7 +543,7 @@ class scn_base_server(object):
       _socket.send("error"+sepm)
       return
 
-  def unserve_service(self,_socket):
+  def s_unserve_service(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -587,7 +572,7 @@ class scn_base_server(object):
       _socket.send("error"+sepm)
       return
 
-  def update_secret(self,_socket,_newsecret):
+  def s_update_secret(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -606,15 +591,26 @@ class scn_base_server(object):
     if self.service_auth(_name,_service,_servicesecret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
-
-    if self.scn_names.get(_name).update_secret(_service,_servicesecret,_newsecret)==True:
+    try:
+      _newsecret_hash=str(_socket.receive_bytes(hash_hex_size), "utf8")
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"secrethash"+sepc+str(e)+sepm)
+      return
+    _newcert_hash=None
+    if _socket.is_end()==False:
+      try:
+        _newcert_hash=str(_socket.receive_bytes(hash_hex_size), "utf8")
+      except scnReceiveError as e:
+        _socket.send("error"+sepc+"certhash"+sepc+str(e)+sepm)
+        return
+    if self.scn_names.get(_name).update_secret(_service,_servicesecret,_newsecret_hash,_newcert_hash)==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepc+"update failed"+sepm)
       return
 
 
-  def use_special_service_auth(self,_socket):
+  def s_use_special_service_auth(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -647,7 +643,7 @@ class scn_base_server(object):
       _socket.send("error"+sepm)
 
 #anonym,unauth
-  def get_service(self,_socket):
+  def s_get_service(self,_socket):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -671,7 +667,7 @@ class scn_base_server(object):
       _socket.send("success"+temp+sepm)
 
 
-  def get_name_message(self,_socket,_name):
+  def s_get_name_message(self,_socket,_name):
     try:
       _name=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -683,26 +679,8 @@ class scn_base_server(object):
       _socket.send("success"+sepc)
       _socket.send_bytes(self.scn_names.get(_name).get_message(),True)
 
-  def get_name_cert(self,_socket):
-    try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
-      return
-    if self.scn_names.length(_name)==0:
-      _socket.send("error"+sepc+"not exists"+sepm)
-    else:
-      _socket.send("success"+sepc)
-      _socket.send_bytes(self.scn_names.get(_name).get_cert(),True)
-#should be always available under info, because version important for communication
-  def info(self,_socket):
-    _socket.send("success"+sepc+self.name+sepc+str(self.version)+sepc+str(secret_size)+sepm)
 
-  def get_server_cert(self,_socket):
-    _socket.send("success"+sepc)
-    _socket.send_bytes(self.pub_cert,True)
-
-  def use_special_service_unauth(self,_socket):
+  def s_use_special_service_unauth(self,_socket):
     try:
       _service=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
@@ -715,7 +693,7 @@ class scn_base_server(object):
     if _socket.is_end()==True:
       _socket.send("success"+sepm)
     self.special_services_unauth[_service](self,_socket)
-  def ping(self,_socket):
+  def s_ping(self,_socket):
     _socket.send("success"+sepm)
 
 
@@ -734,18 +712,12 @@ class scn_base_server(object):
 #success,commanddata (not for binary or free text);
 
 
-class scn_base_client(object):
-  
-  priv_cert=None
-  pub_cert=b"\0"
-  #init by __init__
-  # servername: serverurl,[name,servicename,secret]
+class scn_base_client(scn_base_base):
   scn_servs=None
   scn_friends=None
-  version=""
   
   
-  def update_service(self,_servername,_name,_service,_secrethashstring):
+  def c_update_service(self,_servername,_name,_service,_secrethashstring):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,"admin")
     _socket.send("update_service"+sepc+_name+sepc+_service)
@@ -757,7 +729,7 @@ class scn_base_client(object):
     _socket.close()
     return True
   
-  def get_service_secrethash(self,_servername,_name,_service):
+  def c_get_service_secrethash(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,"admin")
     _socket.send("get_service_secrethash"+sepc+_name+sepc+_service)
@@ -776,7 +748,7 @@ class scn_base_client(object):
     return _node_list
 
 #pub
-  def register_name(self,_servername,_name):
+  def c_register_name(self,_servername,_name):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
     _socket.send("register_name"+sepc+_name+sepc)
@@ -787,7 +759,7 @@ class scn_base_client(object):
       self.scn_servs.update_service(_servername,_name,"admin",_secret)
     return _server_response
 
-  def delete_name(self,_servername,_name):
+  def c_delete_name(self,_servername,_name):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,"admin")
     _socket.send("delete_name"+sepc+_name+sepc)
@@ -798,17 +770,7 @@ class scn_base_client(object):
     _socket.close()
     return _server_response
 
-  def update_name_cert(self,_servername,_name,_cert):
-    _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
-    _socket.send("update_cert"+sepc+_name+sepc)
-    _socket.send_bytes(temp[3])
-    _socket.send_bytes(_cert,True)
-    _server_response=scn_check_return(_socket)
-    _socket.close()
-    return _server_response
-
-  def update_name_message(self,_servername,_name,_message):
+  def c_update_name_message(self,_servername,_name,_message):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,"admin")
     _socket.send("update_message"+sepc+_name+sepc)
@@ -817,7 +779,7 @@ class scn_base_client(object):
     _socket.close()
     return _server_response
 
-  def delete_service(self,_servername,_name,_service):
+  def c_delete_service(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,_service)
     _socket.send("delete_service"+sepc+_name+sepc+_service+sepc,_socket)
@@ -827,7 +789,7 @@ class scn_base_client(object):
     return _server_response
   
   
-  def unserve_service(self,_servername,_name,_service):
+  def c_unserve_service(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,_service)
     _socket.send("unserve"+sepc+_name+sepc+_service+sepc,_socket)
@@ -837,13 +799,20 @@ class scn_base_client(object):
     return _server_response
     #temp=self.scn_servs.get_(_servername,_name,_servicename)
 
-  def update_secret(self,_servername,_name,_service):
+  def c_update_secret(self,_servername,_name,_service,_pub_cert=None):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
     temp=self.scn_servs.get_service(_servername,_name,_service)
     _socket.send("update_secret"+sepc+_name+sepc+_service+sepc)
     _socket.send_bytes(temp[3])
-    _socket.send_bytes(_secret,True)
+    if scn_check_return(_socket)==False:
+      _socket.close()
+      return False
+    if _pub_cert==None:
+      _socket.send_bytes(hashlib.sha256(_secret).hexdigest(),True)
+    else:
+      _socket.send_bytes(hashlib.sha256(_secret).hexdigest())
+      _socket.send_bytes(hashlib.sha256(_pub_cert).hexdigest(),True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
@@ -851,7 +820,7 @@ class scn_base_client(object):
     return _server_response
 
   #for special services like tunnels, returns socket
-  def use_special_service_auth(self, _servername, _name, _service):
+  def c_use_special_service_auth(self, _servername, _name, _service):
     _socket = scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername, _name, _service)
     _socket.send("use_special_service_auth"+sepc+_name+sepc+_service+sepc)
@@ -861,7 +830,7 @@ class scn_base_client(object):
     else:
       return None
 
-  def get_service(self,_servername,_name,_service):
+  def c_get_service(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("get_service"+sepc+_name+sepc+_service+sepm)
     _node_list=[]
@@ -874,7 +843,7 @@ class scn_base_client(object):
     return _node_list
 
   
-  def get_name_message(self,_servername,_name,_service):
+  def c_get_name_message(self,_servername,_name,_service):
     _socket = scn_socket(self.connect_to(_servername))
     _socket.send("get_name_message"+sepc+_name+sepc+_service+sepm)
     if scn_check_return(_socket) == True:
@@ -884,18 +853,9 @@ class scn_base_client(object):
     _socket.close()
     return _message
 
-  def get_name_cert(self,_servername,_name,_service):
-    _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("get_name_cert"+sepc+_name+sepc+_service+sepm)
-    if scn_check_return(_socket) == True:
-      _cert = _socket.receive_bytes(max_cert_size)
-    else:
-      _cert = None
-    _socket.close()
-    return _cert
 
   #returns socket for use in other functions
-  def use_special_service_unauth(self,_servername,_name,_service):
+  def c_use_special_service_unauth(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("use_special_service_unauth"+sepc+_name+sepc+_service+sepm)
     if scn_check_return(_socket) == True:
@@ -904,16 +864,25 @@ class scn_base_client(object):
       _socket.close()
       return None
 
-  def info(self,_servername):
+  def c_get_cert(self,_servername):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.send("get_cert"+sepm)
+    _state=scn_check_return(_socket)
+    if _state==False:
+      return None
+    _cert=_socket.receive_bytes(0,max_cert_size)
+    return [_cert,]
+
+  def c_info(self,_servername):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("info"+sepm)
-    _state=_socket.receive_one()
-    if _state!="success":
+    _state=scn_check_return(_socket)
+    if _state==False:
       return None
     _servername=_socket.receive_one()
     _version=_socket.receive_one()
     _serversecretsize=_socket.receive_one()
-    return [_state,_servername,_version,_serversecretsize]
+    return [_servername,_version,_serversecretsize]
 
 
 
