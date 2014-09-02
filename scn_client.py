@@ -608,7 +608,7 @@ class scn_client(scn_base_client):
                  "delserver": c_delete_node}
   clientactions_list = {"getservicehash": scn_base_client.c_get_service_secrethash, 
                         "getmessage": scn_base_client.c_get_name_message, 
-                        "getcert": scn_base_client.c_get_cert, 
+                        "getservercert": scn_base_client.c_get_server_cert, 
                         "info": scn_base_client.c_info, 
                         "getlist": c_get_node_list, 
                         "getnode": c_get_node}

@@ -326,7 +326,8 @@ class scn_base_base(object):
 #  "main": points to current used computer
 #  "store": points to storage
 #  "notify": points to primary message device
-#  "callback": points to callbackserver
+#  "request": points to client handling requests like serve,callback
+#             also for retrieving requests from server
 #tunnellist: uid:service:tunnel
 
 
@@ -334,6 +335,7 @@ class scn_base_base(object):
 #services in 
 class scn_base_server(scn_base_base):
   scn_names=None #scn_name_list()
+  scn_store=None #scn_ip_store()
   special_services={}
   special_services_unauth={}
   tunnel={}
@@ -392,7 +394,7 @@ class scn_base_server(scn_base_base):
     if self.admin_auth(_name,_secret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
-    if self.scn_names.del_name(_name)==True:
+    if self.scn_names.del_name(_name)==True and self.scn_store.del_name(_name):
       _socket.send("success"+sepm)
       return
     else:
@@ -457,6 +459,7 @@ class scn_base_server(scn_base_base):
     if len(temphashes)>max_service_nodes:
       _socket.send("error"+sepc+"limit"+sepm)
       return
+    self.scn_store.del_service(_name,_service)
     temp2=[]
     for count in range(0,len(temphashes)):
       _hash_name_split=temphashes[count].split(sepu)
@@ -513,7 +516,8 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     _service=_socket.receive_one(min_name_length,max_name_length)
-    if self.scn_names.get(_name).delete_service(_service)==True:
+    if self.scn_names.get(_name).delete_service(_service)==True and \
+    self.scn_store.del_service(_name,_service):
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -559,10 +563,7 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepm)
       return
     
-    if len(_address!=2):
-      _socket.send("error"+sepc+"address length"+sepm)
-      return
-    if self.scn_names.get(_name).auth(_service,_servicesecret,_address)==True:
+    if self.scn_store.update(_address[0],_address[1],self.scn_names.get(_name).get_cert(hashlib.sha256(_servicesecret).hexdigest()))==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -589,9 +590,8 @@ class scn_base_server(scn_base_base):
       return
     #check if end
   
-    _address=["",""]
     
-    if self.scn_names.get(_name).auth(_service,_servicesecret,_address)==True:
+    if self.scn_names.get(_name).verify_secret(_service,_servicesecret)==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -889,7 +889,7 @@ class scn_base_client(scn_base_base):
       _socket.close()
       return None
 
-  def c_get_cert(self,_servername):
+  def c_get_server_cert(self,_servername):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("get_cert"+sepm)
     _state=scn_check_return(_socket)
@@ -909,6 +909,9 @@ class scn_base_client(scn_base_base):
     _serversecretsize=_socket.receive_one()
     return [_servername,_version,_serversecretsize]
 
+  #generate request for being added in service
+  def c_serve_request(self,_servername,_name,_service):
+    pass
 
 
 
