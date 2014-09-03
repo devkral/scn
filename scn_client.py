@@ -12,7 +12,7 @@ import socketserver
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
-from scn_base import scn_base_client, scn_socket, printdebug, printerror, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException
+from scn_base import scn_base_client,scn_base_base, scn_socket, printdebug, printerror, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_cert
 #,scn_check_return
 from scn_config import scn_client_port, client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max
 
@@ -178,7 +178,8 @@ class scn_friends_sql(object):
 
 #scn_servs: _servicename: _server,_name:secret
 class scn_servs_sql(object):
-  view_cur=None
+  view_cur=-1
+  view_list=None
   db_path=None
   def __init__(self,_db):
     self.db_path=_db
@@ -190,7 +191,7 @@ class scn_servs_sql(object):
     try:
       con.execute('''CREATE TABLE if not exists
       scn_serves(servername TEXT, name TEXT, service TEXT,
-      secret BLOB,PRIMARY KEY(servername,name,service),
+      secret BLOB,pending INTEGER,PRIMARY KEY(servername,name,service),
       FOREIGN KEY(servername) REFERENCES scn_certs(nodename) ON UPDATE CASCADE);''')
       
       con.execute('''CREATE TABLE if not exists scn_certs(nodename TEXT,
@@ -219,7 +220,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_service(self,_servername,_name,_service,_secret):
+  def update_service(self,_servername,_name,_service,_secret,_pendingstate=True):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -232,8 +233,9 @@ class scn_servs_sql(object):
       servername,
       name,
       service,
-      secret)
-      values (?,?,?,?)''',(_servername,_name,_service,_secret))
+      secret,
+      pending)
+      values (?,?,?,?,?)''',(_servername,_name,_service,_secret,_pendingstate))
       con.commit();
     except Exception as u:
       printdebug(u)
@@ -241,6 +243,31 @@ class scn_servs_sql(object):
       return False
     con.close()
     return True
+
+  def update_service_pendingstate(self,_servername,_name,_service,_pendingstate=False):
+    if _pendingstate==False:
+      _pendingstate=0
+    else:
+      _pendingstate=1
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printdebug(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''UPDATE scn_serves SET pending=? WHERE
+      servername=? AND name=? AND service=?;
+      ''',(_servername,_name,_service,_pendingstate))
+      con.commit();
+    except Exception as u:
+      printdebug(u)
+      con.rollback()
+      return False
+    con.close()
+    return True
+
   def get_service(self,_servername,_name,_servicename):
     temp=None
     try:
@@ -251,7 +278,7 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT b.url,b.cert,a.secret
+      cur.execute('''SELECT b.url,b.cert,a.secret,a.pending
       FROM scn_serves as a,scn_certs as b
       WHERE  a.servername=? AND a.servername=b.nodename
       AND a.name=? AND a.service=?''',(_servername,_name,_servicename))
@@ -259,7 +286,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printdebug(u)
     con.close()
-    return temp #serverurl,cert,secret
+    return temp #serverurl,cert,secret,pending state
   
   def del_service(self,_servername,_name,_servicename):
     try:
@@ -326,7 +353,7 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT url,cert
+      cur.execute('''SELECT url,cert,pending
       FROM scn_certs
       WHERE nodename=?''',(_nodename,))
       temp=cur.fetchone()
@@ -369,7 +396,8 @@ class scn_servs_sql(object):
     return temp #serverurl,cert
 
   def get_next(self):
-    return self.view_cur.fetchone() #serverurl,secret,cert
+    self.view_cur+=1
+    return self.view_list[self.view_cur] #serverurl,cert,name,secret,pendingstate
   def rewind(self):
     try:
       con=sqlite3.connect(self.db_path)
@@ -379,10 +407,11 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT b.url,b.cert,a.name,a.secret
+      cur.execute('''SELECT b.url,b.cert,a.name,a.secret,a.pending
       FROM scn_serves as a,scn_certs as b
       WHERE a.servername=b.nodename''')
-      self.view_cur=cur
+      self.view_cur=-1 #+1 before retrieving
+      self.view_list=cur.fetchall()
     except Exception as u:
       printdebug(u)
     con.close()
@@ -464,13 +493,17 @@ class scn_client(scn_base_client):
     tempsocket.setblocking(True)
     return tempsocket
   
-  def c_connect_to_node(self,_servername,_name,_service="main"):
+  def c_connect_to_node(self,_servername,_name,_service="main",_com_method=None):
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
     tempsocket=None
-    for elem in self.get_service(_servername,_name,_service):
-      if elem[0]=="ip":
+    method=_com_method
+    _cert=None
+    for elem in self.c_get_service(_servername,_name,_service):
+      if _com_method==None:
+        method=elem[0]
+      if method=="ip" or method=="wrap":
         tempconnectdata=elem[1].split(sepu)
         if len(tempconnectdata)==1:
           tempconnectdata+=[scn_server_port,]
@@ -482,14 +515,20 @@ class scn_client(scn_base_client):
             #connect with ssl handshake
             tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
             tempsocket.do_handshake()
+            tempsocket.setblocking(True)
             break
           except Exception as e:
             raise(e)
+      if tempsocket!=None:
+        tempcomsock2=scn_socket(tempsocket)
+        tempcomsock2.send("get_cert")
+        if scn_check_return(tempcomsock2)==True:
+          _cert=tempcomsock2.receive_bytes(0,max_cert_size)
+          if scn_verify_cert(_name,_cert,elem[2])==True:
+            break
     if tempsocket == None:
       return None
-    tempsocket.setblocking(True)
-    tempsocket.send("hello"+sepc+_service+sepm)
-    return tempsocket
+    return [tempsocket, method, _cert]
 
   def c_add_node(self,_url,_servername=None):
     _socket=scn_socket(self.connect_to_ip(_url))
@@ -584,16 +623,17 @@ class scn_client(scn_base_client):
     print(_server_response)
     return True
     
-  
+  def c_serve_service_wrap(self,_servername,_name,_service):
+    return self.c_serve_service(self,_servername,_name,_service,"wrap",scn_client_port)
+
   def c_serve_service_ip(self,_servername,_name,_service):
-    _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,_service)
-    _socket.send("serve"+sepc+_name+sepc+_service+sepc)
-    _socket.send_bytes(temp[3])
-    _socket.send(scn_client_port+sepc+"ip"+sepm)
-    _server_response=scn_check_return(_socket)
-    _socket.close()
-    return _server_response
+    return self.c_serve_service(self,_servername,_name,_service,"ip",scn_client_port)
+
+  actions = {"get_cert": scn_base_base.s_get_cert,
+             "pong": scn_base_base.pong,
+             "info": scn_base_base.s_info,
+             "wrap": scn_base_client.s_wrap}
+
 
   clientactions_bool = {"register": scn_base_client.c_register_name, 
                  "delname": scn_base_client.c_delete_name, 
@@ -678,10 +718,47 @@ class scn_client(scn_base_client):
       time.sleep(1)
   
 
-class scn_client_handler(socketserver.BaseRequestHandler):
+#for requests to client
+class scn_server_client(socketserver.BaseRequestHandler):
   linkback=None
+
   def handle(self):
-    pass
+    self.request.setblocking(True)
+    sc=scn_socket(self.request)
+    while True:
+      try:
+        temp=sc.receive_one()
+        if temp==None:
+          sc.send("error"+sepc+"no input"+sepm)
+          break
+        elif temp in self.linkback.actions:
+          self.linkback.actions[temp](self.linkback,sc)
+        else:
+          sc.send("error"+sepc+temp+": no such function"+sepm)
+      except BrokenPipeError:
+        printdebug("Socket closed") 
+        break
+      except Exception as e:
+        printdebug(e)
+        break
+
+#socketserver.ThreadingMixIn, 
+class scn_sock_client(socketserver.TCPServer):
+  linkback=None
+  def __init__(self, server_address, HandlerClass,_linkback):
+    socketserver.BaseServer.__init__(self, server_address, HandlerClass)
+    self.linkback=_linkback
+
+    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
+    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+    temp_context.set_cipher_list("HIGH")
+    temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
+    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
+    self.socket = SSL.Connection(temp_context,socket.socket(self.address_family, self.socket_type))
+    #self.socket.set_accept_state()
+    self.server_bind()
+    self.server_activate()
+
 
 def signal_handler(signal, frame):
   sys.exit(0)

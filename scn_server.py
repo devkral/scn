@@ -418,11 +418,12 @@ class scn_server(scn_base_server):
     with open(self.config_path+"scn_server_cert"+".pub", 'rb') as readinpubkey:
       self.pub_cert=readinpubkey.read()
     self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
-    self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
-    self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
+    #self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
+    #self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
 
     printdebug("Server init finished")
 
+"""
   def callback(self,_socket,_name,_store_name):
     if self.scn_names.contains(_name)==False:
       _socket.send("error"+sepc+"name not exists"+sepm)
@@ -459,7 +460,7 @@ or self.scn_names.contains(_store_name)==False:
     for elem in self.callback[_name]:
       temp+=sepc+elem[0]+sepu+elem[1]
     _socket.send("success"+temp+sepm)
-    return 
+    return """
 
 
 class scn_server_handler(socketserver.BaseRequestHandler):

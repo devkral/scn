@@ -1,0 +1,14 @@
+important
+
+-fix multithreading (later)
+-add webgui
+-finish server client side
+
+future:
+rename specialservices to plugin
+
+enhancements:
+-gui
+-callbacks
+-tunnels
+-sslwrap
