@@ -583,8 +583,6 @@ class scn_base_server(scn_base_base):
 
     if _addr_type=="ip": #_addr=port
       _address=["ip",_socket.socket.getpeername()[0]+sepu+_addr]
-    elif _addr_type=="wrap": #_addr=port
-      _address=["wrap",_socket.socket.getpeername()[0]+sepu+_addr]
     else:
       _socket.send("error"+sepm)
       return

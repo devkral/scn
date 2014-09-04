@@ -1,0 +1,7 @@
+client-client
+client gets connectmethod and address by server
+client connects with data. If it fails it uses the next one
+if connection succeeds:
+  send get_cert get cert, verify and upgrade connection
+
+  send hello+sepc+port get connecttype (e.g. wrap, direct)
