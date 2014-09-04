@@ -813,7 +813,8 @@ class scn_base_server(scn_base_base):
 class scn_base_client(scn_base_base):
   scn_servs=None
   scn_friends=None
-  
+  direct_list={}
+  wrap_list={}
   def c_update_service(self,_servername,_name,_service,_secrethashstring):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,"admin")
@@ -1025,19 +1026,107 @@ class scn_base_client(scn_base_base):
     else:
       return _server_response
 
-  def s_wrap(self,_socket):
+  def s_hello(self,_socket):
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _reqservice=_socket.receive_one(1,max_name_length) #port or name
     except scnReceiveError as e:
       _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
       return
-
-  def c_get_ip(self,_servername,_name,_service="main"):
-    tempcon=self.c_connect_to_node(_servername,_name,_service)
-    if tempcon==None:
+    if _reqservice in self.wrap_list:
+      _socket.send("error"+sepc+"not implemented yet"+sepm)
+      return
+    elif _reqservice in self.direct_list:
+      _socket.send("success"+sepc+"direct"+sepm)
+      return
+    else:
+      _socket.send("error"+sepc+"not available"+sepm)
+      return
+  
+  def c_hello(self,_servername,_name,identifier,_service="main"): #identifier: port or name
+    temp=self.c_connect_to_node(_servername,_name,_service)
+    if temp==None:
       return None
-    ipaddr=tempcon.getpeername()[0]
-    socket.shutdown()
-    return [ipaddr,]
-    
+    _socket=scn_socket(temp[0])
+    _socket.send("hello"+sepc+identifier+sepm)
+    if scn_check_return(_socket)==True:
+      _servicecontype=_socket.receive_one()
+      _socket.close()
+      return [temp[0],temp[1],temp[2],_servicecontype]
+    else:
+      _socket.close()
+      return None
 
+
+  def c_add_node(self,_url,_servername=None):
+    _socket=scn_socket(self.connect_to_ip(_url))
+    _socket.send("info"+sepm)
+    if scn_check_return(_socket) == False:
+      _socket.close()
+      return False
+    if _servername == None:
+      _servername=_socket.receive_one()
+    else:
+      _socket.receive_one()
+    _socket.receive_one()#version
+    _socket.receive_one()#_serversecretsize
+    if _socket.is_end() == False:
+      printerror("Error: is_end false before second command")
+      _socket.close()
+      return False
+    elif self.scn_servs.get_node(_servername)!=None:
+      printerror("Error: node exists already")
+      _socket.close()
+      return False
+    
+    _socket.send("get_cert"+sepm)
+    if scn_check_return(_socket) == False:
+      _socket.close()
+      return False
+    _cert=_socket.receive_bytes(0,max_cert_size)
+    _socket.close()
+    if self.scn_servs.update_node(_servername,_url,_cert)==True:
+      return True
+    else:
+      printdebug("node update failed")
+      return False
+
+  def c_update_node(self,_url,_servername): #, update_cert_hook):
+    if self.scn_servs.get_node(_servername)==None:
+      printerror("Error: Node doesn't exist")
+      return False
+    _socket=scn_socket(self.connect_to_ip(_url))
+    #neccessary?
+    #masquerade, nobody should know if this server is being added or updated
+    #_socket.send("info"+sepm)
+    #if scn_check_return(_socket) == False:
+    #  _socket.close()
+    #  return False
+    #_socket.receive_one()
+    #_socket.receive_one()#version
+    #_socket.receive_one()#_serversecretsize
+    #if _socket.is_end() == False:
+    #  printerror("Error: is_end false before second command")
+    #  _socket.close()
+    #  return False
+
+    _socket.send("get_cert"+sepm)
+    if scn_check_return(_socket) == False:
+      _socket.close()
+      return False
+    _newcert=_socket.receive_bytes(0,max_cert_size)
+    _socket.close()
+    if _newcert!=self.scn_servs.get_node(_servername):
+      printdebug("Certs missmatch, update because of missing hook")
+    if self.scn_servs.update_node(_servername,_url,_newcert)==True:
+      return True
+    else:
+      printdebug("node update failed")
+      return False
+    
+  def c_delete_node(self,_nodename):
+    if self.scn_servs.del_node(_nodename)==True:
+      return True
+      #return self.scn_friends.del_server_all(_nodename)
+    else:
+      printerror("node deletion failed")
+      return False

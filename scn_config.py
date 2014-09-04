@@ -20,10 +20,12 @@ default_config_folder=os.getenv("HOME")+os.sep+".scn"+os.sep
 debug_mode=True
 show_error_mode=True
 
+scn_host="localhost"
+
 #client
 client_show_incomming_commands=True
 scn_client_port=4041
 
 #server
-server_host="localhost"
+
 scn_server_port=4040

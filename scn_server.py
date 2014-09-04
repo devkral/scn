@@ -10,10 +10,10 @@ import tempfile
 
 from OpenSSL import SSL,crypto
 
-from scn_base import sepm,sepc,sepu
+from scn_base import sepm,sepc #,sepu
 from scn_base import scn_base_server,scn_base_base,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs
 
-from scn_config import scn_server_port,default_config_folder,server_host,max_service_nodes
+from scn_config import scn_server_port,default_config_folder,scn_host,max_service_nodes
 
 
 class scn_ip_store(object):
@@ -530,12 +530,12 @@ def signal_handler(signal, frame):
 #  server.shutdown()
   sys.exit(0)
 if __name__ == "__main__":
-  rec_pre = scn_server(default_config_folder,server_host+"_scn")
+  rec_pre = scn_server(default_config_folder,scn_host+"_scn")
   rec = scn_server_handler
   rec.linkback=rec_pre
   
   # Create the server, binding to localhost on port 9999
-  server = scn_sock_server((server_host, scn_server_port), rec,rec_pre) 
+  server = scn_sock_server((scn_host, scn_server_port), rec,rec_pre) 
   signal.signal(signal.SIGINT, signal_handler)
   # Activate the server; this will keep running until you
   # interrupt the program with Ctrl-C
