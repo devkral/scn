@@ -32,24 +32,24 @@ sepu="\x1F" #seperate units (part of command, convention)
 
 
 def check_hash(_hashstr):
-  if len(_hashstr)==64 and all(c in "0123456789abcdef" for c in _hashstr):
+  if len(_hashstr)==hash_hex_size and all(c in "0123456789abcdefABCDEF" for c in _hashstr):
     return True
   return False
 #check if invalid non blob (e.g. name, command)
-_check_invalid_chars=re.compile("[\$\0'\"\n\r\b\u001a\u007F\u001D\u001F]")
+_check_invalid_chars=re.compile("[\$\0'%\" \n\r\b\x1A\x7F"+sepm+sepc+sepu+"]")
 def check_invalid_s(stin):
   if stin==None or stin=="":
     return False
-  if _check_invalid_chars.search(stin)!=None: #stin.isidentifier()==False: or stin.isalnum()==False:
+  if _check_invalid_chars.search(stin)!=None:
     return False
   return True
 
 
-_check_invalid_name=re.compile("[,; %#`´\^\\\\]")
+_check_invalid_name=re.compile("[,; \^\\\\]")
 def check_invalid_name(stin):
   if stin==None or type(stin)==bytes or stin=="":
     return False
-  if _check_invalid_name.search(stin)!=None or _check_invalid_chars.search(stin): #stin.isidentifier()==False: or stin.isalnum()==False:
+  if _check_invalid_name.search(stin)!=None or _check_invalid_chars.search(stin):
     return False
   return True
 
@@ -325,8 +325,7 @@ class scn_base_base(object):
 #  "main": points to current used computer
 #  "store": points to storage
 #  "notify": points to primary message device
-#  "request": points to client handling requests like serve,callback
-#             also for retrieving requests from server
+#  "special": group for useing special_services
 #tunnellist: uid:service:tunnel
 
 
@@ -725,21 +724,17 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
       return
-    if self.service_auth(_name,_service,_servicesecret)==False:
+    if self.service_auth(_name,_service,_servicesecret)==False and self.service_auth(_name,"special",_servicesecret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     if _service not in self.special_services:
       _socket.send("error"+sepc+"specialservice not exist"+sepm)
       return
-    _address=["special",""]
-    if self.scn_names.get(_name).auth(_service,_servicesecret,_address)==True:
-      
-      if _socket.is_end()==True:
-        _socket.send("success"+sepm)
+    if _socket.is_end()==True:
+      _socket.send("success"+sepm)
       self.special_services[_service](self,_socket,_name)
-      
     else:
-      _socket.send("error"+sepm)
+      _socket.send("error"+sepc+"not end"+sepm)
 
 #anonym,unauth
   def s_get_service(self,_socket):
@@ -755,6 +750,8 @@ class scn_base_server(scn_base_base):
       return
     if _service=="admin":
       _socket.send("error"+sepc+"admin"+sepm)
+    elif _service=="special":
+      _socket.send("error"+sepc+"special"+sepm)
     elif self.scn_names.length(_name)==0:
       _socket.send("error"+sepc+"not exists"+sepm)
     elif not self.scn_names.get(_name).length( _service)==0:
