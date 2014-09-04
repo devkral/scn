@@ -45,10 +45,9 @@ def check_invalid_s(stin):
   return True
 
 
-_check_invalid_name=re.compile("[,;+ %#`´\^\\\\]")
+_check_invalid_name=re.compile("[,; %#`´\^\\\\]")
 def check_invalid_name(stin):
-#todo: remove user "bytes" from databases if exists, to prevent hacking attacks where bytes can't be removed
-  if stin==None or type(stin)==bytes or stin=="" or stin=="bytes":
+  if stin==None or type(stin)==bytes or stin=="":
     return False
   if _check_invalid_name.search(stin)!=None or _check_invalid_chars.search(stin): #stin.isidentifier()==False: or stin.isalnum()==False:
     return False

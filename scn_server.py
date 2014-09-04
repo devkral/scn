@@ -74,7 +74,7 @@ class scn_ip_store(object):
     try:
       cur = con.cursor()
       #single entry
-      if _service=="main":
+      if _service[0]=="=" or _service=="main":
         cur.execute('''DELETE FROM addr_store
         WHERE name=? AND
         service=?;''',(_name, _service))
@@ -84,7 +84,7 @@ class scn_ip_store(object):
         values(?,?,0,?,?);''',
         (_name,_service, _pub_cert_hash, _addr_type, _addr))
       #order by activity
-      elif _service=="notify":
+      elif _service[0]=="+" or _service=="notify":
 
         cur.execute('''UPDATE addr_store
         SET clientid = clientid+1
@@ -103,7 +103,7 @@ class scn_ip_store(object):
         values(?,?,0,?,?)''',
         (_name,_service, _pub_cert_hash, _addr_type, _addr))
       #order by nodeid (default)
-      else:
+      elif _service[0]=="-" or True:
         cur.execute('''INSERT OR REPLACE into
         addr_store(name,service,clientid,hashed_pub_cert,addr_type, addr)
         values(?,?,?,?,?)''',
@@ -215,11 +215,21 @@ class scn_name_sql(object):
         cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret
         FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?''',(self.name,_servicename,_nodeid))
 
-      if cur.rowcount>0:
-        ob=cur.fetchmany()
+      ob=cur.fetchmany()
     except Exception as u:
       printerror(u)
     return ob #nodeid,nodename,hashed_pub_cert,hashed_secret
+
+  def list_services(self):
+    ob=None
+    try:
+      cur = self.dbcon.cursor()
+      cur.execute('''SELECT servicename
+      FROM scn_node WHERE scn_name=?''',(self.name,))
+      ob=cur.fetchmany()
+    except Exception as u:
+      printerror(u)
+    return ob #servicename
 
   def get_cert(self,_servicename,_secret_hash):
     ob=None
@@ -318,6 +328,20 @@ class scn_name_list_sqlite(object):
       resultname=cur.fetchone()
       if resultname!=None:
         ob=scn_name_sql(con,resultname) 
+    except Exception as u:
+      printdebug(u)
+    return ob
+  def list_names(self):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return None
+    ob=None
+    try:
+      cur = con.cursor()
+      cur.execute('SELECT name FROM scn_name')
+      ob=cur.fetchmany()
     except Exception as u:
       printdebug(u)
     return ob
