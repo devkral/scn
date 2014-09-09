@@ -441,7 +441,8 @@ class scn_server(scn_base_server):
       self.priv_cert=readinprivkey.read()
     with open(self.config_path+"scn_server_cert"+".pub", 'rb') as readinpubkey:
       self.pub_cert=readinpubkey.read()
-    self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_db")
+    self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_name_db")
+    self.scn_store=scn_ip_store(self.config_path+"scn_server_pers_id_db")
     #self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
     #self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
 

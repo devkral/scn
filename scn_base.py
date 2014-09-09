@@ -352,12 +352,12 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
     try:
-      _secrethash=str(_socket.receive_bytes(0,hash_hex_size),"utf8")
+      _secrethash=str(_socket.receive_bytes(hash_hex_size),"utf8")
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secrethash"+sepc+str(e)+sepm)
       return
     try:
-      _certhash=str(_socket.receive_bytes(0,hash_hex_size),"utf8")
+      _certhash=str(_socket.receive_bytes(hash_hex_size),"utf8")
     except scnReceiveError as e:
       _socket.send("error"+sepc+"certhash"+sepc+str(e)+sepm)
       return
@@ -758,10 +758,34 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"service not exist"+sepm)
     else:
       temp=""
-      for elem in self.scn_ip_store.get(_name,_service):
+      for elem in self.scn_store.get(_name,_service):
         temp+=sepc+elem[0]+sepu+elem[1]+sepu+elem[2] #addrtype, addr, _certhash
       _socket.send("success"+temp+sepm)
 
+  def s_list_services(self,_socket):
+    try:
+      _name=_socket.receive_one(min_name_length,max_name_length)
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
+      return
+    try:
+      _service=_socket.receive_one(1,max_name_length)
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      return
+    if _service=="admin":
+      _socket.send("error"+sepc+"admin"+sepm)
+    elif _service=="special":
+      _socket.send("error"+sepc+"special"+sepm)
+    elif self.scn_names.length(_name)==0:
+      _socket.send("error"+sepc+"not exists"+sepm)
+    elif not self.scn_names.get(_name).length( _service)==0:
+      _socket.send("error"+sepc+"service not exist"+sepm)
+    else:
+      temp=""
+      for elem in self.scn_names.list_services(_name,_service):
+        temp+=sepc+elem #name
+      _socket.send("success"+temp+sepm)
 
   def s_get_name_message(self,_socket,_name):
     try:
@@ -846,10 +870,10 @@ class scn_base_client(scn_base_base):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
     _socket.send("register_name"+sepc+_name+sepc)
-    _socket.send_bytes(hashlib.sha256(_secret).hexdigest())
+    _socket.send_bytes(bytes(hashlib.sha256(_secret).hexdigest(),"utf8"))
     temphash=hashlib.sha256(bytes(_name,"utf8"))
     temphash.update(self.pub_cert)
-    _socket.send_bytes(temphash.hexdigest(),True)
+    _socket.send_bytes(bytes(temphash.hexdigest(),"utf8"),True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
@@ -945,6 +969,17 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _node_list
 
+  def c_list_services(self,_servername,_name,_service):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.send("list_services"+sepc+_name+sepc+_service+sepm)
+    _node_list=[]
+    if scn_check_return(_socket) == True:
+      for protcount in range(0,protcount_max):
+        _node_list += [_socket.receive_one(),]
+    else:
+      _node_list = None
+    _socket.close()
+    return _node_list
   
   def c_get_name_message(self,_servername,_name,_service):
     _socket = scn_socket(self.connect_to(_servername))
