@@ -22,6 +22,7 @@ receiver receives till size and checks for sepc or sepm
 ##examples
 *get_service sepc samplename sepc sampleservice sepm
 *get_service sepc samplename sepc sampleservice sepm info sepm
+*test sepc bytes 5 <waits for a success> willi sepm 
 
 
 
