@@ -23,7 +23,7 @@ class scn_ip_store(object):
   def __init__(self,dbpers):
     self.db_pers=dbpers
     self.db_temp_keep_alive=tempfile.NamedTemporaryFile()
-    self.db_pers=self.db_temp_keep_alive.name
+    self.db_tmp=self.db_temp_keep_alive.name
     try:
       con=sqlite3.connect(self.db_pers)
       con.execute('''CREATE TABLE if not exists addr_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT, hashed_pub_cert TEXT, PRIMARY KEY(name,service,hashed_pub_cert));''')
@@ -33,9 +33,10 @@ class scn_ip_store(object):
       printerror(e)
       con.close()
       return
+
     try:
       con=sqlite3.connect(self.db_tmp)
-      con.execute('''CREATE TABLE if not exists addr_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT,hashed_pub_cert TEXT, PRIMARY KEY(name,service,pub_cert_hash));''')
+      con.execute('''CREATE TABLE if not exists addr_store(name TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT,hashed_pub_cert TEXT, PRIMARY KEY(name,service,hashed_pub_cert));''')
       
       con.commit()
       con.close()
@@ -43,6 +44,7 @@ class scn_ip_store(object):
       printerror(e)
       con.close()
       return
+    
   
   def det_con(self,_service):
     if _service=="main" or _service=="notify":
@@ -295,6 +297,19 @@ class scn_name_sql(object):
       return False
     return True
 
+  def delete_secret(self,_servicename,_secret):
+    if self.verify_secret(_servicename,_secret)==False:
+      return False
+    try:
+      cur = self.dbcon.cursor()
+      cur.execute('''DELETE FROM scn_node WHERE servicename=? AND scn_name=? AND hashed_secret=?''',(_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
+      self.dbcon.commit()
+    except Exception as u:
+      printdebug(u)
+      cur.rollback()
+      return False
+    return True
+
 class scn_name_list_sqlite(object):
   db_path=None
   def __init__(self, db):
@@ -412,6 +427,7 @@ class scn_server(scn_base_server):
   actions={"register_name": scn_base_server.s_register_name,
            "delete_name": scn_base_server.s_delete_name,
            "update_message": scn_base_server.s_update_message,
+           "add_service": scn_base_server.s_add_service,
            "update_service": scn_base_server.s_update_service,
            "delete_service":scn_base_server.s_delete_service,
            "get_service_secrethash": scn_base_server.s_get_service_secrethash,

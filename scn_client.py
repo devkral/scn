@@ -304,7 +304,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printdebug(u)
     con.close()
-    return temp #serverurl,cert,secret,pending state
+    return temp[0] #serverurl,cert,secret,pending state
   
   def del_service(self,_servername,_name,_servicename):
     try:
@@ -581,16 +581,17 @@ class scn_client(scn_base_client):
 
 
   clientactions_bool = {"register": scn_base_client.c_register_name, 
-                 "delname": scn_base_client.c_delete_name, 
-                 "updmessage": scn_base_client.c_update_name_message, 
-                 "updservice": scn_base_client.c_update_service, 
-                 "delservice": scn_base_client.c_delete_service, 
-                 "serveip": c_serve_service_ip, 
-                 "unserve": scn_base_client.c_unserve_service, 
-                 "updsecret": scn_base_client.c_update_secret,
-                 "addserver": scn_base_client.c_add_node,
-                 "updserver": scn_base_client.c_update_node, 
-                 "delserver": scn_base_client.c_delete_node}
+                        "delname": scn_base_client.c_delete_name, 
+                        "updmessage": scn_base_client.c_update_name_message, 
+                        "addservice": scn_base_client.c_add_service, 
+                        "updservice": scn_base_client.c_update_service, 
+                        "delservice": scn_base_client.c_delete_service, 
+                        "serveip": c_serve_service_ip, 
+                        "unserve": scn_base_client.c_unserve_service, 
+                        "updsecret": scn_base_client.c_update_secret,
+                        "addserver": scn_base_client.c_add_node,
+                        "updserver": scn_base_client.c_update_node, 
+                        "delserver": scn_base_client.c_delete_node}
   clientactions_list = {"getservicehash": scn_base_client.c_get_service_secrethash, 
                         "getmessage": scn_base_client.c_get_name_message, 
                         "getservercert": scn_base_client.c_get_server_cert, 
