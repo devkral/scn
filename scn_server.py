@@ -371,7 +371,7 @@ class scn_name_list_sqlite(object):
     try:
       cur = con.cursor()
       cur.execute(' SELECT DISTINCT servicename FROM scn_node WHERE scn_name=?', (_name,))
-      length=cur.rowcount()
+      length=cur.rowcount
     except Exception as u:
       printdebug(u)
       length=0

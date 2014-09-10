@@ -344,7 +344,7 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return [None,None]
-    if check_invalid_s(_name) or self.scn_names.length(_name)==0:
+    if check_invalid_s(_name)==False or self.scn_names.length(_name)==0:
       _socket.send("error"+sepc+"name constraints"+sepm)
       return [None,None]
     try:
@@ -810,8 +810,9 @@ class scn_base_client(scn_base_base):
     if temp==None:
       printerror("Error: no admin rights")
       return
-    _socket.send("add_service"+sepc+_name+sepc+_service)
+    _socket.send("add_service"+sepc+_name+sepc)
     _socket.send_bytes(temp[2])
+    _socket.send(_service)
     if _secrethashstring==None:
       _socket.send_bytes(bytes("self"+sepu+hashlib.sha256(_secret).hexdigest()+sepu+temphash.hexdigest(),"utf8"),True)
     else:
