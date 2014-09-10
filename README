@@ -1,5 +1,7 @@
 Secure communication nodes shall be an enhanced replacement for dynamic dns.
 
+
+
 Features are:
 -everything is a service
 -callback function (for peer to peer mail and more)
@@ -14,5 +16,5 @@ future:
 far far future:
 -C/C++
 
-Warning: This project is neither safe (missing encryption) nor stable in any way (pre-pre alpha)
+Warning: THis project not stable (pre-pre alpha)
 
