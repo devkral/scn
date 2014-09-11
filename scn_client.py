@@ -10,7 +10,10 @@ import socket
 import socketserver
 
 import os
-from bottle import route, run, template
+import bottle
+
+app=bottle.Bottle()
+from bottle import template,static_file
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
@@ -705,28 +708,38 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 scn_client_node=None
 
-@route('/<server>/<name>')
-def do_name_action(server,name):
+
+@app.route('/server/<server>')
+@app.route('/server/<server>/<name>')
+@app.route('/server/<server>/<name>/<service>')
+@app.route('/server')
+@app.route('/')
+def generate_server_nav(server=None,name=None,service=None):
   if "Klsls" in scn_client_node.clientactions_bool:
     scn_client_node.c_info(server)
+    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
   elif "Klsls" in scn_client_node.clientactions_list:
     scn_client_node.c_info(server)
+    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
   else:
-    return "ksksks"
+    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
 
-@route('/<server>')
-def do_server_action(server):
-  pass
 
-@route('/')
-def gen_frame():
-  pass
+@app.route('/friends/<node>')
+@app.route('/friends')
+def generate_client_nav(node=None):
+  return template("client_nav",node=node,return_state=None,return_list=None)
+
+@app.route('/static/:path#.+#')
+def server_static(path):
+    return static_file(path, root=curdir+'/static')
 
 
 #def do_action(action,server):
 #    return template('<b>Hello {{name}}</b>!', name=name)
 
 def signal_handler(signal, frame):
+  app.close()
   sys.exit(0)
 if __name__ == "__main__":
   scn_client_node=scn_client(default_config_folder)
@@ -737,7 +750,7 @@ if __name__ == "__main__":
   client_thread = threading.Thread(target=clientserve.serve_forever)
   client_thread.daemon = True
   client_thread.start()
-  run(host='localhost', port=8080, debug=True)
+  app.run(host='localhost', port=8080, debug=True)
 """
   client_interact_thread = threading.Thread(target=run(host='localhost', port=8080))
   client_interact_thread = True

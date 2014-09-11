@@ -1,0 +1,38 @@
+@media print {
+		header {
+				display: none;
+		}
+		main {
+				width: 100%;
+		}
+		.sidebar {
+				display: none
+		}
+		.content {
+				display: visible
+				float: left;
+		}
+}
+
+@media screen {
+		header {
+				width: 100%;
+				height: 100px;
+				display: visible;
+				background-color: #00FFFF;
+		}
+		main {
+				width: 100%;
+				display: visible;
+		}
+		
+		.sidebar {
+				display: visible;
+				float: left;
+				width: 4%;
+		}
+		.content {
+				display: visible
+				float: left;
+		}
+}
