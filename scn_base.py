@@ -174,7 +174,7 @@ class scn_socket(object):
     except (BrokenPipeError,SSL.ZeroReturnError):
       raise(BrokenPipeError())
     except (SSL.SysCallError) as e:
-      if e.args[1]=="ECONNRESET":
+      if e.args[1]=="ECONNRESET" or e.args[1]=="Unexpected EOF":
         raise(BrokenPipeError())
       else:
         raise(e)
@@ -260,12 +260,12 @@ class scn_socket(object):
       if is_accepting=="success":
         self._socket.sendall(tmp_scn_format.pack(_byteseq))
       else:
-        eerrtemp=is_accepting
+        reject_reason=is_accepting
         for protcount in range(0,protcount_max):
           if self.is_end()==True:
             break
-          eerrtemp+=","+self.receive_one()
-        raise(scnRejectException("reject:"+eerrtemp))
+          reject_reason+=","+self.receive_one()
+        raise(scnRejectException("reject:"+reject_reason))
     except BrokenPipeError as e:
       printdebug("Bytesequence: BrokenPipe")
       raise(e)
@@ -923,9 +923,9 @@ class scn_base_client(scn_base_base):
   def c_delete_service(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,"admin")
-    _socket.send("delete_service"+sepc+_name+sepc,_socket)
-    _socket.send_bytes(temp[2],_socket)
-    _socket.send_bytes(_service+sepm,_socket)
+    _socket.send("delete_service"+sepc+_name+sepc)
+    _socket.send_bytes(temp[2])
+    _socket.send_bytes(_service+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
     return _server_response
@@ -934,8 +934,8 @@ class scn_base_client(scn_base_base):
   def c_unserve_service(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servs.get_service(_servername,_name,_service)
-    _socket.send("unserve"+sepc+_name+sepc+_service+sepc,_socket)
-    _socket.send_bytes(temp[3],_socket,True)
+    _socket.send("unserve"+sepc+_name+sepc+_service+sepc)
+    _socket.send_bytes(temp[2],_socket,True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     return _server_response
