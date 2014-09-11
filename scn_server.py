@@ -179,7 +179,6 @@ class scn_name_sql(object):
 
   def __init__(self,dbcon,_name):
     self.dbcon=dbcon
-    print(_name)
     self.name=_name
 
   def __del__(self):
@@ -206,7 +205,7 @@ class scn_name_sql(object):
     return message
 
 #=get_service
-  def get(self,_servicename,_nodeid=None):
+  def get_service(self,_servicename,_nodeid=None):
     ob=None
     try:
       cur = self.dbcon.cursor()
@@ -276,7 +275,7 @@ class scn_name_sql(object):
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT scn_name FROM scn_node WHERE scn_name=? AND servicename=? AND hashed_secret=?;''',(self.name,_servicename,hashlib.sha256(_secret).hexdigest()))
-      if cur.rowcount>0:
+      if cur.fetchone()!=None:
         state=True
     except Exception as e:
       printerror(e)

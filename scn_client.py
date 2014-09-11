@@ -624,7 +624,7 @@ class scn_client(scn_base_client):
           else:
             serveranswer = self.clientactions_bool[command[0]](self)
         except TypeError as e:
-          printerror(command+str(e)+" Invalid number of parameters?")
+          printerror(e)
         except BrokenPipeError:
           printdebug("Socket closed unexpected") 
         except Exception as e:
@@ -642,8 +642,9 @@ class scn_client(scn_base_client):
             serveranswer = self.clientactions_list[command[0]](self,*tempcom)
           else:
             serveranswer = self.clientactions_list[command[0]](self)
+          printerror(e)
         except TypeError as e:
-          printerror(command+str(e)+"Invalid number of parameters")
+          printerror(e)
         except BrokenPipeError:
           printdebug("Socket closed unexpected") 
         except Exception as e:
