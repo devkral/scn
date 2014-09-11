@@ -528,7 +528,8 @@ class scn_server_handler(socketserver.BaseRequestHandler):
         printdebug("Socket closed") 
         break
       except SSL.SysCallError as e:
-        if e.args[1]=="ECONNRESET" or e.args[1]=="Unexpected EOF":
+        if e.args[0]==104 or e.args[0]==-1:
+          #"104: ECONNRESET, -1: Unexpected EOF"
           printdebug("Socket closed")
         else:
           printerror(e)

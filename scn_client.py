@@ -9,7 +9,7 @@ import sqlite3
 import socket
 import socketserver
 
-
+from bottle import route, run, template
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
@@ -701,6 +701,9 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
     self.server_bind()
     self.server_activate()
 
+@route('/hello/<name>')
+def index(name):
+    return template('<b>Hello {{name}}</b>!', name=name)
 
 def signal_handler(signal, frame):
   sys.exit(0)
@@ -713,4 +716,11 @@ if __name__ == "__main__":
   client_thread = threading.Thread(target=clientserve.serve_forever)
   client_thread.daemon = True
   client_thread.start()
-  t.debug()
+  run(host='localhost', port=8080)
+"""
+  client_interact_thread = threading.Thread(target=run(host='localhost', port=8080))
+  client_interact_thread = True
+  client_interact_thread.start()
+  
+  t.debug()"""
+

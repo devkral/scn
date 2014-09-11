@@ -174,7 +174,8 @@ class scn_socket(object):
     except (BrokenPipeError,SSL.ZeroReturnError):
       raise(BrokenPipeError())
     except (SSL.SysCallError) as e:
-      if e.args[1]=="ECONNRESET" or e.args[1]=="Unexpected EOF":
+      if e.args[0]==104 or e.args[0]==-1:
+        #"104: ECONNRESET, -1: Unexpected EOF"
         raise(BrokenPipeError())
       else:
         raise(e)
