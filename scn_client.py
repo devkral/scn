@@ -730,6 +730,10 @@ def generate_server_nav(server=None,name=None,service=None):
 def generate_client_nav(node=None):
   return template("client_nav",node=node,return_state=None,return_list=None)
 
+@app.route('/actions/<action>')
+def do_action(action):
+  pass
+
 @app.route('/static/:path#.+#')
 def server_static(path):
     return static_file(path, root=curdir+'/static')

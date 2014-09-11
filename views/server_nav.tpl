@@ -19,10 +19,19 @@
 <table>
 	<tr>
 		<td class="sidebar">
-			<a href="#" onclick="servermanagement()"></a>
+			<nav>
+				<a href="#" onclick="list_servers()">List server</a> <br>
+%if server!=None:
+					<a href="#" onclick="servermanagement()">List Names</a> <br>
+					<a href="#" onclick="servermanagement()">Register Name</a> <br>
+					<a href="#" onclick="servermanagement()">Delete Name</a> <br>
+					<a href="#" onclick="servermanagement()">Get Server Info</a> <br>
+					<a href="#" onclick="servermanagement()">Get Server Certificate</a> <br>
+%end
+					<a href="">Reload</a>
 		</td>
 		<td class="content">
-			"hier der main content"
+			<div id="maincontent">
 		</td>
 	</tr>
 </table>
