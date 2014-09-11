@@ -58,16 +58,17 @@ def printdebug(inp):
   if debug_mode==True:
     pprint.pprint(inp,stream=sys.stderr)
     #print(inp,file=sys.stderr)
-    if inp is Exception:
+    if isinstance(inp, Exception)==True:
+      pprint.pprint(type(inp).__name__,stream=sys.stderr)
       traceback.print_tb(inp.__traceback__)
 
 def printerror(inp):
   if show_error_mode==True:
     pprint.pprint(inp,stream=sys.stderr)
     #print(inp,file=sys.stderr)
-    if inp is Exception:
+    if isinstance(inp, Exception)==True:
+      pprint.pprint(type(inp).__name__,stream=sys.stderr)
       traceback.print_tb(inp.__traceback__)
-
 
 
 #not name saved with cert but name on server
@@ -820,6 +821,7 @@ class scn_base_client(scn_base_base):
     if scn_check_return(_socket)==False:
       _socket.close()
       return False
+    #add to local serves
     _socket.close()
     return True
   

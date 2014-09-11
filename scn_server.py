@@ -257,10 +257,10 @@ class scn_name_sql(object):
         if c<=a:
           cur.execute('''INSERT OR REPLACE into
           scn_node(scn_name,servicename, nodeid, nodename, hashed_pub_cert, hashed_secret)
-          values(?,?,?,?,?,?)''',
+          values(?,?,?,?,?,?);''',
           self.name,_servicename,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2])
         elif c<b:
-          cur.execute('''DELETE FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?);''',(self.name,_servicename,c))
+          cur.execute('''DELETE FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?;''',(self.name,_servicename,c))
       self.dbcon.commit()
     except Exception as u:
       self.dbcon.rollback()
@@ -268,28 +268,31 @@ class scn_name_sql(object):
       return False
     return True
 
-#security related
+  #security related
+  #_secret should be already bytes
   def verify_secret(self,_servicename,_secret):
     state=False
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''SELECT addrtype,addr FROM scn_node WHERE scn_name=? AND servicename=? AND hashed_secret=?''',self.name,_servicename,hashlib.sha256(bytes(_secret)).hexdigest())
+      cur.execute('''SELECT scn_name FROM scn_node WHERE scn_name=? AND servicename=? AND hashed_secret=?;''',(self.name,_servicename,hashlib.sha256(_secret).hexdigest()))
       if cur.rowcount>0:
         state=True
     except Exception as u:
+      printdebug("Verifing secret failed with an exception")
       printdebug(u)
       state=False
     return state
 
+  #_secret should be already bytes
   def update_secret(self,_servicename,_secret,_newsecret_hash,_pub_cert_hash=None):
     if self.verify_secret(_servicename,_secret)==False:
       return False
     try:
       cur = self.dbcon.cursor()
       if _pub_cert_hash!=None:
-        cur.execute('''UPDATE scn_node SET hashed_secret=?, hashed_pub_cert=? WHERE servicename=? AND scn_name=? AND hashed_secret=?''',(_newsecret_hash,_pub_cert_hash,_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
+        cur.execute('''UPDATE scn_node SET hashed_secret=?, hashed_pub_cert=? WHERE servicename=? AND scn_name=? AND hashed_secret=?;''',(_newsecret_hash,_pub_cert_hash,_servicename,self.name,hashlib.sha256(_secret).hexdigest()))
       else:
-        cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE servicename=? AND scn_name=? AND hashed_secret=?''',(_newsecret_hash,_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
+        cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE servicename=? AND scn_name=? AND hashed_secret=?;''',(_newsecret_hash,_servicename,self.name,hashlib.sha256(_secret).hexdigest()))
       self.dbcon.commit()
     except Exception as u:
       printdebug(u)
@@ -302,7 +305,7 @@ class scn_name_sql(object):
       return False
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''DELETE FROM scn_node WHERE servicename=? AND scn_name=? AND hashed_secret=?''',(_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
+      cur.execute('''DELETE FROM scn_node WHERE servicename=? AND scn_name=? AND hashed_secret=?;''',(_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
       self.dbcon.commit()
     except Exception as u:
       printdebug(u)
@@ -320,7 +323,7 @@ class scn_name_list_sqlite(object):
       printerror(u)
       return
     try:
-      con.execute('''CREATE TABLE if not exists scn_name(name TEXT, message TEXT  );''')
+      con.execute('''CREATE TABLE if not exists scn_name(name TEXT, message TEXT);''')
       con.commit()
 
       con.execute('''CREATE TABLE if not exists scn_node(scn_name TEXT,servicename TEXT, nodeid INTEGER, nodename TEXT, hashed_pub_cert TEXT, hashed_secret TEXT, PRIMARY KEY(scn_name,servicename,nodeid),FOREIGN KEY(scn_name) REFERENCES scn_name(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
@@ -550,7 +553,7 @@ class scn_sock_server(socketserver.TCPServer):
       #explicitly shutdown.  socket.close() merely releases
       #the socket and waits for GC to perform the actual close.
       request.shutdown()
-    except OSError:
+    except (OSError):
       pass #some platforms may raise ENOTCONN here
     except Exception as e:
       printerror("Exception while shutdown")
