@@ -29,7 +29,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return
     try:
       con.execute('''CREATE TABLE if not exists
@@ -40,16 +40,16 @@ class scn_friends_sql(object):
       PRIMARY KEY(friendname,servername))''')
       con.commit()
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
     con.close()
 
   def get_friend(self,_friendname):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       return None
     try:
       #con.beginn()
@@ -59,7 +59,7 @@ class scn_friends_sql(object):
       WHERE  friendname=?''',(_friendname,))
       temp=cur.fetchall()
     except Exception as u:
-      printdebug(u)
+      printerror(u)
     con.close()
     return temp #return cert
 
@@ -69,7 +69,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return None
     try:
       #con.beginn()
@@ -84,7 +84,7 @@ class scn_friends_sql(object):
         WHERE friendname=? and servername=?''',(_friendname,_servername))
       temp=cur.fetchall()
     except Exception as u:
-      printdebug(u)
+      printerror(u)
     con.close()
     return temp #return servernamelist
 
@@ -92,7 +92,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return False
     if self.get_friend(_friendname)==None and _cert==None:
       printerror("Error: Certificate must be specified")
@@ -106,8 +106,8 @@ class scn_friends_sql(object):
         cur.execute('''INSERT OR REPLACE into scn_friends(friendname) values(?);''',(_friendname,))
       con.commit();
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -128,8 +128,8 @@ class scn_friends_sql(object):
       WHERE friendname=?;''',(_friendname,))
       con.commit();
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -149,8 +149,8 @@ class scn_friends_sql(object):
       
       con.commit();
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -168,8 +168,8 @@ class scn_friends_sql(object):
       WHERE friendname=? AND servername=?;''',(_friendname,_servername))
       con.commit();
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -188,8 +188,8 @@ class scn_friends_sql(object):
       WHERE servername=?;''',(_servername,))
       con.commit();
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -217,15 +217,15 @@ class scn_servs_sql(object):
       url TEXT,cert BLOB,PRIMARY KEY(nodename)  );''')
       con.commit()
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
     con.close()
 
   def update_node(self,_nodename,_url,_cert):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return False
     try:
       #con.beginn()
@@ -243,7 +243,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return False
     try:
       #con.beginn()
@@ -256,8 +256,8 @@ class scn_servs_sql(object):
       values (?,?,?,?,?)''',(_servername,_name,_service,_secret,_pendingstate))
       con.commit();
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -270,7 +270,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return False
     try:
       #con.beginn()
@@ -280,8 +280,8 @@ class scn_servs_sql(object):
       ''',(_servername,_name,_service,_pendingstate))
       con.commit();
     except Exception as u:
-      printdebug(u)
       con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -291,7 +291,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return None
     try:
       #con.beginn()
@@ -302,7 +302,7 @@ class scn_servs_sql(object):
       AND a.name=? AND a.service=?''',(_servername,_name,_servicename))
       temp=cur.fetchall()
     except Exception as u:
-      printdebug(u)
+      printerror(u)
     con.close()
     return temp[0] #serverurl,cert,secret,pending state
   
@@ -310,7 +310,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return False
     try:
       #con.beginn()
@@ -321,7 +321,7 @@ class scn_servs_sql(object):
       AND a.service=?''',(_servername,_name,_servicename))
       con.commit()
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return False
     con.close()
     return True
@@ -340,7 +340,8 @@ class scn_servs_sql(object):
       AND a.name=?''',(_servername,_name))
       con.commit()
     except Exception as u:
-      printdebug(u)
+      con.rollback()
+      printerror(u)
       return False
     con.close()
     return True
@@ -359,7 +360,7 @@ class scn_servs_sql(object):
       con.commit()
     except Exception as u:
       con.rollback()
-      printdebug(u)
+      printerror(u)
       return False
     con.close()
     return True
@@ -379,7 +380,7 @@ class scn_servs_sql(object):
       WHERE nodename=?''',(_nodename,))
       temp=cur.fetchone()
     except Exception as u:
-      printdebug(u)
+      printerror(u)
     con.close()
     return temp #serverurl,cert
 
@@ -396,7 +397,7 @@ class scn_servs_sql(object):
       cur.execute('''SELECT nodename FROM scn_certs WHERE url=?''',(_url,))
       temp=cur.fetchmany()
     except Exception as u:
-      printdebug(u)
+      printerror(u)
     con.close()
     return temp 
 
@@ -412,7 +413,7 @@ class scn_servs_sql(object):
       cur.execute('''SELECT nodename FROM scn_certs''')
       temp=cur.fetchall()
     except Exception as u:
-      printdebug(u)
+      printerror(u)
     con.close()
     return temp #serverurl,cert
 
@@ -423,7 +424,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      printdebug(u)
+      printerror(u)
       return
     try:
       #con.beginn()
@@ -613,7 +614,7 @@ class scn_client(scn_base_client):
         try:
           self.call_command(self,command[1].split(sepc,1))
         except Exception as e:
-          printdebug(e)
+          printerror(e)
 
       elif command[0] in self.clientactions_bool:
         try:
@@ -629,9 +630,10 @@ class scn_client(scn_base_client):
         except Exception as e:
           printerror(e)
         if serveranswer == True:
-          print("success")
+          print("Command finished successfull")
         else:
-          print("error")
+          print("Command finished with errors")
+
       elif command[0] in self.clientactions_list:
         
         try:
@@ -641,13 +643,10 @@ class scn_client(scn_base_client):
           else:
             serveranswer = self.clientactions_list[command[0]](self)
         except TypeError as e:
-          printdebug(command)
-          printdebug(e)
-          printerror("Invalid number of parameters")
+          printerror(command+str(e)+"Invalid number of parameters")
         except BrokenPipeError:
           printdebug("Socket closed unexpected") 
         except Exception as e:
-          printerror("Error:")
           printerror(e)
         if serveranswer != None:
           print(*serveranswer, sep = ", ")

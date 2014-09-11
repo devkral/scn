@@ -75,6 +75,7 @@ def printdebug(inp):
     if isinstance(inp, scnException)==True:
       print("Debug: "+type(inp).__name__,file=sys.stderr)
       print(inp.args,file=sys.stderr)
+      #traceback.print_tb(inp.__traceback__)
     elif isinstance(inp, Exception)==True:
       print("Debug: "+type(inp).__name__,file=sys.stderr)
       pprint.pprint(inp.args,stream=sys.stderr)

@@ -152,9 +152,9 @@ class scn_ip_store(object):
       cur = con.cursor()
       cur.execute('''DELETE FROM addr_store
       WHERE name=?;''',(_name))
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
       con.close()
+      printerror(e)
       return False
     con.close()
     con=sqlite3.connect(self.db_tmp)
@@ -163,8 +163,8 @@ class scn_ip_store(object):
       cur.execute('''DELETE FROM addr_store
       WHERE name=?;''',(_name))
     except Exception as e:
-      printerror(e)
       con.close()
+      printerror(e)
       return False
     con.close()
     return True
@@ -179,6 +179,7 @@ class scn_name_sql(object):
 
   def __init__(self,dbcon,_name):
     self.dbcon=dbcon
+    print(_name)
     self.name=_name
 
   def __del__(self):
@@ -188,9 +189,9 @@ class scn_name_sql(object):
       cur = self.dbcon.cursor()
       cur.execute('''UPDATE scn_name SET message=? WHERE name=?''', (_message,self.name))
       self.dbcon.commit()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
       self.dbcon.rollback()
+      printerror(e)
       return False
     return True
   def get_message(self):
@@ -199,8 +200,8 @@ class scn_name_sql(object):
       cur = self.dbcon.cursor()
       cur.execute('''SELECT message FROM scn_name WHERE name=?''',(self.name,))
       message=cur.fetchone()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       return None
     return message
 
@@ -229,8 +230,8 @@ class scn_name_sql(object):
       cur.execute('''SELECT servicename
       FROM scn_node WHERE scn_name=?''',(self.name,))
       ob=cur.fetchmany()
-    except Exception as u:
-      printerror(u)
+    except Exception as e:
+      printerror(e)
     return ob #servicename
 
   def get_cert(self,_servicename,_secret_hash):
@@ -277,8 +278,6 @@ class scn_name_sql(object):
       cur.execute('''SELECT scn_name FROM scn_node WHERE scn_name=? AND servicename=? AND hashed_secret=?;''',(self.name,_servicename,hashlib.sha256(_secret).hexdigest()))
       if cur.rowcount>0:
         state=True
-      else:
-        print(cur.fetchmany())
     except Exception as e:
       printerror(e)
       state=False
@@ -529,8 +528,14 @@ class scn_server_handler(socketserver.BaseRequestHandler):
       except BrokenPipeError:
         printdebug("Socket closed") 
         break
+      except SSL.SysCallError as e:
+        if e.args[1]=='ECONNRESET':
+          printdebug("Socket closed")
+        else:
+          printerror(e)
+        break
       except Exception as e:
-        printdebug(e)
+        printerror(e)
         break
 
 #socketserver.ThreadingMixIn, 
