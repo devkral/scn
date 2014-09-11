@@ -702,17 +702,37 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
     self.server_bind()
     self.server_activate()
 
-@route('/<action>/<server>/<name>')
-def do_action(action,server,name):
-    return template('<b>Hello {{name}}</b>!', name=name)
+
+scn_client_node=None
+
+@route('/<server>/<name>')
+def do_name_action(server,name):
+  if "Klsls" in scn_client_node.clientactions_bool:
+    scn_client_node.c_info(server)
+  elif "Klsls" in scn_client_node.clientactions_list:
+    scn_client_node.c_info(server)
+  else:
+    return "ksksks"
+
+@route('/<server>')
+def do_server_action(server):
+  pass
+
+@route('/')
+def gen_frame():
+  pass
+
+
+#def do_action(action,server):
+#    return template('<b>Hello {{name}}</b>!', name=name)
 
 def signal_handler(signal, frame):
   sys.exit(0)
 if __name__ == "__main__":
-  t=scn_client(default_config_folder)
+  scn_client_node=scn_client(default_config_folder)
   rec=scn_sock_client
-  rec.linkback=t
-  clientserve = scn_sock_client((scn_host, scn_client_port), rec,t) 
+  rec.linkback=scn_client_node
+  clientserve = scn_sock_client((scn_host, scn_client_port), rec,scn_client_node)
   signal.signal(signal.SIGINT, signal_handler)
   client_thread = threading.Thread(target=clientserve.serve_forever)
   client_thread.daemon = True
