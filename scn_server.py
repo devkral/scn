@@ -63,8 +63,8 @@ class scn_ip_store(object):
       FROM addr_store
       WHERE name=? AND service=? ORDER BY clientid''',(_name,_service))
       nodelist=cur.fetchmany()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       con.close()
       return None
     con.close()
@@ -110,8 +110,8 @@ class scn_ip_store(object):
         addr_store(name,service,clientid,hashed_pub_cert,addr_type, addr)
         values(?,?,?,?,?)''',
         (_name,_service, _nodeid, _pub_cert_hash, _addr_type, _addr))
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       con.close()
       return False
     con.close()
@@ -125,8 +125,8 @@ class scn_ip_store(object):
       WHERE name=? AND
       service=? AND
       hashed_pub_cert=?;''',(_name, _service,_pub_cert_hash))
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       con.close()
       return False
     con.close()
@@ -139,8 +139,8 @@ class scn_ip_store(object):
       cur.execute('''DELETE FROM addr_store
       WHERE name=? AND
       service=?;''',(_name, _service))
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       con.close()
       return False
     con.close()
@@ -162,8 +162,8 @@ class scn_ip_store(object):
       cur = con.cursor()
       cur.execute('''DELETE FROM addr_store
       WHERE name=?;''',(_name))
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       con.close()
       return False
     con.close()
@@ -218,8 +218,8 @@ class scn_name_sql(object):
         FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?''',(self.name,_servicename,_nodeid))
 
       ob=cur.fetchmany()
-    except Exception as u:
-      printerror(u)
+    except Exception as e:
+      printerror(e)
     return ob #nodeid,nodename,hashed_pub_cert,hashed_secret
 
   def list_services(self):
@@ -241,8 +241,8 @@ class scn_name_sql(object):
       FROM scn_node WHERE scn_name=? AND servicename=? AND hashed_pub_cert=?''',(self.name,_servicename,_secret_hash))
 
       ob=cur.fetchone()
-    except Exception as u:
-      printerror(u)
+    except Exception as e:
+      printerror(e)
     return ob #hashed_pub_cert
 
 #"admin" is admin
@@ -262,9 +262,9 @@ class scn_name_sql(object):
         elif c<b:
           cur.execute('''DELETE FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?;''',(self.name,_servicename,c))
       self.dbcon.commit()
-    except Exception as u:
+    except Exception as e:
       self.dbcon.rollback()
-      printdebug(u)
+      printerror(e)
       return False
     return True
 
@@ -277,9 +277,10 @@ class scn_name_sql(object):
       cur.execute('''SELECT scn_name FROM scn_node WHERE scn_name=? AND servicename=? AND hashed_secret=?;''',(self.name,_servicename,hashlib.sha256(_secret).hexdigest()))
       if cur.rowcount>0:
         state=True
-    except Exception as u:
-      printdebug("Verifing secret failed with an exception")
-      printdebug(u)
+      else:
+        print(cur.fetchmany())
+    except Exception as e:
+      printerror(e)
       state=False
     return state
 
@@ -294,9 +295,9 @@ class scn_name_sql(object):
       else:
         cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE servicename=? AND scn_name=? AND hashed_secret=?;''',(_newsecret_hash,_servicename,self.name,hashlib.sha256(_secret).hexdigest()))
       self.dbcon.commit()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
       cur.rollback()
+      printerror(e)
       return False
     return True
 
@@ -307,9 +308,9 @@ class scn_name_sql(object):
       cur = self.dbcon.cursor()
       cur.execute('''DELETE FROM scn_node WHERE servicename=? AND scn_name=? AND hashed_secret=?;''',(_servicename,self.name,hashlib.sha256(bytes(_secret)).hexdigest()))
       self.dbcon.commit()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
       cur.rollback()
+      printerror(e)
       return False
     return True
 
@@ -319,8 +320,8 @@ class scn_name_list_sqlite(object):
     self.db_path=db
     try:
       con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      printerror(u)
+    except Exception as e:
+      printerror(e)
       return
     try:
       con.execute('''CREATE TABLE if not exists scn_name(name TEXT, message TEXT);''')
@@ -328,16 +329,16 @@ class scn_name_list_sqlite(object):
 
       con.execute('''CREATE TABLE if not exists scn_node(scn_name TEXT,servicename TEXT, nodeid INTEGER, nodename TEXT, hashed_pub_cert TEXT, hashed_secret TEXT, PRIMARY KEY(scn_name,servicename,nodeid),FOREIGN KEY(scn_name) REFERENCES scn_name(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
       con.commit()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
       con.rollback()
+      printerror(e)
     con.close()
 
   def get(self,_name):
     try:
       con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      printerror(u)
+    except Exception as e:
+      printerror(e)
       return None
     ob=None
     try:
@@ -345,46 +346,46 @@ class scn_name_list_sqlite(object):
       cur.execute('SELECT name FROM scn_name WHERE name=?', (_name,))
       resultname=cur.fetchone()
       if resultname!=None:
-        ob=scn_name_sql(con,resultname) 
-    except Exception as u:
-      printdebug(u)
+        ob=scn_name_sql(con,resultname[0]) 
+    except Exception as e:
+      printerror(e)
     return ob
   def list_names(self):
     try:
       con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      printerror(u)
+    except Exception as e:
+      printerror(e)
       return None
     ob=None
     try:
       cur = con.cursor()
       cur.execute('SELECT name FROM scn_name')
       ob=cur.fetchmany()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
     return ob
 
   def length(self, _name):
     try:
       con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      printerror(u)
+    except Exception as e:
+      printerror(e)
       return 0
     length=0
     try:
       cur = con.cursor()
       cur.execute(' SELECT DISTINCT servicename FROM scn_node WHERE scn_name=?', (_name,))
       length=cur.rowcount
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       length=0
     return length
 
   def del_name(self,_name):
     try:
       con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      printerror(e)
       return False
     if self.get(_name)==None:
       printdebug("Deletion of non-existent name")
@@ -395,11 +396,11 @@ class scn_name_list_sqlite(object):
       #shouldn't throw error if not available
       cur.execute('''DELETE FROM scn_name WHERE name=?);''',(_name,))
       con.commit()
-    except Exception:
+    except Exception as e:
       con.rollback()
+      printerror(e)
       state=False
-    finally:
-      con.close()
+    con.close()
     return state
 
   def create_name(self,_name,_secrethash,_certhash):
@@ -407,7 +408,8 @@ class scn_name_list_sqlite(object):
       return None
     try:
       con=sqlite3.connect(self.db_path)
-    except Exception as u:
+    except Exception as e:
+      printerror(e)
       return None
     try:
       cur = con.cursor()
@@ -416,8 +418,9 @@ class scn_name_list_sqlite(object):
       (scn_name,servicename,nodeid,nodename,hashed_secret,hashed_pub_cert)
       values(?,'admin',0, 'init',?,?)''', (_name,_secrethash,_certhash))
       con.commit()
-    except Exception as u:
-      printdebug(u)
+    except Exception as e:
+      con.rollback()
+      printerror(e)
     return self.get(_name)
 
 #secret should be machine generated

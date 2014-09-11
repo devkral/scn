@@ -54,22 +54,50 @@ def check_invalid_name(stin):
   return True
 
 
+
+class scnException(Exception):
+  pass
+
+class scnConnectException(scnException):
+  pass
+class scnRejectException(scnException):
+  pass
+class scnNoByteseq(scnException):
+  pass
+class scnReceiveError(scnException):
+  pass
+
+
 def printdebug(inp):
   if debug_mode==True:
-    pprint.pprint(inp,stream=sys.stderr)
+    #pprint.pprint(inp,stream=sys.stderr)
     #print(inp,file=sys.stderr)
-    if isinstance(inp, Exception)==True:
-      pprint.pprint(type(inp).__name__,stream=sys.stderr)
+    if isinstance(inp, scnException)==True:
+      print("Debug: "+type(inp).__name__,file=sys.stderr)
+      print(inp.args,file=sys.stderr)
+    elif isinstance(inp, Exception)==True:
+      print("Debug: "+type(inp).__name__,file=sys.stderr)
+      pprint.pprint(inp.args,stream=sys.stderr)
       traceback.print_tb(inp.__traceback__)
+    else:
+      print("Debug: ",end="")
+      pprint.pprint(inp,stream=sys.stderr)
 
 def printerror(inp):
   if show_error_mode==True:
-    pprint.pprint(inp,stream=sys.stderr)
+    #pprint.pprint(inp,stream=sys.stderr)
     #print(inp,file=sys.stderr)
-    if isinstance(inp, Exception)==True:
-      pprint.pprint(type(inp).__name__,stream=sys.stderr)
+    if isinstance(inp, scnException)==True:
+      print("Error: "+type(inp).__name__,file=sys.stderr)
+      print(inp.args,file=sys.stderr)
       traceback.print_tb(inp.__traceback__)
-
+    elif isinstance(inp, Exception)==True:
+      print("Error: "+type(inp).__name__,file=sys.stderr)
+      pprint.pprint(inp.args,stream=sys.stderr)
+      traceback.print_tb(inp.__traceback__)
+    else:
+      print("Error: ",end="",file=sys.stderr)
+      pprint.pprint(inp,stream=sys.stderr)
 
 #not name saved with cert but name on server
 def scn_verify_cert(_name,pub_cert,_certhash):
@@ -81,38 +109,26 @@ def scn_verify_cert(_name,pub_cert,_certhash):
     return False
 
 def scn_check_return(_socket):
-  if _socket.receive_one()=="success":
+  temp=_socket.receive_one()
+  if temp=="success":
     return True
   else:
+    if temp=="error":
+      temp=""
+    else:
+      temp="invalid("+temp+"): "
     for protcount in range(0,protcount_max):
       if _socket.is_end()==True:
         break
-      printerror(_socket.receive_one())
+      temp2=_socket.receive_one()
+      if temp2=="bytes":
+        temp+="<"+temp2+", "
+        temp+=_socket.receive_one()+">, "
+        _socket.send("error"+sepc+"scn_check_return")
+      else:
+        temp+=temp2+", "
+    printerror(temp[:-2])
     return False
-
-class scnConnectException(Exception):
-  def __init__(self, value):
-    self.value = value
-  def __str__(self):
-    return repr(self.value)
-
-class scnRejectException(Exception):
-  def __init__(self, value):
-    self.value = value
-  def __str__(self):
-    return repr(self.value)
-
-class scnNoByteseq(Exception):
-  def __init__(self, value):
-    self.value = value
-  def __str__(self):
-    return repr(self.value)
-class scnReceiveError(Exception):
-  def __init__(self, value):
-    self.value = value
-  def __str__(self):
-    return repr(self.value)
-
 
 #a socket wrapper maybe used in future
 class scn_socket(object):
@@ -155,7 +171,12 @@ class scn_socket(object):
         if temp!="":
           break
     except (BrokenPipeError,SSL.ZeroReturnError):
-      raise(BrokenPipeError)
+      raise(BrokenPipeError())
+    except (SSL.SysCallError) as e:
+      if e.args[1]=="ECONNRESET":
+        raise(BrokenPipeError())
+      else:
+        raise(e)
     except (socket.timeout, SSL.WantReadError):
       printdebug("Command: Timeout or SSL.WantReadError")
     #except (socket.ECONNRESET, socket.EPIPE):
@@ -183,13 +204,13 @@ class scn_socket(object):
     elif self._buffer==sepm or self._buffer==sepc:
       temp2=self.load_socket()
       if temp2==None:
-        raise(scnReceiveError("Error: loading from socket failed"))
+        raise(scnReceiveError("loading from socket failed"))
       self._buffer=temp2
       return self.decode_command(minlength,maxlength)
     else:
       temp2=self.load_socket()
       if temp2==None:
-        raise(scnReceiveError("Error: loading from socket failed"))
+        raise(scnReceiveError("loading from socket failed"))
       self._buffer+=temp2
       return self.decode_command(minlength,maxlength)
 
