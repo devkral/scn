@@ -556,6 +556,8 @@ class scn_sock_server(socketserver.TCPServer):
 
 
   def shutdown_request(self, request):
+    if request==None:
+      return
     try:
       #explicitly shutdown.  socket.close() merely releases
       #the socket and waits for GC to perform the actual close.
@@ -568,6 +570,8 @@ class scn_sock_server(socketserver.TCPServer):
     self.close_request(request)
 
   def close_request(self,request):
+    if request==None:
+      return
     try:
       request.close()
     except Exception as e:

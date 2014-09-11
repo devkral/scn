@@ -684,7 +684,7 @@ class scn_server_client(socketserver.BaseRequestHandler):
         printdebug(e)
         break
 
-#socketserver.ThreadingMixIn useable because no changes
+#use here socketserver.ThreadingMixIn because no changes will be committed
 class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
   linkback=None
   def __init__(self, client_address, HandlerClass,_linkback):
