@@ -9,6 +9,7 @@ import sqlite3
 import socket
 import socketserver
 
+import os
 from bottle import route, run, template
 from OpenSSL import SSL,crypto
 
@@ -18,7 +19,7 @@ from scn_base import scn_base_client,scn_base_base, scn_socket, printdebug, prin
 from scn_config import scn_client_port, client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max,scn_host
 
 
-
+curdir=os.path.dirname(__file__)
 
 #scn_servs: _servicename: _server,_name:secret
 class scn_friends_sql(object):
@@ -701,8 +702,8 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
     self.server_bind()
     self.server_activate()
 
-@route('/hello/<name>')
-def index(name):
+@route('/<action>/<server>/<name>')
+def do_action(action,server,name):
     return template('<b>Hello {{name}}</b>!', name=name)
 
 def signal_handler(signal, frame):
@@ -716,7 +717,7 @@ if __name__ == "__main__":
   client_thread = threading.Thread(target=clientserve.serve_forever)
   client_thread.daemon = True
   client_thread.start()
-  run(host='localhost', port=8080)
+  run(host='localhost', port=8080, debug=True)
 """
   client_interact_thread = threading.Thread(target=run(host='localhost', port=8080))
   client_interact_thread = True
