@@ -19,16 +19,17 @@
 <table>
 	<tr>
 		<td class="sidebar">
-			<nav>
-				<a href="#" onclick="list_servers()">List server</a> <br>
+			<form>
+				<a href="#">List server</a> <br>
 %if server!=None:
-					<a href="#" onclick="servermanagement()">List Names</a> <br>
-					<a href="#" onclick="servermanagement()">Register Name</a> <br>
+					<a href="#">List Names</a> <br>
+					<a href="#">Register Name</a> <br>
 					<a href="#" onclick="servermanagement()">Delete Name</a> <br>
 					<a href="#" onclick="servermanagement()">Get Server Info</a> <br>
 					<a href="#" onclick="servermanagement()">Get Server Certificate</a> <br>
 %end
 					<a href="">Reload</a>
+			</form>
 		</td>
 		<td class="content">
 			<div id="maincontent">
