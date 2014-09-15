@@ -1,12 +1,15 @@
-#scn design
-scn consists of servers and clients
-server contain hashsums of clientcertificates, hashed authentificationsecrets and ip or other contact address.
-clients contains a list with ports and names
-clients contains a db with known server certs, friend nodes and a name and service list the client should serve
 
-client looks other client on server up. it requests the cert of the contacted client and compares it with hash
-the hash is generated from the registered name on the server and the public cert (for privacy reasons, because only certificate hashes could be used to track clients (salting))
-
+# Design Outline of Secure Communication Nodes ('scn') Project
++ 'scn' is a Client-Server-architecture.
++ The server contains hashsums of client certificates, hashed 
+ authentication secrets and ips (or other contact methods).
++ Clients contains a list with ports and names.
++ clients contains a database with known server certs, friend-nodes, 
+ and a name and service list that the client should serve.
++ A client can look up another client on server. It requests next to the ip address the cert 
+ of the client to be contacted, and compares it with a hash value.
++ This hash is generated from the name (on the server) of registered clients and its public cert (for privacy reasons, because only using
+ certificate hashes could be used to track clients (salting)).
 
 
 #scn protocol
@@ -33,4 +36,11 @@ receiver receives till size and checks for sepc or sepm
 * test sepc bytes 5 <waits for a success> willi sepm 
 
 
+#Design old
+##client-client
+client gets connectmethod and address by server
+client connects with data. If it fails it uses the next one
+if connection succeeds:
+  send get_cert get cert, verify and upgrade connection
 
+  send hello+sepc+port get connecttype (e.g. wrap, direct)

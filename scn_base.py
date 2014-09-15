@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-#LICENSE: my code: bsd 3-clauses, openssl: bsd 4-clausea
+#LICENSE: my code: bsd 3-clauses, openssl: bsd 4-clauses
 
 
 import socket
