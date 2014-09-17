@@ -9,20 +9,29 @@ import sqlite3
 import socket
 import socketserver
 
-import os
-import bottle
+from gi.repository import Gtk,Gdk
 
-app=bottle.Bottle()
-from bottle import template,static_file
+
+import os
+#import bottle
+
+#app=bottle.Bottle()
+#from bottle import template,static_file
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
 from scn_base import scn_base_client,scn_base_base, scn_socket, printdebug, printerror, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_cert
 #,scn_check_return
-from scn_config import scn_client_port, client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max,scn_host
+from scn_config import client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max,scn_host
 
 
 curdir=os.path.dirname(__file__)
+
+class client_master(object):
+  receiver=None
+  main=None
+cm=client_master()
+
 
 #scn_servs: _servicename: _server,_name:secret
 class scn_friends_sql(object):
@@ -451,9 +460,11 @@ class scn_client(scn_base_client):
   _incommingbuffer=[]
   is_active=True
   config_path=""
+  linkback=None
 
-  def __init__(self,_config_path):
+  def __init__(self,_linkback,_config_path):
     self.version="1"
+    self.linkback=_linkback
     self.config_path=_config_path
     init_config_folder(self.config_path)
     if check_certs(self.config_path+"scn_client_cert")==False:
@@ -571,7 +582,7 @@ class scn_client(scn_base_client):
     
 
   def c_serve_service_ip(self,_servername,_name,_service):
-    return self.c_serve_service(self,_servername,_name,_service,"ip",scn_client_port)
+    return self.c_serve_service(self,_servername,_name,_service,"ip",self.linkback.receiver.host[1])
   
   def get_list(self):
     return self.scn_servs.get_list()
@@ -678,9 +689,9 @@ class scn_server_client(socketserver.BaseRequestHandler):
           sc.send("error"+sepc+"no input"+sepm)
           break
         elif temp in self.linkback.actions:
-          self.linkback.actions[temp](self.linkback,sc)
+          self.linkback.main.actions[temp](self.linkback,sc)
         else:
-          sc.send("error"+sepc+temp+": no such function"+sepm)
+          sc.send("error"+sepc+temp+sepc+"no such function"+sepm)
       except BrokenPipeError:
         printdebug("Socket closed") 
         break
@@ -691,6 +702,7 @@ class scn_server_client(socketserver.BaseRequestHandler):
 #use here socketserver.ThreadingMixIn because no changes will be committed
 class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
   linkback=None
+  host=None
   def __init__(self, client_address, HandlerClass,_linkback):
     socketserver.BaseServer.__init__(self, client_address, HandlerClass)
     self.linkback=_linkback
@@ -698,14 +710,15 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
-    temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
-    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
+    temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.main.priv_cert))
+    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.main.pub_cert))
     self.socket = SSL.Connection(temp_context,socket.socket(self.address_family, self.socket_type))
+    self.host=self.socket.getsockname()
     #self.socket.set_accept_state()
     self.server_bind()
     self.server_activate()
 
-
+"""
 scn_client_node=None
 
 
@@ -741,21 +754,160 @@ def server_static(path):
 
 #def do_action(action,server):
 #    return template('<b>Hello {{name}}</b>!', name=name)
+"""
 
-def signal_handler(signal, frame):
-  app.close()
-  sys.exit(0)
+
+
+class scnGUI(Gtk.Window):
+  s_confirm_button_id=None
+  s_reset_button_id=None
+  f_confirm_button_id=None
+  f_reset_button_id=None
+  linkback=None
+  def __init__(self,_linkback):
+    Gtk.Window.__init__(self, title="Secure Node Communication")
+    self.linkback=_linkback
+    self.resize(600,200)
+    
+
+    self.state_widget=Gtk.Label(label="")
+    
+    add_server=Gtk.Button(label="Add server")
+    add_server.connect("clicked", self.server_add_gen)
+    delete_server=Gtk.Button(label="Delete server")
+    delete_server.connect("clicked", self.on_button_clicked)
+    #    self.rename_server=Gtk.Button(label="Rename server")
+    info_server=Gtk.Button(label="Retrieve server info")
+    info_server.connect("clicked", self.on_button_clicked)
+
+
+    self.servers=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+    self.server_controls=Gtk.Grid()
+    self.server_controls.set_column_spacing(10)
+    self.server_controls.set_row_spacing(2)
+    self.s_confirm_button=Gtk.Button(label="Apply")
+    self.s_confirm_button.set_margin_top(5)
+    #self.s_confirm_button.set_margin_bottom(5)
+    self.s_reset_button=Gtk.Button(label="Reset")
+    self.s_reset_button.set_margin_top(5)
+    self.server_controls.set_margin_top(5)
+    self.server_controls.set_margin_bottom(5)
+
+    self.server_controls.attach( add_server, 0, 0, 2, 1)
+    self.server_controls.attach( delete_server, 0, 1, 2, 1)
+    self.server_controls.attach( info_server, 0, 2, 2, 1)
+    self.server_controls.attach( self.s_reset_button, 0, 3, 1, 1)
+    self.server_controls.attach( self.s_confirm_button, 1, 3, 1, 1)
+    self.server_frame=Gtk.Frame()
+    
+    self.servers.pack_start(self.server_controls,False,False,5)
+    self.servers.pack_start(self.server_frame,True,True,5)
+
+    add_friend=Gtk.Button(label="Add friend")
+    add_friend.connect("clicked", self.on_button_clicked)
+    delete_friend=Gtk.Button(label="Delete friend")
+    delete_friend.connect("clicked", self.on_button_clicked)
+
+    self.friends=Gtk.Box()
+    self.friend_controls=Gtk.Grid()
+    #.set_margin_left(5)
+    self.f_confirm_button=Gtk.Button(label="Apply")
+    self.f_reset_button=Gtk.Button(label="Reset")
+    
+    #self.friends.set_margin_left(5)
+    self.friend_controls.attach( add_friend ,0,0,1,1)
+    self.friend_controls.attach( delete_friend ,0,1,1,1)
+    self.friends.pack_start(self.friend_controls,False,False,5)
+    self.friend_frame=Gtk.Frame()
+    
+
+    self.main_contain=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    #self.main_grid.set_column_spacing(10)
+    #self.main_grid.set_row_spacing(20)
+    self.friend_server_switch=Gtk.Notebook()
+    self.friend_server_switch.append_page(self.servers,Gtk.Label("Servers"))
+    self.friend_server_switch.append_page(self.friends,Gtk.Label("Friends"))
+    
+    self.main_contain.pack_start(self.friend_server_switch,True,True,2)
+    #self.main_contain.attach(self.friend_server_switch,0,0,1,1)
+    #self.main_grid.set_vexpand_set(True)
+    #self.main_grid.set_hexpand_set(True)
+#    self.main_contain.set_margin_left(5)
+#    self.main_contain.set_margin_right(2)
+    #self.main_grid.attach(self.confirm_button,0,1,1,1)
+    #self.main_grid.attach(self.reset_button,1,1,1,1)
+    self.main_contain.pack_start(self.state_widget,True,True,10)#(self.state_widget,0,1,1,1)
+    self.add(self.main_contain)
+
+  def server_add_confirm(self,l):
+    temp_container=self.server_frame.get_child()
+    _name=temp_container.get_child_at(1,0).get_text()
+    _url=temp_container.get_child_at(1,1).get_text()
+    if _name=="":
+      self.state_widget.set_label("Error: missing name")
+      return
+    if _url=="":
+      self.state_widget.set_label("Error: missing url")
+      return
+    if self.linkback.main.c_add_node(_name,_url)==True:
+      self.state_widget.set_label("Success")
+    else:
+      self.state_widget.set_label("An error happened")
+
+  def server_add_gen(self,l):
+    temp=self.server_frame.get_child()
+    if temp!=None:
+      temp.destroy()
+    if self.s_confirm_button_id!=None:
+      self.s_confirm_button.disconnect(self.s_confirm_button_id)
+    if self.s_reset_button_id!=None:
+      self.s_reset_button.disconnect(self.s_reset_button_id)
+    self.state_widget.set_label("Ready")
+    a=Gtk.Grid()
+    a.attach(Gtk.Label("Name:"),0,0,1,1)
+    a.attach(Gtk.Entry(),1,0,1,1)
+    a.attach(Gtk.Label("IP/URL:"),0,1,1,1)
+    a.attach(Gtk.Entry(),1,1,1,1)
+    self.server_frame.add(a)
+    self.server_frame.show_all()
+    self.s_confirm_button_id = self.s_confirm_button.connect("clicked", self.server_add_confirm)
+    self.s_reset_button_id = self.s_reset_button.connect("clicked", self.server_add_gen)
+    
+    
+  def on_button_clicked(self, widget):
+    print("Hello World")
+
+
+win=None
+
+def signal_handler(_signal, frame):
+  #win.close()
+  Gtk.main_quit()
+  #app.close()
+  #sys.exit(0)
+
 if __name__ == "__main__":
-  scn_client_node=scn_client(default_config_folder)
-  rec=scn_sock_client
-  rec.linkback=scn_client_node
-  clientserve = scn_sock_client((scn_host, scn_client_port), rec,scn_client_node)
+  cm.main=scn_client(cm,default_config_folder)
+
+  handler=scn_server_client
+  handler.linkback=cm
+  cm.receiver = scn_sock_client((scn_host, 0),handler, cm)
+  #port 0 selects random port
   signal.signal(signal.SIGINT, signal_handler)
-  client_thread = threading.Thread(target=clientserve.serve_forever)
+  client_thread = threading.Thread(target=cm.receiver.serve_forever)
   client_thread.daemon = True
   client_thread.start()
-  app.run(host='localhost', port=8080, debug=True)
-"""
+
+  win = scnGUI(cm)
+  
+  win.connect("delete-event", Gtk.main_quit)
+  #win.connect("destroy", Gtk.main_quit) 
+
+  win.show_all()
+  Gtk.main()
+
+"""  app.run(host='localhost', port=8080, debug=True)
+
   client_interact_thread = threading.Thread(target=run(host='localhost', port=8080))
   client_interact_thread = True
   client_interact_thread.start()
