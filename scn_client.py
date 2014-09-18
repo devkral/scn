@@ -657,7 +657,6 @@ class scn_client(scn_base_client):
             serveranswer = self.clientactions_list[command[0]](self,*tempcom)
           else:
             serveranswer = self.clientactions_list[command[0]](self)
-          printerror(e)
         except TypeError as e:
           printerror(e)
         except BrokenPipeError:
