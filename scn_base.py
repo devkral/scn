@@ -75,7 +75,7 @@ def printdebug(inp):
     if isinstance(inp, scnException)==True:
       print("Debug: "+type(inp).__name__,file=sys.stderr)
       print(inp.args,file=sys.stderr)
-      traceback.print_tb(inp.__traceback__)
+      #traceback.print_tb(inp.__traceback__)
     elif isinstance(inp, Exception)==True:
       print("Debug: "+type(inp).__name__,file=sys.stderr)
       pprint.pprint(inp.args,stream=sys.stderr)
@@ -104,7 +104,7 @@ def printerror(inp):
 def scn_verify_cert(_name,pub_cert,_certhash):
   temphash=hashlib.sha256(bytes(_name,"utf8"))
   temphash.update(pub_cert)
-  if temphash.hexdigest==_certhash:
+  if temphash.hexdigest()==_certhash:
     return True
   else:
     return False
