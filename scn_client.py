@@ -756,78 +756,57 @@ def server_static(path):
 """
 
 
+class scnNode(Gtk.ListBoxRow):
+  is_servernode=True
+  def __init__(self, name, linkback, _isservernode=True):
+    
+    self.is_servernode=_isservernode
+    Gtk.ListBoxRow.__init__(self)
+    delete=Gtk.Button(label="delete")
+    delete.connect("clicked", self.click_delete)
+    edit=Gtk.Button(label="edit")
+    edit.connect("clicked", self.click_edit)
+    #self.add(
+  def click_edit(self,k):
+    pass
+  def click_delete(self,k):
+    pass
+
 
 class scnGUI(Gtk.Window):
-  s_confirm_button_id=None
-  s_reset_button_id=None
-  f_confirm_button_id=None
-  f_reset_button_id=None
+  confirm_button_id=None
+  reset_button_id=None
+  state_widget=None
+  note_main=None
   linkback=None
   def __init__(self,_linkback):
     Gtk.Window.__init__(self, title="Secure Node Communication")
     self.linkback=_linkback
     self.resize(600,200)
-    
+    main_wid=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
+    self.note_switch=Gtk.Notebook()
+    self.note_switch.set_margin_left(10)
+    main_wid.pack_start(self.note_switch,True,True,0)
     self.state_widget=Gtk.Label(label="")
+    main_wid.pack_start(self.state_widget,True,True,5)
+
+    #add=Gtk.Button(label="add")
+    #add.connect("clicked", self.click_add)
     
-    add_server=Gtk.Button(label="Add server")
-    add_server.connect("clicked", self.server_add_gen)
-    delete_server=Gtk.Button(label="Delete server")
-    delete_server.connect("clicked", self.on_button_clicked)
-    #    self.rename_server=Gtk.Button(label="Rename server")
-    info_server=Gtk.Button(label="Retrieve server info")
-    info_server.connect("clicked", self.on_button_clicked)
-
-
-    self.servers=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-    self.server_controls=Gtk.Grid()
-    self.server_controls.set_column_spacing(10)
-    self.server_controls.set_row_spacing(2)
-    self.s_confirm_button=Gtk.Button(label="Apply")
-    self.s_confirm_button.set_margin_top(5)
-    #self.s_confirm_button.set_margin_bottom(5)
-    self.s_reset_button=Gtk.Button(label="Reset")
-    self.s_reset_button.set_margin_top(5)
-    self.server_controls.set_margin_top(5)
-    self.server_controls.set_margin_bottom(5)
-
-    self.server_controls.attach( add_server, 0, 0, 2, 1)
-    self.server_controls.attach( delete_server, 0, 1, 2, 1)
-    self.server_controls.attach( info_server, 0, 2, 2, 1)
-    self.server_controls.attach( self.s_reset_button, 0, 3, 1, 1)
-    self.server_controls.attach( self.s_confirm_button, 1, 3, 1, 1)
-    self.server_frame=Gtk.Frame()
-    
-    self.servers.pack_start(self.server_controls,False,False,5)
-    self.servers.pack_start(self.server_frame,True,True,5)
-
-    add_friend=Gtk.Button(label="Add friend")
-    add_friend.connect("clicked", self.on_button_clicked)
-    delete_friend=Gtk.Button(label="Delete friend")
-    delete_friend.connect("clicked", self.on_button_clicked)
-
-    self.friends=Gtk.Box()
-    self.friend_controls=Gtk.Grid()
     #.set_margin_left(5)
-    self.f_confirm_button=Gtk.Button(label="Apply")
-    self.f_reset_button=Gtk.Button(label="Reset")
-    
-    #self.friends.set_margin_left(5)
-    self.friend_controls.attach( add_friend ,0,0,1,1)
-    self.friend_controls.attach( delete_friend ,0,1,1,1)
-    self.friends.pack_start(self.friend_controls,False,False,5)
-    self.friend_frame=Gtk.Frame()
-    
+    self.confirm_button=Gtk.Button("Apply")
+    self.reset_button=Gtk.Button("Reset")
 
-    self.main_contain=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
     #self.main_grid.set_column_spacing(10)
     #self.main_grid.set_row_spacing(20)
-    self.friend_server_switch=Gtk.Notebook()
-    self.friend_server_switch.append_page(self.servers,Gtk.Label("Servers"))
-    self.friend_server_switch.append_page(self.friends,Gtk.Label("Friends"))
+    self.note_switch.append_page(self.PageServers(),Gtk.Label("Servers"))
+    self.note_switch.append_page(self.PageFriends(),Gtk.Label("Friends"))
+    self.note_switch.append_page(self.PageBoth(),Gtk.Label("Both"))
+    self.note_switch.append_page(Gtk.Label("Not implemented yet"),Gtk.Label("Settings"))
     
-    self.main_contain.pack_start(self.friend_server_switch,True,True,2)
+    main_wid.pack_start(self.note_switch,True,True,2)
     #self.main_contain.attach(self.friend_server_switch,0,0,1,1)
     #self.main_grid.set_vexpand_set(True)
     #self.main_grid.set_hexpand_set(True)
@@ -835,8 +814,18 @@ class scnGUI(Gtk.Window):
 #    self.main_contain.set_margin_right(2)
     #self.main_grid.attach(self.confirm_button,0,1,1,1)
     #self.main_grid.attach(self.reset_button,1,1,1,1)
-    self.main_contain.pack_start(self.state_widget,True,True,10)#(self.state_widget,0,1,1,1)
-    self.add(self.main_contain)
+    main_wid.pack_start(self.state_widget,True,True,10)#(self.state_widget,0,1,1,1)
+    self.add(main_wid)
+
+
+  class PageServers(Gtk.Frame):
+    pass
+  
+  class PageFriends(Gtk.Frame):
+    pass
+
+  class PageBoth(Gtk.Frame):
+    pass
 
   def server_add_confirm(self,l):
     temp_container=self.server_frame.get_child()
@@ -881,6 +870,7 @@ win=None
 
 def signal_handler(_signal, frame):
   #win.close()
+  #win.destroy()
   Gtk.main_quit()
   #app.close()
   #sys.exit(0)
