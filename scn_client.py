@@ -715,67 +715,30 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
     self.server_activate()
 
 
-class scnEditServer(Gtk.Dialog):
-  name=None
-  url=None
-  cert=None
-  def __init__(self, parent, _name,_url,_cert=None):
-    Gtk.Dialog.__init__(self, "Edit \""+_name+"\"", parent, 0,
-                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-                         Gtk.STOCK_OK, Gtk.ResponseType.OK))
-    self.set_default_size(150, 100)
-    #self.set_relative_to(parent)
-    #self.set_default_size(150, 100)
-    namelabel = Gtk.Label("Name:")
-    urllabel = Gtk.Label("URL:")
-    self.name=Gtk.Entry()
-    self.name.set_text(_name)
-    self.url=Gtk.Entry()
-    self.url.set_text(_url)
-    grid=Gtk.Grid()
-    grid.set_column_spacing(3)
-    grid.attach(namelabel,0,0,1,1)
-    grid.attach(self.name,1,0,1,1)
-    grid.attach(urllabel,0,1,1,1)
-    grid.attach(self.url,1,1,1,1)
-    box = self.get_content_area()
-    box.add(grid)
-    self.show_all()
-
 
 
 #TODO: redesign: use splitscreen: a small tree with servernames,
 #a subwindow tree with names on server (compressed)
 #a subwindow with actions
 
-class scnServerDialog(Gtk.Dialog):
+class scnDeletionDialog(Gtk.Dialog):
   serverinfo=None
-  def __init__(self, _parent, _name):
+  def __init__(self, _parent, _server,_name=None,_service=None):
     self.parent=_parent
     self.name=_name
-    Gtk.Dialog.__init__(self, "Nodeactions \""+self.name+"\"", self.parent)
+    Gtk.Dialog.__init__(self, "Confirm Deletion", self.parent, 0,
+-                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+-                         Gtk.STOCK_OK, Gtk.ResponseType.OK))
     self.set_default_size(150, 100)
-    self.set_modal(False)
-    self.serverinfo=self.parent.linkback.main.scn_servers.get_node(self.name)
-
-    namelabel = Gtk.Label("Name:")
-    urllabel = Gtk.Label("URL:")
-    self.name=Gtk.Entry()
-    self.name.set_text(_name)
-    self.url=Gtk.Entry()
-    self.url.set_text(self.serverinfo[0])
-    #self.cert=Gtk.TextArea()
-    
-    
-    grid=Gtk.Grid()
-    grid.set_column_spacing(3)
-    grid.attach(namelabel,0,0,1,1)
-    grid.attach(self.name,1,0,1,1)
-    grid.attach(urllabel,0,1,1,1)
-    grid.attach(self.url,1,1,1,1)
+    if _name!=None and _service!=None:
+      label=Gtk.Label("Shall service \""+_service+"\" of "+_server+"/"+_name+" be deleted?")
+    elif _name!=None and _service==None:
+      label=Gtk.Label("Shall name \""+_name+"\" on "+_server+" be deleted?")
+    else:
+      label=Gtk.Label("Shall server \""+_server+"\" be deleted?")
 
     box = self.get_content_area()
-    box.add(grid)
+    box.add(label)
     self.show_all()
 
 
@@ -805,6 +768,104 @@ class scnServerNode(Gtk.ListBoxRow):
     dialog.destroy()
 
 
+class scnPageNavigation(Gtk.Frame):
+  parent=None
+  def __init__(self,_parent):
+    Gtk.Frame.__init__(self)
+    self.parent=_parent
+    cont=Gtk.Grid()
+
+    store = Gtk.ListStore(str)
+
+    cont.attach(Gtk.Label("Server"), 0, 0, 1, 1)
+    self.serverlist=Gtk.TreeView(store)
+    self.serverlist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0, 0, 1))
+    cont.attach(self.serverlist, 0, 1, 1, 1)
+    server_actions=Gtk.Notebook()
+    server_actions.append_page(self.gen_server_add(), Gtk.Label("+"))
+
+    server_actions.append_page(self.gen_server_edit(), Gtk.Label("="))
+    server_actions.append_page(self.gen_server_delete(), Gtk.Label("-"))
+    cont.attach(server_actions,0,2,1,1)
+    
+    cont.attach(Gtk.Label("Name"), 1, 0, 1, 1)
+    self.namelist=Gtk.TreeView(store)
+    self.namelist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.1, 0, 1))
+    cont.attach(self.namelist, 1, 1, 1, 1)
+
+    cont.attach(Gtk.Label("Service"), 2, 0, 1, 1)
+    self.servicelist=Gtk.TreeView(store)
+    self.servicelist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.1, 0.5, 1))
+    cont.attach(self.servicelist, 2, 1, 1, 1)
+
+    
+    self.add(cont)
+    self.update()
+    self.show_all()
+
+  def gen_server_add(self):
+    cont=Gtk.Grid()
+    cont.attach(Gtk.Label("Name:"),0,0,1,1)
+    self.newservername=Gtk.Entry()
+    cont.attach(self.newservername,1,0,2,1)
+    cont.attach(Gtk.Label("URL:"),0,1,1,1)
+    self.newserverurl=Gtk.Entry()
+    cont.attach(self.newserverurl,1,1,2,1)
+    applybut=Gtk.Button("Apply")
+    applybut.connect("clicked", self.add_server)
+    cont.attach(applybut,1,2,1,1)
+    resetbut=Gtk.Button("Reset")
+    cont.attach(resetbut,2,2,1,1)
+    return cont
+
+  def gen_server_edit(self):
+    cont=Gtk.Grid()
+    cont.attach(Gtk.Label("Name:"),0,0,1,1)
+    self.editservername=Gtk.Entry()
+    cont.attach(self.editservername,1,0,1,1)
+    cont.attach(Gtk.Label("URL:"),0,1,1,1)
+    self.editserverurl=Gtk.Entry()
+    cont.attach(self.editserverurl,1,1,1,1)
+    applybut=Gtk.Button("Apply")
+    applybut.connect("clicked", self.edit_server)
+    cont.attach(applybut,0,2,1,1)
+    resetbut=Gtk.Button("Reset")
+    cont.attach(resetbut,1,2,1,1)
+    return cont
+
+  def gen_server_delete(self):
+    but=Gtk.Button("Delete")
+    but.connect("clicked", self.delete_server)
+    return but
+
+  def delete_server(self):
+    temp=self.serverlist.get_selection().get_selected_rows()
+    if temp==None:
+      return 
+
+    dialog = scnDeletionDialog(self.parent,temp[0])
+    try:
+      if dialog.run()==True:
+        if self.parent.linkback.main.scn_servers.delete_node(self.name)==True:
+          self.parent.state_widget.set_text("Success")
+          #returnel=Gtk.Label("Success")
+        else:
+          self.parent.state_widget.set_text("Error, something happened")
+      else:
+        self.parent.state_widget.set_text("Aborted")
+    except Exception as e:
+      self.parent.state_widget.set_text(str(e))
+    dialog.destroy()
+
+  def add_server(self,button):
+    pass
+    
+  def edit_server(self,button):
+    pass
+
+  def update(self):
+    pass
+"""
 class scnPageServers(Gtk.Frame):
   parent=None
   def __init__(self,_parent):
@@ -827,7 +888,7 @@ class scnPageServers(Gtk.Frame):
       self.serverlist.add(scnServerNode(elem[0],self.parent))
 
   def add_server(self,button):
-    pass
+    pass"""
 
 class scnPageFriends(Gtk.Frame):
   parent=None
@@ -835,11 +896,6 @@ class scnPageFriends(Gtk.Frame):
     Gtk.Frame.__init__(self)
     self.parent=_parent
 
-class scnPageBoth(Gtk.Frame):
-  parent=None
-  def __init__(self,_parent):
-    Gtk.Frame.__init__(self)
-    self.parent=_parent
 
 
 class scnGUI(Gtk.Window):
@@ -870,64 +926,12 @@ class scnGUI(Gtk.Window):
 
     #self.main_grid.set_column_spacing(10)
     #self.main_grid.set_row_spacing(20)
-    self.note_switch.append_page(Gtk.Label("Not implemented yet"),Gtk.Label("Navigation"))
-    self.note_switch.append_page(scnPageServers(self),Gtk.Label("Servermanagement"))
+    self.note_switch.append_page(scnPageNavigation(self),Gtk.Label("Server Navigation"))
+#    self.note_switch.append_page(scnPageServers(self),Gtk.Label("Servermanagement"))
     self.note_switch.append_page(scnPageFriends(self),Gtk.Label("Friends"))
     
     self.note_switch.append_page(Gtk.Label("Not implemented yet"),Gtk.Label("Settings"))
-    
-    main_wid.pack_start(self.note_switch,True,True,2)
-    #self.main_contain.attach(self.friend_server_switch,0,0,1,1)
-    #self.main_grid.set_vexpand_set(True)
-    #self.main_grid.set_hexpand_set(True)
-#    self.main_contain.set_margin_left(5)
-#    self.main_contain.set_margin_right(2)
-    #self.main_grid.attach(self.confirm_button,0,1,1,1)
-    #self.main_grid.attach(self.reset_button,1,1,1,1)
-    main_wid.pack_start(self.state_widget,True,True,10)#(self.state_widget,0,1,1,1)
     self.add(main_wid)
-
-
-      
-  
-
-  def server_add_confirm(self,l):
-    temp_container=self.server_frame.get_child()
-    _name=temp_container.get_child_at(1,0).get_text()
-    _url=temp_container.get_child_at(1,1).get_text()
-    if _name=="":
-      self.state_widget.set_label("Error: missing name")
-      return
-    if _url=="":
-      self.state_widget.set_label("Error: missing url")
-      return
-    if self.linkback.main.c_add_node(_name,_url)==True:
-      self.state_widget.set_label("Success")
-    else:
-      self.state_widget.set_label("An error happened")
-
-  def server_add_gen(self,l):
-    temp=self.server_frame.get_child()
-    if temp!=None:
-      temp.destroy()
-    if self.s_confirm_button_id!=None:
-      self.s_confirm_button.disconnect(self.s_confirm_button_id)
-    if self.s_reset_button_id!=None:
-      self.s_reset_button.disconnect(self.s_reset_button_id)
-    self.state_widget.set_label("Ready")
-    a=Gtk.Grid()
-    a.attach(Gtk.Label("Name:"),0,0,1,1)
-    a.attach(Gtk.Entry(),1,0,1,1)
-    a.attach(Gtk.Label("IP/URL:"),0,1,1,1)
-    a.attach(Gtk.Entry(),1,1,1,1)
-    self.server_frame.add(a)
-    self.server_frame.show_all()
-    self.s_confirm_button_id = self.s_confirm_button.connect("clicked", self.server_add_confirm)
-    self.s_reset_button_id = self.s_reset_button.connect("clicked", self.server_add_gen)
-    
-    
-  def on_button_clicked(self, widget):
-    print("Hello World")
 
 
 win=None
