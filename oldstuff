@@ -1,4 +1,41 @@
 
+"""
+scn_client_node=None
+
+
+@app.route('/server/<server>')
+@app.route('/server/<server>/<name>')
+@app.route('/server/<server>/<name>/<service>')
+@app.route('/server')
+@app.route('/')
+def generate_server_nav(server=None,name=None,service=None):
+  if "Klsls" in scn_client_node.clientactions_bool:
+    scn_client_node.c_info(server)
+    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
+  elif "Klsls" in scn_client_node.clientactions_list:
+    scn_client_node.c_info(server)
+    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
+  else:
+    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
+
+
+@app.route('/friends/<node>')
+@app.route('/friends')
+def generate_client_nav(node=None):
+  return template("client_nav",node=node,return_state=None,return_list=None)
+
+@app.route('/actions/<action>')
+def do_action(action):
+  pass
+
+@app.route('/static/:path#.+#')
+def server_static(path):
+    return static_file(path, root=curdir+'/static')
+
+
+#def do_action(action,server):
+#    return template('<b>Hello {{name}}</b>!', name=name)
+"""
 
 def scn_send(_string,_socket):
   temp=bytes(_string,"utf-8")

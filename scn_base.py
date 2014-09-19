@@ -821,7 +821,7 @@ class scn_base_client(scn_base_base):
 
   def c_update_service(self,_servername,_name,_service,_secrethashstring):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
+    temp=self.scn_servers.get_service(_servername,_name,"admin")
     _socket.send("update_service"+sepc+_name+sepc)
     _socket.send_bytes(temp[2])
     _socket.send(_service+sepc)
@@ -842,7 +842,7 @@ class scn_base_client(scn_base_base):
       _secret=os.urandom(secret_size)
       temphash=hashlib.sha256(bytes(_name,"utf8"))
       temphash.update(self.pub_cert)
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
+    temp=self.scn_servers.get_service(_servername,_name,"admin")
     if temp==None:
       printerror("Error: no admin rights")
       return False
@@ -865,7 +865,7 @@ class scn_base_client(scn_base_base):
   
   def c_get_service_secrethash(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
+    temp=self.scn_servers.get_service(_servername,_name,"admin")
     _socket.send("get_service_secrethash"+sepc+_name)
     _socket.send_bytes(temp[2])
     _socket.send(_service+sepm)
@@ -894,12 +894,12 @@ class scn_base_client(scn_base_base):
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
-      return self.scn_servs.update_service(_servername,_name,"admin",_secret,False)
+      return self.scn_servers.update_service(_servername,_name,"admin",_secret,False)
     return False
 
   def c_delete_name(self,_servername,_name):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
+    temp=self.scn_servers.get_service(_servername,_name,"admin")
     if temp==None:
       printerror("No admin permission")
       _socket.close()
@@ -908,13 +908,13 @@ class scn_base_client(scn_base_base):
     _socket.send_bytes(temp[2],_socket,True)
     _server_response=scn_check_return(_socket)
     if _server_response==True:
-      self.scn_servs.delete_name(_name)
+      self.scn_servers.delete_name(_name)
     _socket.close()
     return _server_response
 
   def c_update_name_message(self,_servername,_name,_message):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
+    temp=self.scn_servers.get_service(_servername,_name,"admin")
     _socket.send("update_message"+sepc+_name+sepc)
     _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)
@@ -923,7 +923,7 @@ class scn_base_client(scn_base_base):
 
   def c_delete_service(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,"admin")
+    temp=self.scn_servers.get_service(_servername,_name,"admin")
     _socket.send("delete_service"+sepc+_name+sepc)
     _socket.send_bytes(temp[2])
     _socket.send_bytes(_service+sepm)
@@ -934,18 +934,18 @@ class scn_base_client(scn_base_base):
   
   def c_unserve_service(self,_servername,_name,_service):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,_service)
+    temp=self.scn_servers.get_service(_servername,_name,_service)
     _socket.send("unserve"+sepc+_name+sepc+_service+sepc)
     _socket.send_bytes(temp[2],_socket,True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     return _server_response
-    #temp=self.scn_servs.get_(_servername,_name,_servicename)
+    #temp=self.scn_servers.get_(_servername,_name,_servicename)
 
   def c_update_secret(self,_servername,_name,_service,_pub_cert=None):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
-    temp=self.scn_servs.get_service(_servername,_name,_service)
+    temp=self.scn_servers.get_service(_servername,_name,_service)
     _socket.send("update_secret"+sepc+_name+sepc+_service+sepc)
     _socket.send_bytes(temp[2])
     if scn_check_return(_socket)==False:
@@ -960,14 +960,14 @@ class scn_base_client(scn_base_base):
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
-      self.scn_servs.update_service(_servername,_name,_service,_secret)
+      self.scn_servers.update_service(_servername,_name,_service,_secret)
     return _server_response
 
 
   #for special services like tunnels, returns socket
   def c_use_special_service_auth(self, _servername, _name, _service):
     _socket = scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername, _name, _service)
+    temp=self.scn_servers.get_service(_servername, _name, _service)
     _socket.send("use_special_service_auth"+sepc+_name+sepc+_service+sepc)
     _socket.send_bytes(temp[2],True)
     if scn_check_return(_socket):
@@ -1043,13 +1043,13 @@ class scn_base_client(scn_base_base):
   #generate request for being added in service
   def c_create_serve(self,_servername,_name,_service):
     _secret=os.urandom(secret_size)
-    if self.scn_servs.update_service(_servername,_name,_service,_secret,True)==False:
+    if self.scn_servers.update_service(_servername,_name,_service,_secret,True)==False:
       return None
     return [_servername,_name,_service,hashlib.sha256(_secret).hexdigest()]
 
   def c_del_serve(self,_servername,_name,_service,force=False):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servs.get_service(_servername,_name,_service)
+    temp=self.scn_servers.get_service(_servername,_name,_service)
     _socket.send("del_serve"+sepc+_name+sepc+_service+sepc)
     _socket.send_bytes(temp[3],True)
     _server_response=scn_check_return(_socket)
@@ -1057,21 +1057,21 @@ class scn_base_client(scn_base_base):
       printerror("Error: deleting on server failed")
       if force==False:
         return False
-    if self.scn_servs.del_service(_servername,_name,_service)==False:
+    if self.scn_servers.del_service(_servername,_name,_service)==False:
       return False
     return True
 
 
   def c_serve_service(self,_servername,_name,_service,_addr_type,_addr):
     _socket=scn_socket(self.connect_to(_servername))
-    tempservice=self.scn_servs.get_service(_servername,_name,_service)
+    tempservice=self.scn_servers.get_service(_servername,_name,_service)
     _socket.send("serve"+sepc+_name+sepc+_service+sepc)
     _socket.send_bytes(tempservice[2])
     _socket.send(_addr_type+sepc+_addr+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response == True and tempservice[4] == 1:
-      return self.scn_servs.update_service_pendingstate(_servername,_name,_service,False)
+      return self.scn_servers.update_service_pendingstate(_servername,_name,_service,False)
     else:
       return _server_response
 
@@ -1106,7 +1106,7 @@ class scn_base_client(scn_base_base):
       return None
 
 
-  def c_add_node(self,_url,_servername=None):
+  def c_add_server(self,_url,_servername=None):
     _socket=scn_socket(self.connect_to_ip(_url))
     _socket.send("info"+sepm)
     if scn_check_return(_socket) == False:
@@ -1122,7 +1122,7 @@ class scn_base_client(scn_base_base):
       printerror("Error: is_end false before second command")
       _socket.close()
       return False
-    elif self.scn_servs.get_node(_servername)!=None:
+    elif self.scn_servers.get_node(_servername)!=None:
       printerror("Error: node exists already")
       _socket.close()
       return False
@@ -1133,14 +1133,14 @@ class scn_base_client(scn_base_base):
       return False
     _cert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
-    if self.scn_servs.update_node(_servername,_url,_cert)==True:
+    if self.scn_servers.update_node(_servername,_url,_cert)==True:
       return True
     else:
       printdebug("node update failed")
       return False
 
-  def c_update_node(self,_url,_servername): #, update_cert_hook):
-    if self.scn_servs.get_node(_servername)==None:
+  def c_update_server(self,_url,_servername): #, update_cert_hook):
+    if self.scn_servers.get_node(_servername)==None:
       printerror("Error: Node doesn't exist")
       return False
     _socket=scn_socket(self.connect_to_ip(_url))
@@ -1164,16 +1164,16 @@ class scn_base_client(scn_base_base):
       return False
     _newcert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
-    if _newcert!=self.scn_servs.get_node(_servername):
+    if _newcert!=self.scn_servers.get_node(_servername):
       printdebug("Certs missmatch, update because of missing hook")
-    if self.scn_servs.update_node(_servername,_url,_newcert)==True:
+    if self.scn_servers.update_node(_servername,_url,_newcert)==True:
       return True
     else:
       printdebug("node update failed")
       return False
     
-  def c_delete_node(self,_nodename):
-    if self.scn_servs.del_node(_nodename)==True:
+  def c_delete_server(self,_servername):
+    if self.scn_servers.del_node(_servername)==True:
       return True
       #return self.scn_friends.del_server_all(_nodename)
     else:

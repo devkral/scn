@@ -13,10 +13,7 @@ from gi.repository import Gtk,Gdk
 
 
 import os
-#import bottle
 
-#app=bottle.Bottle()
-#from bottle import template,static_file
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
@@ -423,16 +420,16 @@ class scn_servs_sql(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''SELECT nodename FROM scn_certs''')
+      cur.execute('''SELECT nodename,url FROM scn_certs''')
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #serverurl,cert
+    return temp # [(servername,url),...]
 
   def get_next(self):
     self.view_cur+=1
-    return self.view_list[self.view_cur] #serverurl,cert,name,secret,pendingstate
+    return self.view_list[self.view_cur] #name,serverurl,cert,secret,pendingstate
   def rewind(self):
     try:
       con=sqlite3.connect(self.db_path)
@@ -442,7 +439,7 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT b.url,b.cert,a.name,a.secret,a.pending
+      cur.execute('''SELECT b.nodename,b.url,a.name,a.service,a.secret,a.pending
       FROM scn_serves as a,scn_certs as b
       WHERE a.servername=b.nodename''')
       self.view_cur=-1 #+1 before retrieving
@@ -475,12 +472,12 @@ class scn_client(scn_base_client):
     with open(self.config_path+"scn_client_cert"+".pub", 'rb') as readinpubkey:
       self.pub_cert=readinpubkey.read()
 
-    self.scn_servs=scn_servs_sql(self.config_path+"scn_client_server_db")
+    self.scn_servers=scn_servs_sql(self.config_path+"scn_client_server_db")
     self.scn_friends=scn_friends_sql(self.config_path+"scn_client_friend_db")
 
 #connect methods
   def connect_to(self,_servername):
-    tempdata=self.scn_servs.get_node(_servername)
+    tempdata=self.scn_servers.get_node(_servername)
     if tempdata == None:
       raise (scnConnectException("connect_to: servername doesn't exist"))
     tempconnectdata=tempdata[0].split(sepu)
@@ -584,11 +581,11 @@ class scn_client(scn_base_client):
   def c_serve_service_ip(self,_servername,_name,_service):
     return self.c_serve_service(self,_servername,_name,_service,"ip",self.linkback.receiver.host[1])
   
-  def get_list(self):
-    return self.scn_servs.get_list()
+  def c_get_server_list(self):
+    return self.scn_servers.get_list()
 
-  def get_node(self,_nodename):
-    return self.scn_servs.get_node(_nodename)
+  def c_get_server(self,_servername):
+    return self.scn_servers.get_node(_servername)
 
   actions = {"get_cert": scn_base_base.s_get_cert,
              "pong": scn_base_base.pong,
@@ -605,15 +602,15 @@ class scn_client(scn_base_client):
                         "serveip": c_serve_service_ip, 
                         "unserve": scn_base_client.c_unserve_service, 
                         "updsecret": scn_base_client.c_update_secret,
-                        "addserver": scn_base_client.c_add_node,
-                        "updserver": scn_base_client.c_update_node, 
-                        "delserver": scn_base_client.c_delete_node}
+                        "addserver": scn_base_client.c_add_server,
+                        "updserver": scn_base_client.c_update_server, 
+                        "delserver": scn_base_client.c_delete_server}
   clientactions_list = {"getservicehash": scn_base_client.c_get_service_secrethash, 
                         "getmessage": scn_base_client.c_get_name_message, 
                         "getservercert": scn_base_client.c_get_server_cert, 
                         "info": scn_base_client.c_info, 
-                        "getlist": get_list, 
-                        "getnode": get_node}
+                        "getlist": c_get_server_list, 
+                        "getnode": c_get_server}
 
 #,"use_auth": use_special_service_auth,"use_unauth":use_special_service_unauth
   def debug(self):
@@ -717,60 +714,147 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
     self.server_bind()
     self.server_activate()
 
-"""
-scn_client_node=None
+
+class scnEditServer(Gtk.Dialog):
+  name=None
+  url=None
+  cert=None
+  def __init__(self, parent, _name,_url,_cert=None):
+    Gtk.Dialog.__init__(self, "Edit \""+_name+"\"", parent, 0,
+                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                         Gtk.STOCK_OK, Gtk.ResponseType.OK))
+    self.set_default_size(150, 100)
+    #self.set_relative_to(parent)
+    #self.set_default_size(150, 100)
+    namelabel = Gtk.Label("Name:")
+    urllabel = Gtk.Label("URL:")
+    self.name=Gtk.Entry()
+    self.name.set_text(_name)
+    self.url=Gtk.Entry()
+    self.url.set_text(_url)
+    grid=Gtk.Grid()
+    grid.set_column_spacing(3)
+    grid.attach(namelabel,0,0,1,1)
+    grid.attach(self.name,1,0,1,1)
+    grid.attach(urllabel,0,1,1,1)
+    grid.attach(self.url,1,1,1,1)
+    box = self.get_content_area()
+    box.add(grid)
+    self.show_all()
 
 
-@app.route('/server/<server>')
-@app.route('/server/<server>/<name>')
-@app.route('/server/<server>/<name>/<service>')
-@app.route('/server')
-@app.route('/')
-def generate_server_nav(server=None,name=None,service=None):
-  if "Klsls" in scn_client_node.clientactions_bool:
-    scn_client_node.c_info(server)
-    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
-  elif "Klsls" in scn_client_node.clientactions_list:
-    scn_client_node.c_info(server)
-    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
-  else:
-    return template("server_nav",server=server,name=name,service=service,return_state=None,return_list=None)
 
+class scnDeleteDialog(Gtk.Dialog):
+  def __init__(self, parent, _name):
+    Gtk.Dialog.__init__(self, "Confirm Deletion", parent, 0,
+                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                         Gtk.STOCK_OK, Gtk.ResponseType.OK))
+    self.set_default_size(150, 100)
+    label = Gtk.Label("Shall \""+_name+"\" really be deleted?")
 
-@app.route('/friends/<node>')
-@app.route('/friends')
-def generate_client_nav(node=None):
-  return template("client_nav",node=node,return_state=None,return_list=None)
-
-@app.route('/actions/<action>')
-def do_action(action):
-  pass
-
-@app.route('/static/:path#.+#')
-def server_static(path):
-    return static_file(path, root=curdir+'/static')
-
-
-#def do_action(action,server):
-#    return template('<b>Hello {{name}}</b>!', name=name)
-"""
+    box = self.get_content_area()
+    box.add(label)
+    self.show_all()
 
 
 class scnNode(Gtk.ListBoxRow):
   is_servernode=True
-  def __init__(self, name, linkback, _isservernode=True):
-    
+  parent=None
+  name=None
+  def __init__(self, _name, _parent, _isservernode, _note=""):
     self.is_servernode=_isservernode
+    self.parent=_parent
+    self.name=_name
     Gtk.ListBoxRow.__init__(self)
+    #self.set_header(Gtk.Label(_name))
     delete=Gtk.Button(label="delete")
     delete.connect("clicked", self.click_delete)
     edit=Gtk.Button(label="edit")
     edit.connect("clicked", self.click_edit)
-    #self.add(
-  def click_edit(self,k):
+    
+    contwidget=Gtk.Grid()
+    contwidget.set_column_spacing(5)
+    temp=Gtk.Label(_name)
+    temp.set_margin_right(5)
+    contwidget.attach(temp,0,0,1,1)
+    temp2=Gtk.Label(_note)
+    temp2.set_margin_right(5)
+    contwidget.attach(temp2,1,0,1,1)
+    contwidget.attach(edit,2,0,1,1)
+    contwidget.attach(delete,3,0,1,1)
+    self.add(contwidget)
+  def click_edit(self,button):
+    temp=self.parent.linkback.main.scn_servers.get_node(self.name)
+    dialog = scnEditServer(self.parent,self.name,temp[0],temp[1])
+    try:
+      if dialog.run()==True:
+        if self.is_servernode==True:
+          #if self.parent.linkback.main.scn_servers.update_node(self.name)==True:
+          self.parent.state_widget.set_text("Success")
+
+        else:
+          #if self.parent.linkback.c_delete_friend(self.name)==True:
+          #  self.parent.state_widget.set_text("Success")
+          pass
+    except Exception as e:
+      printerror(e)
+    dialog.destroy()
+
+  def click_delete(self,button):
+    dialog = scnDeleteDialog(self.parent,self.name)
+    try:
+      if dialog.run()==True:
+        if self.is_servernode==True:
+          if self.parent.linkback.main.scn_servers.delete_node(self.name)==True:
+            self.parent.state_widget.set_text("Success")
+        else:
+          #if self.parent.linkback.c_delete_friend(self.name)==True:
+          #  self.parent.state_widget.set_text("Success")
+          pass
+    except Exception as e:
+      printerror(e)
+    dialog.destroy()
+
+class scnPageServers(Gtk.Frame):
+  parent=None
+  def __init__(self,_parent):
+    Gtk.Frame.__init__(self)
+    self.parent=_parent
+    cont=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    serverlist_header=Gtk.Grid()#orientation=Gtk.Orientation.VERTICAL)
+    serverlist_header.set_column_spacing(5)
+    serverlist_header.attach(Gtk.Label("Name"),0,0,1,1)
+    serverlist_header.attach(Gtk.Label("Note"),1,0,1,1)
+    cont.pack_start(serverlist_header,True,True,0)
+    self.serverlist=Gtk.ListBox()#orientation=Gtk.Orientation.VERTICAL)
+    cont.pack_start(self.serverlist,True,True,0)
+    controls=Gtk.Grid()
+    cont.pack_start(controls,True,True,0)
+    add_server_button=Gtk.Button("Add Server")
+    add_server_button.connect("clicked", self.add_server)
+    controls.attach(add_server_button,0,0,1,1)
+    self.add(cont)
+    self.update()
+    self.show_all()
+    
+  def update(self):
+    for elem in self.parent.linkback.main.scn_servers.get_list():
+      self.serverlist.add(scnNode(elem[0],self.parent,True,"server"))
+
+  def add_server(self,button):
     pass
-  def click_delete(self,k):
-    pass
+
+class scnPageFriends(Gtk.Frame):
+  parent=None
+  def __init__(self,_parent):
+    Gtk.Frame.__init__(self)
+    self.parent=_parent
+
+class scnPageBoth(Gtk.Frame):
+  parent=None
+  def __init__(self,_parent):
+    Gtk.Frame.__init__(self)
+    self.parent=_parent
 
 
 class scnGUI(Gtk.Window):
@@ -780,7 +864,7 @@ class scnGUI(Gtk.Window):
   note_main=None
   linkback=None
   def __init__(self,_linkback):
-    Gtk.Window.__init__(self, title="Secure Node Communication")
+    Gtk.Window.__init__(self, title="Secure Communication Nodes")
     self.linkback=_linkback
     self.resize(600,200)
     main_wid=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -788,7 +872,7 @@ class scnGUI(Gtk.Window):
     self.note_switch=Gtk.Notebook()
     self.note_switch.set_margin_left(10)
     main_wid.pack_start(self.note_switch,True,True,0)
-    self.state_widget=Gtk.Label(label="")
+    self.state_widget=Gtk.Label("")
     main_wid.pack_start(self.state_widget,True,True,5)
 
     #add=Gtk.Button(label="add")
@@ -801,9 +885,9 @@ class scnGUI(Gtk.Window):
 
     #self.main_grid.set_column_spacing(10)
     #self.main_grid.set_row_spacing(20)
-    self.note_switch.append_page(self.PageServers(),Gtk.Label("Servers"))
-    self.note_switch.append_page(self.PageFriends(),Gtk.Label("Friends"))
-    self.note_switch.append_page(self.PageBoth(),Gtk.Label("Both"))
+    self.note_switch.append_page(scnPageServers(self),Gtk.Label("Servers"))
+    self.note_switch.append_page(scnPageFriends(self),Gtk.Label("Friends"))
+    #self.note_switch.append_page(self.PageBoth(),Gtk.Label("Both"))
     self.note_switch.append_page(Gtk.Label("Not implemented yet"),Gtk.Label("Settings"))
     
     main_wid.pack_start(self.note_switch,True,True,2)
@@ -818,14 +902,8 @@ class scnGUI(Gtk.Window):
     self.add(main_wid)
 
 
-  class PageServers(Gtk.Frame):
-    pass
+      
   
-  class PageFriends(Gtk.Frame):
-    pass
-
-  class PageBoth(Gtk.Frame):
-    pass
 
   def server_add_confirm(self,l):
     temp_container=self.server_frame.get_child()
@@ -870,10 +948,10 @@ win=None
 
 def signal_handler(_signal, frame):
   #win.close()
-  #win.destroy()
+  win.destroy()
   Gtk.main_quit()
   #app.close()
-  #sys.exit(0)
+  sys.exit(0)
 
 if __name__ == "__main__":
   cm.main=scn_client(cm,default_config_folder)
