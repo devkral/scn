@@ -922,12 +922,14 @@ class scnPageServers(Gtk.Frame):
   def add_server(self,button):
     pass"""
 
-class scnPageFriends(Gtk.Frame):
+class scnPageFriends(Gtk.Grid):
   parent=None
+  linkback=None
   def __init__(self,_parent):
-    Gtk.Frame.__init__(self)
+    Gtk.Grid.__init__(self)
     self.parent=_parent
-
+    self.linkback=self.parent.linkback
+    self.attach(Gtk.Label("Not implemented yet"),0,0,1,1)
 
 
 class scnGUI(Gtk.Window):
