@@ -1,4 +1,95 @@
 
+
+
+      
+
+    self.serverlist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0, 0, 1))
+    cont.attach(self.serverlist, 0, 1, 1, 1)
+    server_actions=Gtk.Notebook()
+    server_actions.append_page(self.gen_server_add(), Gtk.Label("+"))
+
+    server_actions.append_page(self.gen_server_edit(), Gtk.Label("="))
+    server_actions.append_page(self.gen_server_delete(), Gtk.Label("-"))
+    cont.attach(server_actions,0,2,1,1)
+    
+    cont.attach(Gtk.Label("Name"), 1, 0, 1, 1)
+    self.namelist=Gtk.TreeView(store)
+    self.namelist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.1, 0, 1))
+    cont.attach(self.namelist, 1, 1, 1, 1)
+
+    cont.attach(Gtk.Label("Service"), 2, 0, 1, 1)
+    self.servicelist=Gtk.TreeView(store)
+    self.servicelist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.1, 0.5, 1))
+    cont.attach(self.servicelist, 2, 1, 1, 1)
+
+    
+    self.add(cont)
+    self.update()
+    self.show_all()
+
+  def gen_server_add(self):
+    cont=Gtk.Grid()
+    cont.attach(Gtk.Label("Name:"),0,0,1,1)
+    self.newservername=Gtk.Entry()
+    cont.attach(self.newservername,1,0,2,1)
+    cont.attach(Gtk.Label("URL:"),0,1,1,1)
+    self.newserverurl=Gtk.Entry()
+    cont.attach(self.newserverurl,1,1,2,1)
+    applybut=Gtk.Button("Apply")
+    applybut.connect("clicked", self.add_server)
+    cont.attach(applybut,1,2,1,1)
+    resetbut=Gtk.Button("Reset")
+    cont.attach(resetbut,2,2,1,1)
+    return cont
+
+  def gen_server_edit(self):
+    cont=Gtk.Grid()
+    cont.attach(Gtk.Label("Name:"),0,0,1,1)
+    self.editservername=Gtk.Entry()
+    cont.attach(self.editservername,1,0,1,1)
+    cont.attach(Gtk.Label("URL:"),0,1,1,1)
+    self.editserverurl=Gtk.Entry()
+    cont.attach(self.editserverurl,1,1,1,1)
+    applybut=Gtk.Button("Apply")
+    applybut.connect("clicked", self.edit_server)
+    cont.attach(applybut,0,2,1,1)
+    resetbut=Gtk.Button("Reset")
+    cont.attach(resetbut,1,2,1,1)
+    return cont
+
+  def gen_server_delete(self):
+    but=Gtk.Button("Delete")
+    but.connect("clicked", self.delete_server)
+    return but
+
+
+class scnServerNode(Gtk.ListBoxRow):
+  parent=None
+  name=None
+  def __init__(self, _name, _parent):
+    self.parent=_parent
+    self.name=_name
+    Gtk.ListBoxRow.__init__(self)
+    name_button=Gtk.Button(_name)
+    name_button.connect("clicked",self.click)
+    self.add(name_button)
+  def click(self,button):
+    dialog = scnServerDialog(self.parent,self.name)
+    try:
+      if dialog.run()==True:
+          #if self.parent.linkback.main.scn_servers.update_node(self.name)==True:
+        self.parent.state_widget.set_text("Success")
+      else:
+        self.parent.state_widget.set_text("Error")
+        #if self.parent.linkback.c_delete_friend(self.name)==True:
+        #  self.parent.state_widget.set_text("Success")
+        pass
+    except Exception as e:
+      printerror(e)
+    dialog.destroy()
+
+
+
 """
 scn_client_node=None
 

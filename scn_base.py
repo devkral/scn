@@ -12,6 +12,8 @@ import traceback
 import os
 import os.path
 import hashlib
+import time
+
 from subprocess import Popen,PIPE
 
 from OpenSSL import SSL,crypto
@@ -21,7 +23,7 @@ from OpenSSL import SSL,crypto
 
 #import Enum from enum
 
-from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_services, max_service_nodes, secret_size, key_size,protcount_max,hash_hex_size
+from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_services, max_service_nodes, secret_size, key_size,protcount_max,hash_hex_size, scn_cache_timeout
 
 # from scn_config import scn_client_port
 
@@ -350,7 +352,7 @@ class scn_base_base(object):
 #  "main": points to current used computer
 #  "store": points to storage
 #  "notify": points to primary message device
-#  "special": group for useing special_services
+#  "special": group for using special_services
 #tunnellist: uid:service:tunnel
 
 
@@ -362,6 +364,7 @@ class scn_base_server(scn_base_base):
   special_services={}
   special_services_unauth={}
   tunnel={}
+  cache_name_list=None
 #priv
   def _s_admin_auth(self, _socket):
     try:
@@ -751,24 +754,22 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
-    try:
-      _service=_socket.receive_one(1,max_name_length)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
-      return
-    if _service=="admin":
-      _socket.send("error"+sepc+"admin"+sepm)
-    elif _service=="special":
-      _socket.send("error"+sepc+"special"+sepm)
-    elif self.scn_names.length(_name)==0:
-      _socket.send("error"+sepc+"not exists"+sepm)
-    elif not self.scn_names.get(_name).length( _service)==0:
-      _socket.send("error"+sepc+"service not exist"+sepm)
-    else:
-      temp=""
-      for elem in self.scn_names.list_services(_name,_service):
-        temp+=sepc+elem #name
-      _socket.send("success"+temp+sepm)
+    temp=""
+    for elem in self.scn_names.get(_name).list_services():
+      temp+=sepc+elem #name
+    _socket.send("success"+temp+sepm)
+
+#not threading safe
+  def s_list_names(self,_socket):
+    if self.cache_name_list==None or \
+       self.cache_name_time>=time.time()+scn_cache_timeout:
+      self.cache_name_time=time.time()
+      self.cache_name_list=""
+      for elem in self.scn_names.list_names():
+        self.cache_name_list+=sepc+elem #name
+    _socket.send("success"+self.cache_name_list+sepm)
+
+
 
   def s_get_name_message(self,_socket,_name):
     try:
@@ -987,6 +988,19 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _node_list
 
+
+  def c_list_names(self,_servername):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.send("list_names"+sepm)
+    _name_list=[]
+    if scn_check_return(_socket) == True:
+      for protcount in range(0,protcount_max):
+        _name_list += [_socket.receive_one(),]
+    else:
+      _name_list = None
+    _socket.close()
+    return _name_list
+
   def c_list_services(self,_servername,_name):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("list_services"+sepc+_name+sepm)
@@ -998,6 +1012,7 @@ class scn_base_client(scn_base_base):
       _node_list = None
     _socket.close()
     return _node_list
+
   
   def c_get_name_message(self,_servername,_name):
     _socket = scn_socket(self.connect_to(_servername))
@@ -1106,23 +1121,9 @@ class scn_base_client(scn_base_base):
       return None
 
 
-  def c_add_server(self,_url,_servername=None):
+  def c_add_server(self,_url,_servername):
     _socket=scn_socket(self.connect_to_ip(_url))
-    _socket.send("info"+sepm)
-    if scn_check_return(_socket) == False:
-      _socket.close()
-      return False
-    if _servername == None:
-      _servername=_socket.receive_one()
-    else:
-      _socket.receive_one()
-    _socket.receive_one()#version
-    _socket.receive_one()#_serversecretsize
-    if _socket.is_end() == False:
-      printerror("Error: is_end false before second command")
-      _socket.close()
-      return False
-    elif self.scn_servers.get_node(_servername)!=None:
+    if self.scn_servers.get_node(_servername)!=None:
       printerror("Error: node exists already")
       _socket.close()
       return False

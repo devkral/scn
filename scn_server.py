@@ -227,7 +227,7 @@ class scn_name_sql(object):
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT servicename
-      FROM scn_node WHERE scn_name=?''',(self.name,))
+      FROM scn_node WHERE scn_name=? AND scn_name!=admin''',(self.name,))
       ob=cur.fetchmany()
     except Exception as e:
       printerror(e)
@@ -441,10 +441,11 @@ class scn_server(scn_base_server):
            "use_special_service_auth": scn_base_server.s_use_special_service_auth,
            "use_special_service_unauth":scn_base_server.s_use_special_service_unauth,
            "get_name_message":scn_base_server.s_get_name_message,
+           "list_names": scn_base_server.s_list_names,
+           "list_services": scn_base_server.s_list_services,
            "get_cert":scn_base_base.s_get_cert,
            "info":scn_base_base.s_info,
            "pong":scn_base_base.pong}
-
 
   callback={}
 

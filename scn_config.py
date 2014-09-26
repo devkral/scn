@@ -16,6 +16,8 @@ key_size=4096
 max_cert_size=10000
 hash_hex_size=64
 default_config_folder=os.getenv("HOME")+os.sep+".scn"+os.sep
+scn_cache_timeout=60*1
+
 
 debug_mode=True
 show_error_mode=True

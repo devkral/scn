@@ -392,7 +392,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #serverurl,cert
+    return temp #serverurl,cert or None
 
   def get_by_url(self,_url):
     temp=None
@@ -742,101 +742,133 @@ class scnDeletionDialog(Gtk.Dialog):
     self.show_all()
 
 
-class scnServerNode(Gtk.ListBoxRow):
-  parent=None
-  name=None
-  def __init__(self, _name, _parent):
-    self.parent=_parent
-    self.name=_name
-    Gtk.ListBoxRow.__init__(self)
-    name_button=Gtk.Button(_name)
-    name_button.connect("clicked",self.click)
-    self.add(name_button)
-  def click(self,button):
-    dialog = scnServerDialog(self.parent,self.name)
-    try:
-      if dialog.run()==True:
-          #if self.parent.linkback.main.scn_servers.update_node(self.name)==True:
-        self.parent.state_widget.set_text("Success")
-      else:
-        self.parent.state_widget.set_text("Error")
-        #if self.parent.linkback.c_delete_friend(self.name)==True:
-        #  self.parent.state_widget.set_text("Success")
-        pass
-    except Exception as e:
-      printerror(e)
-    dialog.destroy()
+normalflag=Gtk.StateFlags.NORMAL|Gtk.StateFlags.ACTIVE
+
+#debug code
 
 
-class scnPageNavigation(Gtk.Frame):
+def print_tree_store(store):
+    rootiter = store.get_iter_first()
+    print_rows(store, rootiter, "")
+
+def print_rows(store, treeiter, indent):
+    while treeiter != None:
+        print (indent + str(store[treeiter][:]))
+        if store.iter_has_child(treeiter):
+            childiter = store.iter_children(treeiter)
+            print_rows(store, childiter, indent + "\t")
+        treeiter = store.iter_next(treeiter)
+
+
+
+
+class scnPageNavigation(Gtk.Grid):
   parent=None
+  linkback=None
   def __init__(self,_parent):
-    Gtk.Frame.__init__(self)
+    Gtk.Grid.__init__(self)
     self.parent=_parent
-    cont=Gtk.Grid()
+    self.linkback=self.parent.linkback
+    self.navbar=Gtk.Entry()
+    self.navcontent=Gtk.ListStore(str)
+    self.navbox=Gtk.TreeView(self.navcontent)
+    self.navcontextsmall=Gtk.Label()
+    self.navcontextmain=Gtk.Frame()
+    self.navcontextmain.set_label("Context")
 
-    store = Gtk.ListStore(str)
+    navcontainer=Gtk.Grid()
+    navcontainer.set_column_spacing(2)
 
-    cont.attach(Gtk.Label("Server"), 0, 0, 1, 1)
-    self.serverlist=Gtk.TreeView(store)
-    self.serverlist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0, 0, 1))
-    cont.attach(self.serverlist, 0, 1, 1, 1)
-    server_actions=Gtk.Notebook()
-    server_actions.append_page(self.gen_server_add(), Gtk.Label("+"))
+    navcontainer.set_margin_top(2)
+    navcontainer.set_margin_left(5)
+    navcontainer.set_margin_right(5)
+    temp1=Gtk.Label("Navigation: ")
+    navcontainer.attach(temp1,0,0,1,1)
+    navcontainer.attach(self.navbar,1,0,1,1)
+    self.navbar.set_hexpand (True)
 
-    server_actions.append_page(self.gen_server_edit(), Gtk.Label("="))
-    server_actions.append_page(self.gen_server_delete(), Gtk.Label("-"))
-    cont.attach(server_actions,0,2,1,1)
+    self.attach(navcontainer,0,0,2,1)
+    self.attach(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),0,1,2,1)
+
+    self.frame_nav=Gtk.Frame()
+    self.frame_nav.add(self.navbox)
+    self.frame_nav.set_margin_right(5)
+    self.frame_nav.set_label_align(0.1,0.8)
+
+    #self.attach(self.navcontextsmall,0,2,1,1)
+    self.attach(self.frame_nav,0,2,1,1)
+
     
-    cont.attach(Gtk.Label("Name"), 1, 0, 1, 1)
-    self.namelist=Gtk.TreeView(store)
-    self.namelist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.1, 0, 1))
-    cont.attach(self.namelist, 1, 1, 1, 1)
+    self.navcontextmain.set_label_align(0.1,0.8)
+    self.attach(self.navcontextmain,1,2,1,1)
+    self.scnupdate()
 
-    cont.attach(Gtk.Label("Service"), 2, 0, 1, 1)
-    self.servicelist=Gtk.TreeView(store)
-    self.servicelist.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.1, 0.5, 1))
-    cont.attach(self.servicelist, 2, 1, 1, 1)
+  def scnupdate(self):
+    if self.navbar.get_text()=="":
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+      self.buildNonegui()
+      return
+    splitnavbar=self.navbar.get_text().split("/")
+    if len(splitnavbar)==1:
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+      self.buildservergui(splitnavbar)
+    elif len(splitnavbar)==2:
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+      self.buildnamegui(splitnavbar)
+    elif len(splitnavbar)==3:
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+      self.buildservicegui(splitnavbar)
+    else:
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
+      self.buildNonegui()
 
+  def buildNonegui(self):
+    self.frame_nav.set_label("Server")
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+    self.navcontent.clear()
+    for elem in self.linkback.main.scn_servers.get_list():
+      self.navcontent.append((elem[0],))
     
-    self.add(cont)
-    self.update()
-    self.show_all()
 
-  def gen_server_add(self):
-    cont=Gtk.Grid()
-    cont.attach(Gtk.Label("Name:"),0,0,1,1)
-    self.newservername=Gtk.Entry()
-    cont.attach(self.newservername,1,0,2,1)
-    cont.attach(Gtk.Label("URL:"),0,1,1,1)
-    self.newserverurl=Gtk.Entry()
-    cont.attach(self.newserverurl,1,1,2,1)
-    applybut=Gtk.Button("Apply")
-    applybut.connect("clicked", self.add_server)
-    cont.attach(applybut,1,2,1,1)
-    resetbut=Gtk.Button("Reset")
-    cont.attach(resetbut,2,2,1,1)
-    return cont
 
-  def gen_server_edit(self):
-    cont=Gtk.Grid()
-    cont.attach(Gtk.Label("Name:"),0,0,1,1)
-    self.editservername=Gtk.Entry()
-    cont.attach(self.editservername,1,0,1,1)
-    cont.attach(Gtk.Label("URL:"),0,1,1,1)
-    self.editserverurl=Gtk.Entry()
-    cont.attach(self.editserverurl,1,1,1,1)
-    applybut=Gtk.Button("Apply")
-    applybut.connect("clicked", self.edit_server)
-    cont.attach(applybut,0,2,1,1)
-    resetbut=Gtk.Button("Reset")
-    cont.attach(resetbut,1,2,1,1)
-    return cont
+  def buildservergui(self,navelems):
+    temp_names=self.linkback.main.scn_servers.get_names()
+    if temp_names==None:
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
+      self.buildNonegui()
+      return
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
+    self.frame_nav.set_label("Name")
+    self.navbar.set_text(navelems[0])
+    self.navconinserttent.clear()
+    for elem in temp_names:
+      self.navcontent.append(elem[0])
 
-  def gen_server_delete(self):
-    but=Gtk.Button("Delete")
-    but.connect("clicked", self.delete_server)
-    return but
+  def buildnamegui(self,navelems):
+    temp1=self.linkback.main.scn_servers.get_node(navelems[0])
+    if temp1==None:
+      self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
+      self.buildNonegui()
+      return
+    temp2=self.c_list_services(navelems[0],navelems[1])
+    if temp2==None:
+      self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
+      self.buildNonegui()
+      return
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
+    self.frame_nav.set_label("Service")
+    self.navbar.set_text(navelems[0]+"/"+navelems[1])
+    self.navcontent.clear()
+    for elem in temp2:
+      self.navcontent.append((elem[0],))
+
+
+  def buildservicegui(self,navelems):
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.7, 0.7, 1))
+    self.frame_nav.set_label(None)
+    self.navbar.set_text(navelems[0]+"/"+navelems[1]+"/"+navelems[2])
+    self.navcontent.clear()
 
   def delete_server(self):
     temp=self.serverlist.get_selection().get_selected_rows()
@@ -907,14 +939,21 @@ class scnGUI(Gtk.Window):
   def __init__(self,_linkback):
     Gtk.Window.__init__(self, title="Secure Communication Nodes")
     self.linkback=_linkback
-    self.resize(600,200)
-    main_wid=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    self.resize(600,400)
+    self.set_icon_from_file("icon.png")
+
+    main_wid=Gtk.Grid()
 
     self.note_switch=Gtk.Notebook()
-    self.note_switch.set_margin_left(10)
-    main_wid.pack_start(self.note_switch,True,True,0)
+    self.note_switch.set_margin_left(5)
+    self.note_switch.set_margin_right(5)
+    self.note_switch.set_hexpand(True)
+    self.note_switch.set_vexpand(True)
+    main_wid.attach(self.note_switch,0,0,1,1)
     self.state_widget=Gtk.Label("")
-    main_wid.pack_start(self.state_widget,True,True,5)
+    self.state_widget.set_hexpand(True)
+    self.state_widget.set_margin_top(5)
+    main_wid.attach(self.state_widget,0,1,1,1)
 
     #add=Gtk.Button(label="add")
     #add.connect("clicked", self.click_add)
