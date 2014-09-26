@@ -825,11 +825,23 @@ class scnPageNavigation(Gtk.Grid):
 
   def buildNonegui(self):
     self.frame_nav.set_label("Server")
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
+    self.navbox.override_background_color(normalflag, Gdk.RGBA(1, 1, 1, 1))
     self.navcontent.clear()
     for elem in self.linkback.main.scn_servers.get_list():
       self.navcontent.append((elem[0],))
+    if len(self.navcontextmain.get_children())==1:
+      self.navcontextmain.get_children()[0].destroy()
+    contextcont=Gtk.Grid()
+    self.navcontextmain.add(contextcont)
     
+    self.addServerButton1=Gtk.Button("Add Server")
+    contextcont.attach(self.addServerButton1,0,0,1,1)
+    
+
+
+
+
+      
 
 
   def buildservergui(self,navelems):
@@ -1003,6 +1015,8 @@ if __name__ == "__main__":
 
   win.show_all()
   Gtk.main()
+  
+  sys.exit(0)
 
 """  app.run(host='localhost', port=8080, debug=True)
 
