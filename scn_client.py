@@ -741,6 +741,32 @@ class scnDeletionDialog(Gtk.Dialog):
     box.add(label)
     self.show_all()
 
+class scnServerEditDialog(Gtk.Dialog):
+  servername=None
+  urlname=None
+  def __init__(self, _parent, _title, _servername,_url=""):
+    self.parent=_parent
+    self.servername=Gtk.Entry()
+    self.servername.set_hexpand(True)
+    self.servername.set_text(_servername)
+    self.url=Gtk.Entry()
+    self.url.set_hexpand(True)
+    self.url.set_text(_url)
+    Gtk.Dialog.__init__(self, _title, self.parent, 0,
+-                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+-                         Gtk.STOCK_OK, Gtk.ResponseType.OK))
+    self.set_default_size(150, 100)
+    box = self.get_content_area()
+    cont=Gtk.Grid()
+    box.add(cont)
+
+    cont.add(Gtk.Label("Servername: "),0,0,1,1)
+    cont.add(self.servername,1,0,1,1)
+    cont.add(Gtk.Label("Url: "),0,1,1,1)
+    cont.add(self.url,1,1,1,1)
+
+    self.show_all()
+
 
 normalflag=Gtk.StateFlags.NORMAL|Gtk.StateFlags.ACTIVE
 
@@ -765,6 +791,11 @@ def print_rows(store, treeiter, indent):
 class scnPageNavigation(Gtk.Grid):
   parent=None
   linkback=None
+
+  cur_server=None #use only after set by scnupdate
+  cur_name=None #use only after set by scnupdate
+  cur_service=None #use only after set by scnupdate
+  
   def __init__(self,_parent):
     Gtk.Grid.__init__(self)
     self.parent=_parent
@@ -782,8 +813,8 @@ class scnPageNavigation(Gtk.Grid):
     navcontainer.set_margin_top(2)
     navcontainer.set_margin_left(5)
     navcontainer.set_margin_right(5)
-    temp1=Gtk.Label("Navigation: ")
-    navcontainer.attach(temp1,0,0,1,1)
+    labelnavbar=Gtk.Label("Navigation: ")
+    navcontainer.attach(labelnavbar,0,0,1,1)
     navcontainer.attach(self.navbar,1,0,1,1)
     self.navbar.set_hexpand (True)
 
@@ -801,27 +832,36 @@ class scnPageNavigation(Gtk.Grid):
     
     self.navcontextmain.set_label_align(0.1,0.8)
     self.attach(self.navcontextmain,1,2,1,1)
-    self.scnupdate()
+    self.update()
 
-  def scnupdate(self):
-    if self.navbar.get_text()=="":
+
+  def update(self,_server=None,_name=None,_service=None):
+    self.cur_server=_server
+    self.cur_name=_name
+    self.cur_service=_service
+    if _service!=None:
       self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+      
+      self.navbar.set_text(self.cur_server+"/"+self.cur_name+"/"+self.cur_service)
+      self.buildservicegui()
+
+    elif _name!=None:
       self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
-      self.buildNonegui()
-      return
-    splitnavbar=self.navbar.get_text().split("/")
-    if len(splitnavbar)==1:
-      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
-      self.buildservergui(splitnavbar)
-    elif len(splitnavbar)==2:
-      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
-      self.buildnamegui(splitnavbar)
-    elif len(splitnavbar)==3:
-      self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
-      self.buildservicegui(splitnavbar)
+      self.navbar.set_text(self.cur_server+"/"+self.cur_name)
+      self.buildnamegui()
+
+    elif _server!=None:
+      self.navbox.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+      self.navbar.set_text(self.cur_server)
+      self.buildservergui()
+      
     else:
       self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
       self.buildNonegui()
+
+  def navbarupdate(self):
+    splitnavbar=self.navbar.get_text().split("/")
+    self.update(*splitnavbar[:3])
 
   def buildNonegui(self):
     self.frame_nav.set_label("Server")
@@ -831,12 +871,17 @@ class scnPageNavigation(Gtk.Grid):
       self.navcontent.append((elem[0],))
     if len(self.navcontextmain.get_children())==1:
       self.navcontextmain.get_children()[0].destroy()
+    #build grid for contextarea
     contextcont=Gtk.Grid()
     self.navcontextmain.add(contextcont)
     
-    self.addServerButton1=Gtk.Button("Add Server")
-    contextcont.attach(self.addServerButton1,0,0,1,1)
+    addServerButton1=Gtk.Button("Add server")
+    contextcont.attach(addServerButton1,0,0,1,1)
+    deleteServerButton1=Gtk.Button("Delete server")
+    contextcont.attach(deleteServerButton1,0,1,1,1)
     
+    goServerButton1=Gtk.Button("Select server")
+    contextcont.attach(goServerButton1,0,2,1,1)
 
 
 
@@ -844,53 +889,78 @@ class scnPageNavigation(Gtk.Grid):
       
 
 
-  def buildservergui(self,navelems):
-    temp_names=self.linkback.main.scn_servers.get_names()
-    if temp_names==None:
-      self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
-      self.buildNonegui()
-      return
+  def buildservergui(self):
+    temp_names=self.linkback.main.c_get_names()
+
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
     self.frame_nav.set_label("Name")
-    self.navbar.set_text(navelems[0])
     self.navconinserttent.clear()
     for elem in temp_names:
       self.navcontent.append(elem[0])
+    #build grid for contextarea
+    contextcont=Gtk.Grid()
+    self.navcontextmain.add(contextcont)
+    #building frame showing message
+    messagef=Gtk.Frame()
+    messagef.set_label("Server Message")
+    tempmessage=self.linkback.main.c_get_server_message()
+    tempshowlabel=Gtk.Label()
+    messagef.add(tempshowlabel)
+    if tempmessage==None or tempmessage=="":
+      tempshowlabel.set_text("No message")
+    else:
+      tempshowlabel.set_text(tempmessage)
 
-  def buildnamegui(self,navelems):
-    temp1=self.linkback.main.scn_servers.get_node(navelems[0])
-    if temp1==None:
-      self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
-      self.buildNonegui()
-      return
-    temp2=self.c_list_services(navelems[0],navelems[1])
+    goNoneButton1=Gtk.Button("Go back")
+    contextcont.attach(goNoneButton1,0,0,1,1)
+    deleteServerButton2=Gtk.Button("Delete server")
+    contextcont.attach(deleteServerButton2,0,1,1,1)
+    
+    #goNameButton1=Gtk.Button("Select name")
+    #contextcont.attach(goNameButton1,0,2,1,1)
+    goNameButton1=Gtk.Button("Select name")
+    contextcont.attach(goNameButton1,0,2,1,1)
+
+
+  def buildnamegui(self):
+    temp2=self.c_list_services(self.cur_server,self.cur_name)
     if temp2==None:
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
-      self.buildNonegui()
+      self.buildservergui()
       return
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.frame_nav.set_label("Service")
-    self.navbar.set_text(navelems[0]+"/"+navelems[1])
     self.navcontent.clear()
     for elem in temp2:
       self.navcontent.append((elem[0],))
+    #build grid for contextarea
+    contextcont=Gtk.Grid()
+    self.navcontextmain.add(contextcont)
+    #building frame showing message
+    messagef=Gtk.Frame()
+    messagef.set_label("Message")
+    tempmessage=self.linkback.main.c_get_message()
+    tempshowlabel=Gtk.Label()
+    messagef.add(tempshowlabel)
+    if tempmessage==None or tempmessage=="":
+      tempshowlabel.set_text("No message")
+    else:
+      tempshowlabel.set_text(tempmessage)
 
 
-  def buildservicegui(self,navelems):
+
+  def buildservicegui(self):
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.7, 0.7, 1))
     self.frame_nav.set_label(None)
     self.navbar.set_text(navelems[0]+"/"+navelems[1]+"/"+navelems[2])
     self.navcontent.clear()
 
-  def delete_server(self):
-    temp=self.serverlist.get_selection().get_selected_rows()
-    if temp==None:
-      return 
 
-    dialog = scnDeletionDialog(self.parent,temp[0])
+  def delete_server_intern(self,_delete_server):
+    dialog = scnDeletionDialog(self.parent,_delete_server)
     try:
       if dialog.run()==True:
-        if self.parent.linkback.main.scn_servers.delete_node(self.name)==True:
+        if self.linkback.main.c_delete_server(_delete_server)==True:
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
         else:
@@ -901,14 +971,46 @@ class scnPageNavigation(Gtk.Grid):
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
 
-  def add_server(self,button):
-    pass
-    
-  def edit_server(self,button):
-    pass
+  #get server by navbox
+  def delete_server(self,*args):
+    temp=self.navbox.get_selection().get_selected_rows()
+    if temp==None:
+      return
+    self.delete_server_intern(temp[0])
 
-  def update(self):
-    pass
+  #get server by current selection
+  def delete_server2(self,*args):
+    if self.cur_server==None:
+      return
+    self.delete_server_intern(self.cur_server)
+
+
+  def add_server(self,*args):
+    dialog = scnServerEditDialog(self.parent,"Add new server","","")
+    try:
+      if dialog.run()==True:
+        if self.linkback.main.c_add_server(dialog.servername,dialog.url)==True:
+          self.parent.state_widget.set_text("Success")
+          #returnel=Gtk.Label("Success")
+      else:
+        self.parent.state_widget.set_text("")
+    except Exception as e:
+      self.parent.state_widget.set_text(str(e))
+    dialog.destroy()
+    
+  def edit_server(self,*args):
+    dialog = scnServerEditDialog(self.parent,"Edit server","","")
+    try:
+      if dialog.run()==True:
+        if self.linkback.main.c_add_server(dialog.servername,dialog.url)==True:
+          self.parent.state_widget.set_text("Success")
+          #returnel=Gtk.Label("Success")
+      else:
+        self.parent.state_widget.set_text("")
+    except Exception as e:
+      self.parent.state_widget.set_text(str(e))
+    dialog.destroy()
+
 """
 class scnPageServers(Gtk.Frame):
   parent=None
