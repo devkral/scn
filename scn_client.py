@@ -716,6 +716,11 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 
+#
+
+normalflag=Gtk.StateFlags.NORMAL|Gtk.StateFlags.ACTIVE
+icons=Gtk.IconTheme.get_default()
+
 
 #TODO: redesign: use splitscreen: a small tree with servernames,
 #a subwindow tree with names on server (compressed)
@@ -727,8 +732,8 @@ class scnDeletionDialog(Gtk.Dialog):
     self.parent=_parent
     self.name=_name
     Gtk.Dialog.__init__(self, "Confirm Deletion", self.parent, 0,
--                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
--                         Gtk.STOCK_OK, Gtk.ResponseType.OK))
+                        ("gtk-cancel", Gtk.ResponseType.CANCEL,
+                         "gtk-ok", Gtk.ResponseType.OK))
     self.set_default_size(150, 100)
     if _name!=None and _service!=None:
       label=Gtk.Label("Shall service \""+_service+"\" of "+_server+"/"+_name+" be deleted?")
@@ -753,22 +758,21 @@ class scnServerEditDialog(Gtk.Dialog):
     self.url.set_hexpand(True)
     self.url.set_text(_url)
     Gtk.Dialog.__init__(self, _title, self.parent, 0,
--                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
--                         Gtk.STOCK_OK, Gtk.ResponseType.OK))
+                        ("gtk-cancel", Gtk.ResponseType.CANCEL,
+                         "gtk-ok", Gtk.ResponseType.OK))
     self.set_default_size(150, 100)
     box = self.get_content_area()
     cont=Gtk.Grid()
     box.add(cont)
 
-    cont.add(Gtk.Label("Servername: "),0,0,1,1)
-    cont.add(self.servername,1,0,1,1)
-    cont.add(Gtk.Label("Url: "),0,1,1,1)
-    cont.add(self.url,1,1,1,1)
+    cont.attach(Gtk.Label("Servername: "),0,0,1,1)
+    cont.attach(self.servername,1,0,1,1)
+    cont.attach(Gtk.Label("Url: "),0,1,1,1)
+    cont.attach(self.url,1,1,1,1)
 
     self.show_all()
 
 
-normalflag=Gtk.StateFlags.NORMAL|Gtk.StateFlags.ACTIVE
 
 #debug code
 
@@ -803,6 +807,7 @@ class scnPageNavigation(Gtk.Grid):
     self.navbar=Gtk.Entry()
     self.navcontent=Gtk.ListStore(str)
     self.navbox=Gtk.TreeView(self.navcontent)
+    self.navbox.get_selection().set_mode(Gtk.SelectionMode.BROWSE)
     self.navcontextsmall=Gtk.Label()
     self.navcontextmain=Gtk.Frame()
     self.navcontextmain.set_label("Context")
@@ -814,9 +819,11 @@ class scnPageNavigation(Gtk.Grid):
     navcontainer.set_margin_left(5)
     navcontainer.set_margin_right(5)
     labelnavbar=Gtk.Label("Navigation: ")
+    navbarconfirm=Gtk.Button(stock=Gtk.STOCK_OK)
     navcontainer.attach(labelnavbar,0,0,1,1)
-    navcontainer.attach(self.navbar,1,0,1,1)
     self.navbar.set_hexpand (True)
+    navcontainer.attach(self.navbar,1,0,1,1)
+    navcontainer.attach(navbarconfirm,2,0,1,1)
 
     self.attach(navcontainer,0,0,2,1)
     self.attach(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),0,1,2,1)
@@ -858,10 +865,11 @@ class scnPageNavigation(Gtk.Grid):
     else:
       self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
       self.buildNonegui()
-
+  #update by navbar
   def navbarupdate(self):
     splitnavbar=self.navbar.get_text().split("/")
     self.update(*splitnavbar[:3])
+
 
   def buildNonegui(self):
     self.frame_nav.set_label("Server")
@@ -869,18 +877,23 @@ class scnPageNavigation(Gtk.Grid):
     self.navcontent.clear()
     for elem in self.linkback.main.scn_servers.get_list():
       self.navcontent.append((elem[0],))
-    if len(self.navcontextmain.get_children())==1:
-      self.navcontextmain.get_children()[0].destroy()
+    #label counts as child, so ignore it
+    if len(self.navcontextmain.get_children())==2:
+      #print(self.navcontextmain.get_children())
+      self.navcontextmain.get_children()[1].destroy()
+      #self.navcontextmain.set_label("Context")
     #build grid for contextarea
     contextcont=Gtk.Grid()
     self.navcontextmain.add(contextcont)
     
-    addServerButton1=Gtk.Button("Add server")
+    addServerButton1=Gtk.Button("+")
+    addServerButton1.connect("clicked", self.add_server)
     contextcont.attach(addServerButton1,0,0,1,1)
-    deleteServerButton1=Gtk.Button("Delete server")
+    deleteServerButton1=Gtk.Button("-")
+    deleteServerButton1.connect("clicked", self.delete_server)
     contextcont.attach(deleteServerButton1,0,1,1,1)
     
-    goServerButton1=Gtk.Button("Select server")
+    goServerButton1=Gtk.Button(stock=Gtk.STOCK_OK)
     contextcont.attach(goServerButton1,0,2,1,1)
 
 
@@ -933,6 +946,9 @@ class scnPageNavigation(Gtk.Grid):
     self.navcontent.clear()
     for elem in temp2:
       self.navcontent.append((elem[0],))
+    #label counts as child, so ignore it
+    if len(self.navcontextmain.get_children())==2:
+      self.navcontextmain.get_children()[1].destroy()
     #build grid for contextarea
     contextcont=Gtk.Grid()
     self.navcontextmain.add(contextcont)
@@ -952,8 +968,10 @@ class scnPageNavigation(Gtk.Grid):
   def buildservicegui(self):
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.7, 0.7, 1))
     self.frame_nav.set_label(None)
-    self.navbar.set_text(navelems[0]+"/"+navelems[1]+"/"+navelems[2])
     self.navcontent.clear()
+    #label counts as child, so ignore it
+    if len(self.navcontextmain.get_children())==2:
+      self.navcontextmain.get_children()[1].destroy()
 
 
   def delete_server_intern(self,_delete_server):
@@ -973,10 +991,10 @@ class scnPageNavigation(Gtk.Grid):
 
   #get server by navbox
   def delete_server(self,*args):
-    temp=self.navbox.get_selection().get_selected_rows()
-    if temp==None:
+    temp=self.navbox.get_selection().get_selected()
+    if temp[1]==None:
       return
-    self.delete_server_intern(temp[0])
+    self.delete_server_intern(temp[0].get_string_from_iter(temp[1]))
 
   #get server by current selection
   def delete_server2(self,*args):
@@ -1075,8 +1093,8 @@ class scnGUI(Gtk.Window):
     #add.connect("clicked", self.click_add)
     
     #.set_margin_left(5)
-    self.confirm_button=Gtk.Button("Apply")
-    self.reset_button=Gtk.Button("Reset")
+    #self.confirm_button=Gtk.Button("Apply")
+    #self.reset_button=Gtk.Button("Reset")
 
 
     #self.main_grid.set_column_spacing(10)
