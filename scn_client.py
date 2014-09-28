@@ -249,6 +249,27 @@ class scn_servs_sql(object):
     con.close()
     return True
 
+  def update_node_name(self,_nodename,_nodename_new):
+    if self.get(_nodename_new)!=None:
+      return False
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return False
+
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''UPDATE scn_certs SET nodename=? WHERE nodename=?;''',(_nodename_new,_nodename))
+      con.commit();
+    except Exception as u:
+      printdebug(u)
+      con.rollback()
+      return False
+    con.close()
+    return True
+
   def update_service(self,_servername,_name,_service,_secret,_pendingstate=True):
     try:
       con=sqlite3.connect(self.db_path)
@@ -1017,10 +1038,13 @@ class scnPageNavigation(Gtk.Grid):
     dialog.destroy()
     
   def edit_server(self,*args):
-    dialog = scnServerEditDialog(self.parent,"Edit server","","")
+    dialog = scnServerEditDialog(self.parent,"Edit server",self.cur_server,"")
     try:
       if dialog.run()==True:
-        if self.linkback.main.c_add_server(dialog.servername,dialog.url)==True:
+        if dialog.servername!=self.cur_server:
+          self.linkback.main.scn_servers.update_node_name(self.cur_server,dialog.servername)
+          
+        if self.linkback.main.c_update_server(dialog.servername,dialog.url)==True:
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
       else:
