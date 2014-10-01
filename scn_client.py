@@ -752,10 +752,12 @@ class scnDeletionDialog(Gtk.Dialog):
   def __init__(self, _parent, _server,_name=None,_service=None):
     self.parent=_parent
     self.name=_name
-    Gtk.Dialog.__init__(self, "Confirm Deletion", self.parent, 0,
-                        ("gtk-cancel", Gtk.ResponseType.CANCEL,
-                         "gtk-ok", Gtk.ResponseType.OK))
+    Gtk.Dialog.__init__(self, "Confirm Deletion", self.parent,
+                        Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
     self.set_default_size(150, 100)
+
+    self.add_button("Cancel", Gtk.ResponseType.CANCEL)
+    self.add_button("OK", Gtk.ResponseType.OK)
     if _name!=None and _service!=None:
       label=Gtk.Label("Shall service \""+_service+"\" of "+_server+"/"+_name+" be deleted?")
     elif _name!=None and _service==None:
@@ -778,17 +780,24 @@ class scnServerEditDialog(Gtk.Dialog):
     self.url=Gtk.Entry()
     self.url.set_hexpand(True)
     self.url.set_text(_url)
-    Gtk.Dialog.__init__(self, _title, self.parent, 0,
-                        ("gtk-cancel", Gtk.ResponseType.CANCEL,
-                         "gtk-ok", Gtk.ResponseType.OK))
+    
+    Gtk.Dialog.__init__(self, _title, self.parent,
+                        Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
     self.set_default_size(150, 100)
+    
+    self.add_button("Cancel", Gtk.ResponseType.CANCEL)
+    self.add_button("OK", Gtk.ResponseType.OK)
     box = self.get_content_area()
     cont=Gtk.Grid()
     box.add(cont)
 
-    cont.attach(Gtk.Label("Servername: "),0,0,1,1)
+    tsname=Gtk.Label("Servername: ")
+    tsname.set_halign(Gtk.Align.END)
+    cont.attach(tsname,0,0,1,1)
     cont.attach(self.servername,1,0,1,1)
-    cont.attach(Gtk.Label("Url: "),0,1,1,1)
+    turl=Gtk.Label("Url: ")
+    turl.set_halign(Gtk.Align.END)
+    cont.attach(turl,0,1,1,1)
     cont.attach(self.url,1,1,1,1)
 
     self.show_all()
@@ -826,12 +835,16 @@ class scnPageNavigation(Gtk.Grid):
     self.parent=_parent
     self.linkback=self.parent.linkback
     self.navbar=Gtk.Entry()
+    self.navbar.connect("activate",self.navbarupdate)
     self.navcontent=Gtk.ListStore(str)
     self.navbox=Gtk.TreeView(self.navcontent)
+    renderer = Gtk.CellRendererText()
+    self.listelems = Gtk.TreeViewColumn("Title", renderer, text=0)
+    self.navbox.append_column(self.listelems)
     self.navbox.get_selection().set_mode(Gtk.SelectionMode.BROWSE)
-    self.navcontextsmall=Gtk.Label()
     self.navcontextmain=Gtk.Frame()
-    self.navcontextmain.set_label("Context")
+    self.navcontextmain.set_margin_right(5)
+    self.navcontextmain.set_hexpand (True)
 
     navcontainer=Gtk.Grid()
     navcontainer.set_column_spacing(2)
@@ -840,7 +853,8 @@ class scnPageNavigation(Gtk.Grid):
     navcontainer.set_margin_left(5)
     navcontainer.set_margin_right(5)
     labelnavbar=Gtk.Label("Navigation: ")
-    navbarconfirm=Gtk.Button(stock=Gtk.STOCK_OK)
+    navbarconfirm=Gtk.Button("OK")
+    navbarconfirm.connect("clicked",self.navbarupdate)
     navcontainer.attach(labelnavbar,0,0,1,1)
     self.navbar.set_hexpand (True)
     navcontainer.attach(self.navbar,1,0,1,1)
@@ -849,13 +863,13 @@ class scnPageNavigation(Gtk.Grid):
     self.attach(navcontainer,0,0,2,1)
     self.attach(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),0,1,2,1)
 
-    self.frame_nav=Gtk.Frame()
-    self.frame_nav.add(self.navbox)
-    self.frame_nav.set_margin_right(5)
-    self.frame_nav.set_label_align(0.1,0.8)
+    frame_nav=Gtk.Frame()
+    frame_nav.add(self.navbox)
+    frame_nav.set_margin_left(5)
+    frame_nav.set_margin_right(5)
 
     #self.attach(self.navcontextsmall,0,2,1,1)
-    self.attach(self.frame_nav,0,2,1,1)
+    self.attach(frame_nav,0,2,1,1)
 
     
     self.navcontextmain.set_label_align(0.1,0.8)
@@ -887,13 +901,13 @@ class scnPageNavigation(Gtk.Grid):
       self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
       self.buildNonegui()
   #update by navbar
-  def navbarupdate(self):
+  def navbarupdate(self, *args):
     splitnavbar=self.navbar.get_text().split("/")
     self.update(*splitnavbar[:3])
 
 
   def buildNonegui(self):
-    self.frame_nav.set_label("Server")
+    self.listelems.set_title("Server")
     self.navbox.override_background_color(normalflag, Gdk.RGBA(1, 1, 1, 1))
     self.navcontent.clear()
     for elem in self.linkback.main.scn_servers.get_list():
@@ -906,6 +920,8 @@ class scnPageNavigation(Gtk.Grid):
     #build grid for contextarea
     contextcont=Gtk.Grid()
     self.navcontextmain.add(contextcont)
+    contextcont.set_row_spacing(2)
+    contextcont.set_border_width(3)
     
     addServerButton1=Gtk.Button("+")
     addServerButton1.connect("clicked", self.add_server)
@@ -914,7 +930,7 @@ class scnPageNavigation(Gtk.Grid):
     deleteServerButton1.connect("clicked", self.delete_server)
     contextcont.attach(deleteServerButton1,0,1,1,1)
     
-    goServerButton1=Gtk.Button(stock=Gtk.STOCK_OK)
+    goServerButton1=Gtk.Button("OK")
     contextcont.attach(goServerButton1,0,2,1,1)
 
 
@@ -927,7 +943,7 @@ class scnPageNavigation(Gtk.Grid):
     temp_names=self.linkback.main.c_get_names()
 
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
-    self.frame_nav.set_label("Name")
+    self.listelems.set_title("Name")
     self.navconinserttent.clear()
     for elem in temp_names:
       self.navcontent.append(elem[0])
@@ -963,7 +979,7 @@ class scnPageNavigation(Gtk.Grid):
       self.buildservergui()
       return
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    self.frame_nav.set_label("Service")
+    self.listelems.set_title("Service")
     self.navcontent.clear()
     for elem in temp2:
       self.navcontent.append((elem[0],))
@@ -988,7 +1004,7 @@ class scnPageNavigation(Gtk.Grid):
 
   def buildservicegui(self):
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.7, 0.7, 1))
-    self.frame_nav.set_label(None)
+    self.listelems.set_title("")
     self.navcontent.clear()
     #label counts as child, so ignore it
     if len(self.navcontextmain.get_children())==2:
