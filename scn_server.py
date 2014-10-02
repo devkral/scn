@@ -209,7 +209,7 @@ class scn_name_sql(object):
     ob=None
     try:
       cur = self.dbcon.cursor()
-      if _nodeid==None:
+      if _nodeid is None:
         cur.execute('''SELECT nodeid,nodename,hashed_secret,hashed_pub_cert
         FROM scn_node WHERE scn_name=? AND servicename=?
         ORDER BY nodeid''',(self.name,_servicename))
@@ -275,7 +275,7 @@ class scn_name_sql(object):
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT scn_name FROM scn_node WHERE scn_name=? AND servicename=? AND hashed_secret=?;''',(self.name,_servicename,hashlib.sha256(_secret).hexdigest()))
-      if cur.fetchone()!=None:
+      if cur.fetchone() is not None:
         state=True
     except Exception as e:
       printerror(e)
@@ -288,7 +288,7 @@ class scn_name_sql(object):
       return False
     try:
       cur = self.dbcon.cursor()
-      if _pub_cert_hash!=None:
+      if _pub_cert_hash is not None:
         cur.execute('''UPDATE scn_node SET hashed_secret=?, hashed_pub_cert=? WHERE servicename=? AND scn_name=? AND hashed_secret=?;''',(_newsecret_hash,_pub_cert_hash,_servicename,self.name,hashlib.sha256(_secret).hexdigest()))
       else:
         cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE servicename=? AND scn_name=? AND hashed_secret=?;''',(_newsecret_hash,_servicename,self.name,hashlib.sha256(_secret).hexdigest()))
@@ -343,7 +343,7 @@ class scn_name_list_sqlite(object):
       cur = con.cursor()
       cur.execute('SELECT name FROM scn_name WHERE name=?', (_name,))
       resultname=cur.fetchone()
-      if resultname!=None:
+      if resultname is not None:
         ob=scn_name_sql(con,resultname[0]) 
     except Exception as e:
       printerror(e)
@@ -385,7 +385,7 @@ class scn_name_list_sqlite(object):
     except Exception as e:
       printerror(e)
       return False
-    if self.get(_name)==None:
+    if self.get(_name) is None:
       printdebug("Deletion of non-existent name")
       return True
     state=True
@@ -402,7 +402,7 @@ class scn_name_list_sqlite(object):
     return state
 
   def create_name(self,_name,_secrethash,_certhash):
-    if self.get(_name)!=None:
+    if self.get(_name) is not None:
       return None
     try:
       con=sqlite3.connect(self.db_path)
@@ -518,7 +518,7 @@ class scn_server_handler(socketserver.BaseRequestHandler):
     while True:
       try:
         temp=sc.receive_one()
-        if temp==None:
+        if temp is None:
           sc.send("error"+sepc+"no input"+sepm)
           break
         elif temp in self.linkback.actions:
@@ -558,7 +558,7 @@ class scn_sock_server(socketserver.TCPServer):
 
 
   def shutdown_request(self, request):
-    if request==None:
+    if request is None:
       return
     try:
       #explicitly shutdown.  socket.close() merely releases
@@ -572,7 +572,7 @@ class scn_sock_server(socketserver.TCPServer):
     self.close_request(request)
 
   def close_request(self,request):
-    if request==None:
+    if request is None:
       return
     try:
       request.close()

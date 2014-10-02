@@ -104,13 +104,13 @@ class scn_friends_sql(object):
     except Exception as u:
       printerror(u)
       return False
-    if self.get_friend(_friendname)==None and _cert==None:
+    if self.get_friend(_friendname) is None and _cert is None:
       printerror("Error: Certificate must be specified")
       return False
     try:
       #con.beginn()
       cur = con.cursor()
-      if _cert!=None:
+      if _cert is not None:
         cur.execute('''INSERT OR REPLACE into scn_friends(friendname,cert) values(?,?);''',(_friendname,_cert))
       else:
         cur.execute('''INSERT OR REPLACE into scn_friends(friendname) values(?);''',(_friendname,))
@@ -128,7 +128,7 @@ class scn_friends_sql(object):
     except Exception as u:
       printdebug(u)
       return False
-    if self.get_friend(_friendname)==None:
+    if self.get_friend(_friendname) is None:
       printdebug("Debug: Deletion of non-existent object")
       return True
     try:
@@ -250,7 +250,7 @@ class scn_servs_sql(object):
     return True
 
   def update_node_name(self,_nodename,_nodename_new):
-    if self.get(_nodename_new)!=None:
+    if self.get(_nodename_new) is not None:
       return False
     try:
       con=sqlite3.connect(self.db_path)
@@ -557,7 +557,7 @@ class scn_client(scn_base_client):
     method=_com_method
     _cert=None
     for elem in self.c_get_service(_servername,_name,_service):
-      if _com_method==None:
+      if _com_method is None:
         method=elem[0]
       if method=="ip" or method=="wrap":
         tempconnectdata=elem[1].split(sepu)
@@ -575,7 +575,7 @@ class scn_client(scn_base_client):
             break
           except Exception as e:
             raise(e)
-      if tempsocket!=None:
+      if tempsocket is not None:
         tempcomsock2=scn_socket(tempsocket)
         tempcomsock2.send("get_cert")
         if scn_check_return(tempcomsock2)==True:
@@ -702,7 +702,7 @@ class scn_server_client(socketserver.BaseRequestHandler):
     while True:
       try:
         temp=sc.receive_one()
-        if temp==None:
+        if temp is None:
           sc.send("error"+sepc+"no input"+sepm)
           break
         elif temp in self.linkback.actions:
@@ -758,9 +758,9 @@ class scnDeletionDialog(Gtk.Dialog):
 
     self.add_button("Cancel", Gtk.ResponseType.CANCEL)
     self.add_button("OK", Gtk.ResponseType.OK)
-    if _name!=None and _service!=None:
+    if _name is not None and _service is not None:
       label=Gtk.Label("Shall service \""+_service+"\" of "+_server+"/"+_name+" be deleted?")
-    elif _name!=None and _service==None:
+    elif _name is not None and _service is None:
       label=Gtk.Label("Shall name \""+_name+"\" on "+_server+" be deleted?")
     else:
       label=Gtk.Label("Shall server \""+_server+"\" be deleted?")
@@ -881,18 +881,18 @@ class scnPageNavigation(Gtk.Grid):
     self.cur_server=_server
     self.cur_name=_name
     self.cur_service=_service
-    if _service!=None:
+    if _service is not None:
       self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
       
       self.navbar.set_text(self.cur_server+"/"+self.cur_name+"/"+self.cur_service)
       self.buildservicegui()
 
-    elif _name!=None:
+    elif _name is not None:
       self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
       self.navbar.set_text(self.cur_server+"/"+self.cur_name)
       self.buildnamegui()
 
-    elif _server!=None:
+    elif _server is not None:
       self.navbox.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
       self.navbar.set_text(self.cur_server)
       self.buildservergui()
@@ -905,15 +905,33 @@ class scnPageNavigation(Gtk.Grid):
     splitnavbar=self.navbar.get_text().split("/")
     self.update(*splitnavbar[:3])
 
-
-  def buildNonegui(self):
+  def updateserverlist(self):
     self.listelems.set_title("Server")
     self.navbox.override_background_color(normalflag, Gdk.RGBA(1, 1, 1, 1))
     self.navcontent.clear()
     for elem in self.linkback.main.scn_servers.get_list():
       self.navcontent.append((elem[0],))
+
+  def updatenamelist(self):
+    temp_names=self.linkback.main.c_get_names(self.cur_server)
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
+    self.listelems.set_title("Name")
+    self.navconinserttent.clear()
+    for elem in temp_names:
+      self.navcontent.append(elem[0])
+
+  def updateservicelist(self):
+    temp2=self.c_list_services(self.cur_server,self.cur_name)
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
+    self.listelems.set_title("Service")
+    self.navcontent.clear()
+    for elem in temp2:
+      self.navcontent.append((elem[0],))
+
+  def buildNonegui(self):
+    self.updateserverlist()
     #label counts as child, so ignore it
-    if len(self.navcontextmain.get_children())==2:
+    if len(self.navcontextmain.get_children())==1:
       #print(self.navcontextmain.get_children())
       self.navcontextmain.get_children()[1].destroy()
       #self.navcontextmain.set_label("Context")
@@ -922,16 +940,16 @@ class scnPageNavigation(Gtk.Grid):
     self.navcontextmain.add(contextcont)
     contextcont.set_row_spacing(2)
     contextcont.set_border_width(3)
-    
+    contextcont.attach(Gtk.Label("Actions"),0,0,1,1)
     addServerButton1=Gtk.Button("+")
     addServerButton1.connect("clicked", self.add_server)
-    contextcont.attach(addServerButton1,0,0,1,1)
+    contextcont.attach(addServerButton1,0,1,1,1)
     deleteServerButton1=Gtk.Button("-")
     deleteServerButton1.connect("clicked", self.delete_server)
-    contextcont.attach(deleteServerButton1,0,1,1,1)
+    contextcont.attach(deleteServerButton1,0,2,1,1)
     
     goServerButton1=Gtk.Button("OK")
-    contextcont.attach(goServerButton1,0,2,1,1)
+    contextcont.attach(goServerButton1,0,3,1,1)
 
 
 
@@ -940,13 +958,7 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def buildservergui(self):
-    temp_names=self.linkback.main.c_get_names()
-
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
-    self.listelems.set_title("Name")
-    self.navconinserttent.clear()
-    for elem in temp_names:
-      self.navcontent.append(elem[0])
+    self.updatenamelist()
     #build grid for contextarea
     contextcont=Gtk.Grid()
     self.navcontextmain.add(contextcont)
@@ -956,7 +968,7 @@ class scnPageNavigation(Gtk.Grid):
     tempmessage=self.linkback.main.c_get_server_message()
     tempshowlabel=Gtk.Label()
     messagef.add(tempshowlabel)
-    if tempmessage==None or tempmessage=="":
+    if tempmessage is None or tempmessage=="":
       tempshowlabel.set_text("No message")
     else:
       tempshowlabel.set_text(tempmessage)
@@ -974,17 +986,14 @@ class scnPageNavigation(Gtk.Grid):
 
   def buildnamegui(self):
     temp2=self.c_list_services(self.cur_server,self.cur_name)
-    if temp2==None:
+    if temp2 is None:
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildservergui()
       return
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    self.listelems.set_title("Service")
-    self.navcontent.clear()
-    for elem in temp2:
-      self.navcontent.append((elem[0],))
-    #label counts as child, so ignore it
-    if len(self.navcontextmain.get_children())==2:
+    
+    self.updateservicelist()
+    #label counts as child
+    if len(self.navcontextmain.get_children())==1:
       self.navcontextmain.get_children()[1].destroy()
     #build grid for contextarea
     contextcont=Gtk.Grid()
@@ -995,7 +1004,7 @@ class scnPageNavigation(Gtk.Grid):
     tempmessage=self.linkback.main.c_get_message()
     tempshowlabel=Gtk.Label()
     messagef.add(tempshowlabel)
-    if tempmessage==None or tempmessage=="":
+    if tempmessage is None or tempmessage=="":
       tempshowlabel.set_text("No message")
     else:
       tempshowlabel.set_text(tempmessage)
@@ -1003,19 +1012,21 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def buildservicegui(self):
+
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.7, 0.7, 1))
     self.listelems.set_title("")
     self.navcontent.clear()
-    #label counts as child, so ignore it
-    if len(self.navcontextmain.get_children())==2:
+    #label counts as child
+    if len(self.navcontextmain.get_children())==1:
       self.navcontextmain.get_children()[1].destroy()
 
 
   def delete_server_intern(self,_delete_server):
     dialog = scnDeletionDialog(self.parent,_delete_server)
     try:
-      if dialog.run()==True:
+      if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_server(_delete_server)==True:
+          self.updateserverlist()
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
         else:
@@ -1029,13 +1040,13 @@ class scnPageNavigation(Gtk.Grid):
   #get server by navbox
   def delete_server(self,*args):
     temp=self.navbox.get_selection().get_selected()
-    if temp[1]==None:
+    if temp[1] is None:
       return
-    self.delete_server_intern(temp[0].get_string_from_iter(temp[1]))
+    self.delete_server_intern(temp[0][temp[1]][0])
 
   #get server by current selection
   def delete_server2(self,*args):
-    if self.cur_server==None:
+    if self.cur_server is None:
       return
     self.delete_server_intern(self.cur_server)
 
@@ -1043,12 +1054,15 @@ class scnPageNavigation(Gtk.Grid):
   def add_server(self,*args):
     dialog = scnServerEditDialog(self.parent,"Add new server","","")
     try:
-      if dialog.run()==True:
-        if self.linkback.main.c_add_server(dialog.servername,dialog.url)==True:
+      if dialog.run()==Gtk.ResponseType.OK:
+        if self.linkback.main.c_add_server(dialog.servername.get_text(),dialog.url.get_text())==True:
+          self.updateserverlist()
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
+        else:
+          self.parent.state_widget.set_text("Error2")
       else:
-        self.parent.state_widget.set_text("")
+        self.parent.state_widget.set_text("Error")
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
