@@ -7,13 +7,15 @@ import socketserver
 import socket
 import hashlib
 import tempfile
+import threading
+import time
 
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc #,sepu
 from scn_base import scn_base_server,scn_base_base,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs
 
-from scn_config import scn_server_port,default_config_folder,scn_host,max_service_nodes
+from scn_config import scn_server_port,default_config_folder,scn_host,max_service_nodes,scn_cache_timeout
 
 
 class scn_ip_store(object):
@@ -466,9 +468,20 @@ class scn_server(scn_base_server):
     self.scn_store=scn_ip_store(self.config_path+"scn_server_pers_id_db")
     #self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
     #self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
+    self.refresh_names_thread=threading.Thread(target=self.refresh_names)
+    self.refresh_names_thread.daemon = True
+    self.refresh_names_thread.start()
 
     printdebug("Server init finished")
 
+  def refresh_names(self):
+    while True:
+      self.cache_name_list=""
+      temp=self.scn_names.list_names()
+      if temp is not None:
+        for elem in temp:
+          self.cache_name_list+=sepc+elem[0]
+      time.sleep(scn_cache_timeout)
 """
   def callback(self,_socket,_name,_store_name):
     if self.scn_names.contains(_name)==False:

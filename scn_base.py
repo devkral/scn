@@ -759,15 +759,16 @@ class scn_base_server(scn_base_base):
       temp+=sepc+elem #name
     _socket.send("success"+temp+sepm)
 
-#not threading safe
+#names must be refreshed by a seperate thread because too much traffic elsewise
+#self.cache_name_list begins with a sepc
   def s_list_names(self,_socket):
-    if self.cache_name_list is None or \
-       self.cache_name_time>=time.time()+scn_cache_timeout:
-      self.cache_name_time=time.time()
-      self.cache_name_list=""
-      for elem in self.scn_names.list_names():
-        self.cache_name_list+=sepc+elem #name
     _socket.send("success"+self.cache_name_list+sepm)
+#    if self.cache_name_list is None or \
+#       self.cache_name_time>=time.time()+scn_cache_timeout:
+#      self.cache_name_time=time.time()
+#      self.cache_name_list=""
+#      for elem in self.scn_names.list_names():
+#        self.cache_name_list+=sepc+elem #name
 
 
 
@@ -1122,10 +1123,12 @@ class scn_base_client(scn_base_base):
 
 
   def c_add_server(self,_servername,_url):
-    _socket=scn_socket(self.connect_to_ip(_url))
     if self.scn_servers.get_node(_servername) is not None:
       printerror("Error: node exists already")
-      _socket.close()
+      return False
+    _socket=scn_socket(self.connect_to_ip(_url))
+    if _socket is None:
+      printerror("Error: connection failed")
       return False
     
     _socket.send("get_cert"+sepm)
@@ -1141,10 +1144,14 @@ class scn_base_client(scn_base_base):
       return False
 
   def c_update_server(self,_servername,_url): #, update_cert_hook):
+    
     if self.scn_servers.get_node(_servername) is None:
       printerror("Error: Node doesn't exist")
       return False
     _socket=scn_socket(self.connect_to_ip(_url))
+    if _socket is None:
+      printerror("Error: connection failed")
+      return False
     #neccessary?
     #masquerade, nobody should know if this server is being added or updated
     #_socket.send("info"+sepm)
