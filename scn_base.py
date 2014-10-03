@@ -12,7 +12,7 @@ import traceback
 import os
 import os.path
 import hashlib
-import time
+#import time
 
 from subprocess import Popen,PIPE
 
@@ -23,7 +23,8 @@ from OpenSSL import SSL,crypto
 
 #import Enum from enum
 
-from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_services, max_service_nodes, secret_size, key_size,protcount_max,hash_hex_size, scn_cache_timeout
+from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_services, max_service_nodes, secret_size, key_size,protcount_max,hash_hex_size
+#, scn_cache_timeout
 
 # from scn_config import scn_client_port
 
@@ -51,7 +52,7 @@ _check_invalid_name=re.compile("[,; \^\\\\]")
 def check_invalid_name(stin):
   if stin is None or type(stin)==bytes or stin=="":
     return False
-  if _check_invalid_name.search(stin) is not None or _check_invalid_chars.search(stin):
+  if _check_invalid_name.search(stin) is not None or _check_invalid_chars.search(stin) or stin.strip(" ").rstrip(" ") =="admin":
     return False
   return True
 
@@ -355,7 +356,8 @@ class scn_base_base(object):
 #  "special": group for using special_services
 #tunnellist: uid:service:tunnel
 
-
+min_used_name=min(len("admin"),min_name_length)
+max_used_name=max(len("admin"),max_name_length)
 
 #services in 
 class scn_base_server(scn_base_base):
@@ -368,7 +370,7 @@ class scn_base_server(scn_base_base):
 #priv
   def _s_admin_auth(self, _socket):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return [None,None]
@@ -548,7 +550,7 @@ class scn_base_server(scn_base_base):
   def _s_service_auth(self,_socket):
     #_name, _service,_secret):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return [None,None,None]
@@ -635,7 +637,7 @@ class scn_base_server(scn_base_base):
 
   def s_update_secret(self,_socket):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
@@ -674,7 +676,7 @@ class scn_base_server(scn_base_base):
   #issue: could be used for quick password checking
   def s_check_service_cred(self,_socket):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
@@ -696,7 +698,7 @@ class scn_base_server(scn_base_base):
 
   def s_use_special_service_auth(self,_socket):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
@@ -725,7 +727,7 @@ class scn_base_server(scn_base_base):
 #anonym,unauth
   def s_get_service(self,_socket):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
@@ -750,19 +752,31 @@ class scn_base_server(scn_base_base):
 
   def s_list_services(self,_socket):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
+    tempname=self.scn_names.get(_name)
+    if tempname is None:
+      _socket.send("error"+sepc+"name"+sepm)
+      return
+    tempcont=tempname.list_services()
+    if tempcont is None:
+      _socket.send("error"+sepc+"service"+sepm)
+      return
     temp=""
-    for elem in self.scn_names.get(_name).list_services():
-      temp+=sepc+elem #name
+    for elem in tempcont:
+      temp+=sepc+elem[0] #name
+    print(temp)
     _socket.send("success"+temp+sepm)
 
 #names must be refreshed by a seperate thread because too much traffic elsewise
 #self.cache_name_list begins with a sepc
   def s_list_names(self,_socket):
-    _socket.send("success"+self.cache_name_list+sepm)
+    if self.cache_name_list is not None:
+      _socket.send("success"+self.cache_name_list+sepm)
+    else:
+      _socket.send("error"+sepc+"cache_name_list empty"+sepm)
 #    if self.cache_name_list is None or \
 #       self.cache_name_time>=time.time()+scn_cache_timeout:
 #      self.cache_name_time=time.time()
@@ -771,18 +785,22 @@ class scn_base_server(scn_base_base):
 #        self.cache_name_list+=sepc+elem #name
 
 
-
-  def s_get_name_message(self,_socket,_name):
+  def s_get_name_message(self,_socket):
     try:
-      _name=_socket.receive_one(min_name_length,max_name_length)
+      _name=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
-    if self.scn_names.length(_name)==0:
+    if self.scn_names.get(_name) is None:
       _socket.send("error"+sepc+"not exists"+sepm)
     else:
+      temp=self.scn_names.get(_name).get_message()
       _socket.send("success"+sepc)
-      _socket.send_bytes(self.scn_names.get(_name).get_message(),True)
+      print(temp)
+      if temp is None:
+        _socket.send_bytes(b"",True)
+      else:
+        _socket.send_bytes(bytes(temp,encoding="utf8"),True)
 
 
   def s_use_special_service_unauth(self,_socket):
@@ -995,8 +1013,11 @@ class scn_base_client(scn_base_base):
     _socket.send("list_names"+sepm)
     _name_list=[]
     if scn_check_return(_socket) == True:
-      for protcount in range(0,protcount_max):
-        _name_list += [_socket.receive_one(),]
+      if _socket.is_end()==False: #security against missformed requests
+        for protcount in range(0,protcount_max):
+          _name_list += [_socket.receive_one(),]
+          if _socket.is_end()==True:
+            break
     else:
       _name_list = None
     _socket.close()
@@ -1007,8 +1028,11 @@ class scn_base_client(scn_base_base):
     _socket.send("list_services"+sepc+_name+sepm)
     _node_list=[]
     if scn_check_return(_socket) == True:
-      for protcount in range(0,protcount_max):
-        _node_list += [_socket.receive_one(),]
+      if _socket.is_end()==False: #security against missformed requests
+        for protcount in range(0,protcount_max):
+          _node_list += [_socket.receive_one(),]
+          if _socket.is_end()==True:
+            break
     else:
       _node_list = None
     _socket.close()
@@ -1024,6 +1048,9 @@ class scn_base_client(scn_base_base):
       _message = None
     _socket.close()
     return _message
+  def c_get_server_message(self,_servername):
+    return self.c_get_name_message(_servername,"admin")
+
 
 
   #returns socket for use in other functions
@@ -1035,6 +1062,7 @@ class scn_base_client(scn_base_base):
     else:
       _socket.close()
       return None
+
 
   def c_get_server_cert(self,_servername):
     _socket=scn_socket(self.connect_to(_servername))

@@ -23,6 +23,9 @@
 * error signals an error
 * bytes signals a byte transfer (for debug)
 
+##reserved names
+* admin: as well as service as name
+
 ##bytes subprotocol
 socket opens byte receive request with a valid size range
 bytes keyword is read and checked, sends error and returns if it doesn't exists

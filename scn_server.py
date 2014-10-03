@@ -204,7 +204,7 @@ class scn_name_sql(object):
     except Exception as e:
       printerror(e)
       return None
-    return message
+    return message[0]
 
 #=get_service
   def get_service(self,_servicename,_nodeid=None):
@@ -229,7 +229,7 @@ class scn_name_sql(object):
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT servicename
-      FROM scn_node WHERE scn_name=? AND scn_name!=admin''',(self.name,))
+      FROM scn_node WHERE scn_name=?;''',(self.name,))
       ob=cur.fetchmany()
     except Exception as e:
       printerror(e)
@@ -466,6 +466,9 @@ class scn_server(scn_base_server):
       self.pub_cert=readinpubkey.read()
     self.scn_names=scn_name_list_sqlite(self.config_path+"scn_server_name_db")
     self.scn_store=scn_ip_store(self.config_path+"scn_server_pers_id_db")
+    if self.scn_names.get("admin") is None:
+      #fixme: create working acc
+      self.scn_names.create_name("admin",0,0)
     #self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
     #self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
     self.refresh_names_thread=threading.Thread(target=self.refresh_names)
@@ -537,7 +540,7 @@ class scn_server_handler(socketserver.BaseRequestHandler):
         elif temp in self.linkback.actions:
           self.linkback.actions[temp](self.linkback,sc)
         else:
-          sc.send("error"+sepc+temp+": no such function"+sepm)
+          sc.send("error"+sepc+temp+sepc+" no such function"+sepm)
       except BrokenPipeError:
         printdebug("Socket closed") 
         break
