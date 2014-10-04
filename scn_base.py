@@ -1013,7 +1013,7 @@ class scn_base_client(scn_base_base):
     _socket.send("list_names"+sepm)
     _name_list=[]
     if scn_check_return(_socket) == True:
-      if _socket.is_end()==False: #security against missformed requests
+      if _socket.is_end()==False: #security against malformed requests
         for protcount in range(0,protcount_max):
           _name_list += [_socket.receive_one(),]
           if _socket.is_end()==True:
@@ -1028,7 +1028,7 @@ class scn_base_client(scn_base_base):
     _socket.send("list_services"+sepc+_name+sepm)
     _node_list=[]
     if scn_check_return(_socket) == True:
-      if _socket.is_end()==False: #security against missformed requests
+      if _socket.is_end()==False: #security against malformed requests
         for protcount in range(0,protcount_max):
           _node_list += [_socket.receive_one(),]
           if _socket.is_end()==True:
