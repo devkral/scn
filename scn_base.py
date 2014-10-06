@@ -12,7 +12,7 @@ import traceback
 import os
 import os.path
 import hashlib
-#import time
+import threading
 
 from subprocess import Popen,PIPE
 
@@ -366,8 +366,12 @@ class scn_base_server(scn_base_base):
   special_services={}
   special_services_unauth={}
   tunnel={}
-  cache_name_list=None
+  name_list_cache=None
+  name_list_cond=None
 #priv
+  def __init__(self):
+    self.name_list_cond=threading.Event()
+
   def _s_admin_auth(self, _socket):
     try:
       _name=_socket.receive_one(min_used_name,max_used_name)
@@ -387,6 +391,16 @@ class scn_base_server(scn_base_base):
       return [None,None]
     return [_name,_secret]
 
+  
+  def refresh_name_list(self):
+    while True:
+      self.name_list_cache=""
+      temp=self.scn_names.list_names()
+      if temp is not None:
+        for elem in temp:
+          self.name_list_cache+=sepc+elem[0]
+      self.name_list_cond.clear()
+      self.name_list_cond.wait() #(scn_cache_timeout)
   
 #admin
   def s_register_name(self,_socket):
@@ -418,6 +432,7 @@ class scn_base_server(scn_base_base):
     if temp is None:
       _socket.send("error"+sepc+"creation failed"+sepm)
       return
+    self.name_list_cond.set()
     _socket.send("success"+sepm)
 
 #second level auth would be good as 30 days grace
@@ -426,7 +441,9 @@ class scn_base_server(scn_base_base):
     #TODO: check if is_end
     if _name is None:
       return
-    if self.scn_names.del_name(_name)==True and self.scn_store.del_name(_name):
+    if self.scn_names.del_name(_name)==True:
+      self.scn_store.del_name(_name)
+      self.name_list_cond.set()
       _socket.send("success"+sepm)
       return
     else:
@@ -539,8 +556,8 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
       return
     
-    if self.scn_names.get(_name).delete_service(_service)==True and \
-    self.scn_store.del_service(_name,_service):
+    if self.scn_names.get(_name).delete_service(_service)==True:
+      self.scn_store.del_service(_name,_service)
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -771,18 +788,12 @@ class scn_base_server(scn_base_base):
     _socket.send("success"+temp+sepm)
 
 #names must be refreshed by a seperate thread because too much traffic elsewise
-#self.cache_name_list begins with a sepc
+#self.name_list_cache begins with a sepc
   def s_list_names(self,_socket):
-    if self.cache_name_list is not None:
-      _socket.send("success"+self.cache_name_list+sepm)
+    if self.name_list_cache is not None:
+      _socket.send("success"+self.name_list_cache+sepm)
     else:
-      _socket.send("error"+sepc+"cache_name_list empty"+sepm)
-#    if self.cache_name_list is None or \
-#       self.cache_name_time>=time.time()+scn_cache_timeout:
-#      self.cache_name_time=time.time()
-#      self.cache_name_list=""
-#      for elem in self.scn_names.list_names():
-#        self.cache_name_list+=sepc+elem #name
+      _socket.send("error"+sepc+"name_list_cache empty"+sepm)
 
 
   def s_get_name_message(self,_socket):

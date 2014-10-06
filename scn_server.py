@@ -452,6 +452,7 @@ class scn_server(scn_base_server):
   callback={}
 
   def __init__(self,_config_path,_name):
+    scn_base_server.__init__(self)
     self.version="1"
     self.name=_name
     self.config_path=_config_path
@@ -471,20 +472,12 @@ class scn_server(scn_base_server):
       self.scn_names.create_name("admin",0,0)
     #self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
     #self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
-    self.refresh_names_thread=threading.Thread(target=self.refresh_names)
+    self.refresh_names_thread=threading.Thread(target=self.refresh_name_list)
     self.refresh_names_thread.daemon = True
     self.refresh_names_thread.start()
 
     printdebug("Server init finished")
 
-  def refresh_names(self):
-    while True:
-      self.cache_name_list=""
-      temp=self.scn_names.list_names()
-      if temp is not None:
-        for elem in temp:
-          self.cache_name_list+=sepc+elem[0]
-      time.sleep(scn_cache_timeout)
 """
   def callback(self,_socket,_name,_store_name):
     if self.scn_names.contains(_name)==False:

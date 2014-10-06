@@ -1269,7 +1269,7 @@ class scnPageNavigation(Gtk.Grid):
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_register_name(self.cur_server,dialog.name.get_text())==True:
-          self.updateserverlist()
+          self.updatenamelist()
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
         else:
