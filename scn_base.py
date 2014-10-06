@@ -39,7 +39,7 @@ def check_hash(_hashstr):
     return True
   return False
 #check if invalid non blob (e.g. name, command)
-_check_invalid_chars=re.compile("[\$\0'%\" \n\r\b\x1A\x7F"+sepm+sepc+sepu+"]")
+_check_invalid_chars=re.compile("[\$\0'%\" \n\r\t\b\x1A\x7F"+sepm+sepc+sepu+"]")
 def check_invalid_s(stin):
   if stin is None or stin=="":
     return False
