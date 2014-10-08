@@ -1210,7 +1210,7 @@ class scn_base_client(scn_base_base):
       return False
     _newcert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
-    if _newcert!=self.scn_servers.get_node(_servername):
+    if _newcert!=self.scn_servers.get_node(_servername)[1]:
       printdebug("Certs missmatch, update because of missing hook")
     if self.scn_servers.update_node(_servername,_url,_newcert)==True:
       return True

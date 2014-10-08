@@ -1198,18 +1198,17 @@ class scnPageNavigation(Gtk.Grid):
   ### server section ###
 
   def delete_server_intern(self,_delete_server):
-    returnstate=True
+    returnstate=False
     dialog = scnDeletionDialog(self.parent,_delete_server)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_server(_delete_server)==True:
           self.updateserverlist()
+          returnstate=True
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
         else:
           self.parent.state_widget.set_text("Error, something happened")
-      else:
-        returnstate=False
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
@@ -1240,8 +1239,6 @@ class scnPageNavigation(Gtk.Grid):
           #returnel=Gtk.Label("Success")
         else:
           self.parent.state_widget.set_text("Error2")
-      else:
-        self.parent.state_widget.set_text("Error")
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
@@ -1250,12 +1247,15 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    self.edit_server_intern(temp[0][temp[1]][0])
+    if self.edit_server_intern(temp[0][temp[1]][0])==True:
+      self.updateserverlist()
 
   def edit_server(self,*args):
-    self.edit_server_intern(self.cur_server)
+    if self.edit_server_intern(self.cur_server)==True:
+      self.update()
 
   def edit_server_intern(self,_server):
+    returnstate=False
     temp=self.linkback.main.scn_servers.get_node(_server)
     if temp is None:
       self.parent.state_widget.set_text("Not exists")
@@ -1265,16 +1265,18 @@ class scnPageNavigation(Gtk.Grid):
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if dialog.servername!=_server:
-          self.linkback.main.scn_servers.update_node_name(self.cur_server,dialog.servername.get_text())
+          self.linkback.main.scn_servers.update_node_name(_server,dialog.servername.get_text())
           
         if self.linkback.main.c_update_server(dialog.servername.get_text(),dialog.url.get_text())==True:
+          returnstate=True
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
       else:
-        self.parent.state_widget.set_text("")
+          self.parent.state_widget.set_text("Aborted")
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
+    return returnstate
 
   def register_name(self,*args):
     dialog = scnNameAddDialog(self.parent,"Register",self.cur_server)
@@ -1294,17 +1296,16 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def delete_name_intern(self,_delete_name):
-    returnstate=True
+    returnstate=False
     dialog = scnDeletionDialog(self.parent,self.cur_server,_delete_name)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_name(self.cur_server,_delete_name)==True:
+          returnstate=True
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
         else:
           self.parent.state_widget.set_text("Error, something happened")
-      else:
-        returnstate=False
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
@@ -1342,17 +1343,16 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def delete_service_intern(self,_delete_service):
-    returnstate=True
+    returnstate=False
     dialog = scnDeletionDialog(self.parent,self.cur_server,self.cur_name,_delete_service)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_service(self.cur_server,self.cur_name,_delete_service)==True:
+          returnstate=True
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
         else:
           self.parent.state_widget.set_text("Error, something happened")
-      else:
-        returnstate=False
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
