@@ -395,7 +395,7 @@ class scn_name_list_sqlite(object):
     try:
       cur = con.cursor()
       #shouldn't throw error if not available
-      cur.execute('''DELETE FROM scn_name WHERE name=?);''',(_name,))
+      cur.execute('''DELETE FROM scn_name WHERE name=?;''',(_name,))
       con.commit()
     except Exception as e:
       con.rollback()
