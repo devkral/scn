@@ -426,7 +426,7 @@ class scn_servs_sql(object):
       #con.beginn()
       cur = con.cursor()
       cur.execute('''SELECT nodename FROM scn_certs WHERE url=?''',(_url,))
-      temp=cur.fetchmany()
+      temp=cur.fetchall()
     except Exception as u:
       printerror(u)
     con.close()
@@ -739,7 +739,7 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 #
 
-normalflag=Gtk.StateFlags.NORMAL|Gtk.StateFlags.ACTIVE
+#normalflag=Gtk.StateFlags.NORMAL|Gtk.StateFlags.ACTIVE
 icons=Gtk.IconTheme.get_default()
 
 
@@ -1013,7 +1013,7 @@ class scnPageNavigation(Gtk.Grid):
 
   def buildservergui(self):
     if self.updatenamelist()==False:
-      self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
+      self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildNonegui()
       return
 
@@ -1098,7 +1098,7 @@ class scnPageNavigation(Gtk.Grid):
   def buildnamegui(self):
     
     if self.updateservicelist()==False:
-      self.navbar.override_background_color(normalflag, Gdk.RGBA(1, 0, 0, 1))
+      self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildservergui()
       return
 
@@ -1167,7 +1167,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+    self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.update(temp[0][temp[1]][0])
 
   def goback_server(self,*args):
@@ -1187,7 +1187,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    self.navbar.override_background_color(normalflag, Gdk.RGBA(0.7, 1, 0.7, 1))
+    self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.update(self.cur_server,self.cur_name,temp[0][temp[1]][0])
     
   ### server section ###

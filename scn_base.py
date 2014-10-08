@@ -432,6 +432,7 @@ class scn_base_server(scn_base_base):
     if temp is None:
       _socket.send("error"+sepc+"creation failed"+sepm)
       return
+    print("success {}".format(temp))
     self.name_list_cond.set()
     _socket.send("success"+sepm)
 
@@ -784,7 +785,6 @@ class scn_base_server(scn_base_base):
     temp=""
     for elem in tempcont:
       temp+=sepc+elem[0] #name
-    print(temp)
     _socket.send("success"+temp+sepm)
 
 #names must be refreshed by a seperate thread because too much traffic elsewise
@@ -807,7 +807,6 @@ class scn_base_server(scn_base_base):
     else:
       temp=self.scn_names.get(_name).get_message()
       _socket.send("success"+sepc)
-      print(temp)
       if temp is None:
         _socket.send_bytes(b"",True)
       else:

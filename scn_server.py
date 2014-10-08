@@ -8,14 +8,15 @@ import socket
 import hashlib
 import tempfile
 import threading
-import time
+#import time
 
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc #,sepu
 from scn_base import scn_base_server,scn_base_base,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs
 
-from scn_config import scn_server_port,default_config_folder,scn_host,max_service_nodes,scn_cache_timeout
+from scn_config import scn_server_port,default_config_folder,scn_host,max_service_nodes
+#,scn_cache_timeout
 
 
 class scn_ip_store(object):
@@ -64,7 +65,7 @@ class scn_ip_store(object):
       cur.execute('''SELECT addr_type,addr,hashed_pub_cert
       FROM addr_store
       WHERE name=? AND service=? ORDER BY clientid''',(_name,_service))
-      nodelist=cur.fetchmany()
+      nodelist=cur.fetchall()
     except Exception as e:
       printerror(e)
       con.close()
@@ -219,7 +220,7 @@ class scn_name_sql(object):
         cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret
         FROM scn_node WHERE scn_name=? AND servicename=? AND nodeid=?''',(self.name,_servicename,_nodeid))
 
-      ob=cur.fetchmany()
+      ob=cur.fetchall()
     except Exception as e:
       printerror(e)
     return ob #nodeid,nodename,hashed_pub_cert,hashed_secret
@@ -230,7 +231,7 @@ class scn_name_sql(object):
       cur = self.dbcon.cursor()
       cur.execute('''SELECT servicename
       FROM scn_node WHERE scn_name=?;''',(self.name,))
-      ob=cur.fetchmany()
+      ob=cur.fetchall()
     except Exception as e:
       printerror(e)
     return ob #servicename
@@ -360,7 +361,7 @@ class scn_name_list_sqlite(object):
     try:
       cur = con.cursor()
       cur.execute('SELECT name FROM scn_name')
-      ob=cur.fetchmany()
+      ob=cur.fetchall()
     except Exception as e:
       printerror(e)
     return ob
@@ -413,10 +414,10 @@ class scn_name_list_sqlite(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''INSERT into scn_name(name,message) values(?,'')''', (_name,))
       cur.execute('''INSERT into scn_node
       (scn_name,servicename,nodeid,nodename,hashed_secret,hashed_pub_cert)
       values(?,'admin',0, 'init',?,?)''', (_name,_secrethash,_certhash))
+      cur.execute('''INSERT into scn_name(name,message) values(?,'')''', (_name,))
       con.commit()
     except Exception as e:
       con.rollback()
