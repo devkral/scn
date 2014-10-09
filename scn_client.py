@@ -206,8 +206,6 @@ class scn_friends_sql(object):
 
 #scn_servs: _servicename: _server,_name:secret
 class scn_servs_sql(object):
-  view_cur=-1
-  view_list=None
   db_path=None
   def __init__(self,_db):
     self.db_path=_db
@@ -315,6 +313,26 @@ class scn_servs_sql(object):
       return False
     con.close()
     return True
+
+  def list_names(self,_servername):
+    temp=None
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return None
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''SELECT name
+      FROM scn_serves
+      WHERE servername=?;''',(_servername,))
+      temp=cur.fetchall()
+    except Exception as u:
+      printerror(u)
+    con.close()
+    return temp #servicename erurl,cert,secret,pending state
+
   
   def list_services(self,_servername,_name):
     temp=None
@@ -386,7 +404,7 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''DELETE FROM scn_serves
       WHERE servername=?
-      AND a.name=?''',(_servername,_name))
+      AND name=?''',(_servername,_name))
       con.commit()
     except Exception as u:
       con.rollback()
@@ -406,6 +424,8 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''DELETE FROM scn_certs
       WHERE nodename=?''',(_servername,))
+      cur.execute('''DELETE FROM scn_serves
+      WHERE servername=?''',(_servername,))
       con.commit()
     except Exception as u:
       con.rollback()
@@ -450,7 +470,7 @@ class scn_servs_sql(object):
     con.close()
     return temp 
 
-  def get_list(self):
+  def list_nodes(self):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -466,26 +486,31 @@ class scn_servs_sql(object):
     con.close()
     return temp # [(servername,url),...]
 
-  def get_next(self):
-    self.view_cur+=1
-    return self.view_list[self.view_cur] #name,serverurl,cert,secret,pendingstate
-  def rewind(self):
+
+  def list_serves(self,_servicename=None):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
       printerror(u)
-      return
+      return None
+    temp=None
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT b.nodename,b.url,a.name,a.service,a.secret,a.pending
-      FROM scn_serves as a,scn_certs as b
-      WHERE a.servername=b.nodename''')
-      self.view_cur=-1 #+1 before retrieving
-      self.view_list=cur.fetchall()
+      if _servicename==None:
+        cur.execute('''SELECT servername,name,service,pending
+        FROM scn_serves''')
+      else:
+        cur.execute('''SELECT servername,name,service,pending
+        FROM scn_serves
+        WHERE service=?''')
+
+      temp=cur.fetchall()
     except Exception as u:
       printdebug(u)
+      return None
     con.close()
+    return temp
 
 
 
@@ -621,7 +646,7 @@ class scn_client(scn_base_client):
     return self.c_serve_service(self,_servername,_name,_service,"ip",self.linkback.receiver.host[1])
   
   def c_get_server_list(self):
-    return self.scn_servers.get_list()
+    return self.scn_servers.list_nodes()
 
   def c_get_server(self,_servername):
     return self.scn_servers.get_node(_servername)

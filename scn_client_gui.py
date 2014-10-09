@@ -198,7 +198,7 @@ class scnPageNavigation(Gtk.Grid):
     self.update(*splitnavbar[:3])
 
   def updateserverlist(self):
-    temp2=self.linkback.main.scn_servers.get_list()
+    temp2=self.linkback.main.scn_servers.list_nodes()
     if temp2 is None:
       return False
     self.listelems.set_title("Server")
@@ -209,14 +209,19 @@ class scnPageNavigation(Gtk.Grid):
       self.navcontent.append((elem[0],))
 
   def updatenamelist(self):
-    temp_names=self.linkback.main.c_list_names(self.cur_server)
-    if temp_names is None:
+    temp_remote=self.linkback.main.c_list_names(self.cur_server)
+    if temp_remote is None:
       return False
+    temp_local=self.linkback.main.scn_servers.list_names(self.cur_server)
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
     self.navbox.show()
     self.listelems.set_title("Name")
     self.navcontent.clear()
-    for elem in temp_names:
+
+    for elem in temp_local:
+      if elem[0] not in temp_remote:
+        self.navcontent.append(("local: "+elem[0],))
+    for elem in temp_remote:
       self.navcontent.append((elem,))
     return True
 
@@ -556,14 +561,22 @@ class scnPageNavigation(Gtk.Grid):
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_name(self.cur_server,_delete_name)==True:
-          returnstate=True
+          self.linkback.main.scn_servers.del_name(self.cur_server,_delete_name)
           self.parent.state_widget.set_text("Success")
+          returnstate=True
           #returnel=Gtk.Label("Success")
         else:
           self.parent.state_widget.set_text("Error, something happened")
+        
+          
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
+    if returnstate==False:
+      pass
+      #delete anyway dialog
+      #self.linkback.main.scn_servers.del_name(self.cur_server,_delete_name)
+
     return returnstate
 
   def delete_name(self, *args):
@@ -646,7 +659,7 @@ class scnPageServers(Gtk.Frame):
     self.show_all()
     
   def update(self):
-    for elem in self.parent.linkback.main.scn_servers.get_list():
+    for elem in self.parent.linkback.main.scn_servers.list_nodes():
       self.serverlist.add(scnServerNode(elem[0],self.parent))
 
   def add_server(self,button):

@@ -938,7 +938,7 @@ class scn_base_client(scn_base_base):
     _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)
     if _server_response==True:
-      self.scn_servers.delete_name(_name)
+      self.scn_servers.del_name(_servername,_name)
     _socket.close()
     return _server_response
 
