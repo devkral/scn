@@ -373,14 +373,38 @@ class scnPageNavigation(Gtk.Grid):
     namecont_f.add(namecont)
     contextcont.attach(namecont_f,0,0,1,1)
 
+
     goServerButton2=Gtk.Button("Go back")
     goServerButton2.connect("clicked", self.goback_server)
-    namecont.attach(goServerButton2,0,0,1,1)
+    namecont.attach(goServerButton2,0,2,2,1)
+
+
+    servicecont_f=Gtk.Frame()
+    servicecont_f.set_label("Service actions")
+    servicecont=Gtk.Grid()
+    servicecont.set_row_spacing(2)
+    servicecont.set_border_width(2)
+    servicecont_f.add(servicecont)
+    contextcont.attach(servicecont_f,0,0,1,1)
+
+
+    reqServiceButton1=Gtk.Button("Create Serve Request")
+    reqServiceButton1.connect("clicked", self.select_service)
+    servicecont.attach(reqServiceButton1,0,0,1,1)
+
+
+    self.ServiceRequest_entry=Gtk.Entry()
+    #reqServiceEntry1.connect("clicked", self.select_service)
+    servicecont.attach(self.ServiceRequest_entry,1,0,1,1)
+
+    delreqServiceButton1=Gtk.Button("Delete Serve Request")
+    delreqServiceButton1.connect("clicked", self.select_service)
+    namecont.attach(delreqServiceButton1,0,1,2,1)
+
 
     goServiceButton1=Gtk.Button("Use Service")
     goServiceButton1.connect("clicked", self.select_service)
-    namecont.attach(goServiceButton1,0,1,1,1)
-
+    servicecont.attach(goServiceButton1,0,2,2,1)
 
 
     #building frame showing message
