@@ -202,7 +202,7 @@ class scnPageNavigation(Gtk.Grid):
     self.update(*splitnavbar[:3])
 
   def updateserverlist(self):
-    temp2=self.linkback.main.scn_servers.list_nodes()
+    temp2=self.linkback.main.scn_servers.list_servers()
     if temp2 is None:
       return False
     self.listelems.set_title("Server")
@@ -774,7 +774,7 @@ class scnPageNavigation(Gtk.Grid):
 
   def edit_server_intern(self,_server):
     returnstate=False
-    temp=self.linkback.main.scn_servers.get_node(_server)
+    temp=self.linkback.main.scn_servers.get_server(_server)
     if temp is None:
       self.parent.state_widget.set_text("Not exists")
       return

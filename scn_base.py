@@ -633,7 +633,7 @@ class scn_base_server(scn_base_base):
       return
     #check if end
       
-    if self.scn_store.del_node(_name,_service,hashlib.sha256(_servicesecret).hexdigest())==True:
+    if self.scn_store.del_server(_name,_service,hashlib.sha256(_servicesecret).hexdigest())==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -645,7 +645,7 @@ class scn_base_server(scn_base_base):
       return
     #check if end
     if self.scn_names.get(_name).delete_secret(_service,_servicesecret)==False or \
-    self.scn_store.del_node(_name,_service,hashlib.sha256(_servicesecret).hexdigest())==False:
+    self.scn_store.del_server(_name,_service,hashlib.sha256(_servicesecret).hexdigest())==False:
       _socket.send("error"+sepm)
       return
     else:
@@ -1180,7 +1180,7 @@ class scn_base_client(scn_base_base):
 
   def c_update_server(self,_servername,_url): #, update_cert_hook):
     
-    if self.scn_servers.get_node(_servername) is None:
+    if self.scn_servers.get_server(_servername) is None:
       printerror("Error: Node doesn't exist")
       return False
     _socket=scn_socket(self.connect_to_ip(_url))
@@ -1207,18 +1207,18 @@ class scn_base_client(scn_base_base):
       return False
     _newcert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
-    if _newcert!=self.scn_servers.get_node(_servername)[1]:
+    if _newcert!=self.scn_servers.get_server(_servername)[1]:
       printdebug("Certs missmatch, update because of missing hook")
-    if self.scn_servers.update_node(_servername,_url,_newcert)==True:
+    if self.scn_servers.update_server(_servername,_url,_newcert)==True:
       return True
     else:
-      printdebug("node update failed")
+      printdebug("server update failed")
       return False
     
   def c_delete_server(self,_servername):
-    if self.scn_servers.del_node(_servername)==True:
+    if self.scn_servers.del_server(_servername)==True:
       return True
       #return self.scn_friends.del_server_all(_nodename)
     else:
-      printerror("node deletion failed")
+      printerror("server deletion failed")
       return False

@@ -218,15 +218,14 @@ class scn_servs_sql(object):
       con.execute('''CREATE TABLE if not exists
       scn_serves(servername TEXT, name TEXT, service TEXT,
       secret BLOB, pending INTEGER,PRIMARY KEY(servername,name,service),
-      FOREIGN KEY(servername) REFERENCES scn_certs(nodename) ON UPDATE CASCADE ON DELETE CASCADE);''')
+      FOREIGN KEY(servername) REFERENCES scn_urls(servername) ON UPDATE CASCADE ON DELETE CASCADE);''')
 
 
-      con.execute('''CREATE TABLE if not exists scn_urls(servername TEXT, url TEXT, 
+      con.execute('''CREATE TABLE if not exists scn_urls(servername TEXT, url TEXT, certname TEXT
       PRIMARY KEY(servername,url),
-      FOREIGN KEY(servername) REFERENCES scn_certs(nodename) ON UPDATE CASCADE ON DELETE CASCADE  );''')
+      FOREIGN KEY(certname) REFERENCES scn_certs(certname) ON UPDATE CASCADE ON DELETE CASCADE  );''')
       
-      con.execute('''CREATE TABLE if not exists scn_certs(nodename TEXT,
-      url TEXT,cert BLOB,PRIMARY KEY(nodename), UNIQUE(cert)  );''')
+      con.execute('''CREATE TABLE if not exists scn_certs(certname TEXT, cert BLOB,PRIMARY KEY(certname), UNIQUE(cert)  );''')
 
       con.commit()
     except Exception as u:
@@ -234,7 +233,7 @@ class scn_servs_sql(object):
       printerror(u)
     con.close()
 
-  def add_node(self,_nodename,_url,_cert):
+  def add_server(self,_servername,_url,_cert):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -243,8 +242,8 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''INSERT into scn_certs(nodename,cert) values(?,?);''',(_nodename,_cert))
-      cur.execute('''INSERT into scn_urls(servername,url) values(?,?);''',(_nodename,_url))
+      cur.execute('''INSERT OR IGNORE into scn_certs(certname,cert) values ''',(_servername,_cert))
+      cur.execute('''INSERT into scn_urls(servername,url) values(?,?);''',(_servername,_url))
       con.commit()
     except sqlite3.IntegrityError:
       printdebug("exists already")
@@ -257,7 +256,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_cert(self,_nodename,_cert):
+  def update_server(self,_servername,_url,_cert):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -266,26 +265,12 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''INSERT OR REPLACE into scn_certs(nodename,cert) values(?,?);''',(_nodename,_cert))
-      con.commit();
-    except Exception as u:
-      printdebug(u)
-      con.rollback()
-      return False
-    con.close()
-    return True
-
-  def update_url(self,_nodename,_old_url,_url):
-    try:
-      
-      con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      printerror(u)
-      return False
-    try:
-      #con.beginn()
-      cur = con.cursor()
-      cur.execute('''UPDATE scn_urls SET url=? WHERE servername=? AND url=?;''',(_url,_nodename,_old_url))
+      cur.execute('''
+      UPDATE scn_urls(url) values(?)
+      WHERE servername=?;''',(_url,_cert,_servername))
+      cur.execute('''
+      UPDATE scn_certs(cert) values(?)
+      WHERE certname= (SELECT certname FROM scn_urls WHERE servername=?) ;''',(_cert,_servername))
       con.commit();
     except Exception as u:
       printdebug(u)
@@ -295,19 +280,18 @@ class scn_servs_sql(object):
     return True
 
 
-  def update_node_name(self,_nodename,_nodename_new):
-    if self.get_node(_nodename_new) is not None:
+  def update_server_name(self,_servername,_servername_new):
+    if self.get_server(_servername_new) is not None:
       return False
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
       printerror(u)
       return False
-
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''UPDATE scn_certs SET nodename=? WHERE nodename=?;''',(_nodename_new,_nodename))
+      cur.execute('''UPDATE scn_urls SET servername=? WHERE servername=?;''',(_servername_new,_servername))
       con.commit();
     except Exception as u:
       printdebug(u)
@@ -381,7 +365,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #servicename erurl,cert,secret,pending state
+    return temp #name
 
   
   def list_services(self,_servername,_name):
@@ -394,9 +378,9 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT a.service
-      FROM scn_serves as a
-      WHERE a.servername=? AND a.name=?;''',(_servername,_name))
+      cur.execute('''SELECT service
+      FROM scn_serves
+      WHERE servername=? AND name=?;''',(_servername,_name))
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
@@ -415,8 +399,8 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''SELECT c.url,b.cert,a.secret, a.pending
       FROM scn_serves as a,scn_certs as b,scn_urls as c
-      WHERE a.servername=? AND a.name=? AND a.service=?
-      AND a.servername=b.nodename AND a.servername=c.servername;''',(_servername,_name,_servicename))
+      WHERE b.servername=? AND a.name=? AND a.service=?
+      AND a.servername=b.nodename AND b.certname=c.certname;''',(_servername,_name,_servicename))
       temp=cur.fetchone()
     except Exception as u:
       printerror(u)
@@ -434,8 +418,8 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''DELETE FROM scn_serves
       WHERE servername=?
-      AND a.name=?
-      AND a.service=?''',(_servername,_name,_servicename))
+      AND name=?
+      AND service=?''',(_servername,_name,_servicename))
       con.commit()
     except Exception as u:
       printerror(u)
@@ -463,7 +447,8 @@ class scn_servs_sql(object):
     con.close()
     return True
   
-  def del_node(self,_servername):
+##TODO: cleanup cert db
+  def del_server(self,_servername):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -472,8 +457,8 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''DELETE FROM scn_certs
-      WHERE nodename=?''',(_servername,))
+      cur.execute('''DELETE FROM scn_urls
+      WHERE servername=?''',(_servername,))
       cur.execute('''DELETE FROM scn_serves
       WHERE servername=?''',(_servername,))
       con.commit()
@@ -484,7 +469,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def get_node(self,_nodename):
+  def get_server(self,_servername):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -496,8 +481,8 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''SELECT a.url,b.cert
       FROM scn_urls as a, scn_certs as b
-      WHERE b.nodename=?
-      AND a.servername=b.nodename''',(_nodename,))
+      WHERE a.servername=?
+      AND a.certname=b.certname''',(_servername,))
       temp=cur.fetchone()
     except Exception as u:
       printerror(u)
@@ -514,14 +499,14 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT nodename FROM scn_urls WHERE url=?''',(_url,))
+      cur.execute('''SELECT servername FROM scn_urls WHERE url=?''',(_url,))
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
     con.close()
     return temp 
 
-  def list_nodes(self):
+  def list_servers(self):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -530,7 +515,7 @@ class scn_servs_sql(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''SELECT nodename FROM scn_certs''')
+      cur.execute('''SELECT servername FROM scn_urls''')
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
@@ -591,8 +576,8 @@ class scn_client(scn_base_client):
     self.scn_friends=scn_friends_sql(self.config_path+"scn_client_friend_db")
 
 #connect methods
-  def connect_to(self,_servername):
-    tempdata=self.scn_servers.get_node(_servername)
+  def connect_to(self,_server):
+    tempdata=self.scn_servers.get_server(_server)
     if tempdata == None:
       raise (scnConnectException("connect_to: servername doesn't exist"))
     tempconnectdata=tempdata[0].split(sepu)
@@ -643,14 +628,14 @@ class scn_client(scn_base_client):
     tempsocket.setblocking(True)
     return tempsocket
   
-  def c_connect_to_node(self,_servername,_name,_service="main",_com_method=None):
+  def c_connect_to_node(self,_server,_name,_service="main",_com_method=None):
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
     tempsocket=None
     method=_com_method
     _cert=None
-    for elem in self.c_get_service(_servername,_name,_service):
+    for elem in self.c_get_service(_server,_name,_service):
       if _com_method is None:
         method=elem[0]
       if method=="ip" or method=="wrap":
@@ -697,10 +682,10 @@ class scn_client(scn_base_client):
     return self.c_serve_service(self,_servername,_name,_service,"ip",self.linkback.receiver.host[1])
   
   def c_get_server_list(self):
-    return self.scn_servers.list_nodes()
+    return self.scn_servers.list_servers()
 
   def c_get_server(self,_servername):
-    return self.scn_servers.get_node(_servername)
+    return self.scn_servers.get_server(_servername)
 
   actions = {"get_cert": scn_base_base.s_get_cert,
              "pong": scn_base_base.pong,
