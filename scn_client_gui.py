@@ -114,7 +114,8 @@ class scnPageNavigation(Gtk.Grid):
   cur_server=None #use only after set by scnupdate
   cur_name=None #use only after set by scnupdate
   cur_service=None #use only after set by scnupdate
-  
+  box_select_handler_id=None
+
   def __init__(self,_parent):
     Gtk.Grid.__init__(self)
     self.parent=_parent
@@ -151,6 +152,7 @@ class scnPageNavigation(Gtk.Grid):
     navbarconfirm.connect("clicked",self.navbarupdate)
     navcontainer.attach(labelnavbar,0,0,1,1)
     self.navbar.set_hexpand (True)
+    self.navbar.connect("activate",self.navbarupdate)
     navcontainer.attach(self.navbar,1,0,1,1)
     navcontainer.attach(navbarconfirm,2,0,1,1)
 
@@ -172,6 +174,8 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def update(self,_server=None,_name=None,_service=None):
+    if _server=="":
+      _server=None
     self.cur_server=_server
     self.cur_name=_name
     self.cur_service=_service
@@ -236,35 +240,97 @@ class scnPageNavigation(Gtk.Grid):
     for elem in temp2:
       self.navcontent.append((elem,))
 
+  def updatenodelist(self):
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.2, 0.2, 1))
+    self.navbox.show()
+    self.navcontent.clear()
+
+    if self.cur_service=="admin":
+      self.navbox.hide()
+      #self.listelems.set_title("Admin")
+      return True
+    elif self.cur_service=="special" or \
+       self.cur_service in self.special_services:
+      self.navbox.hide()
+#      self.listelems.set_title("Special")
+      return True
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.5, 0.5, 1))
+
+    temp2=self.linkback.main.c_get_service(self.cur_server,self.cur_name,self.cur_service)
+    if temp2 is None:
+      return False
+    self.listelems.set_title("Users")
+    for elem in temp2:
+      self.navcontent.append((elem,))
+
   def buildNonegui(self):
     if self.updateserverlist()==False:
       self.state_widget.set_text("Error loading servers")
+    if self.box_select_handler_id!=None:
+      self.navbox.disconnect(self.box_select_handler_id)
+      self.box_select_handler_id=None
     #label counts as child, so ignore it
     if len(self.navcontextmain.get_children())==1:
-      #print(self.navcontextmain.get_children())
       self.navcontextmain.get_children()[0].destroy()
       #self.navcontextmain.set_label("Context")
     #build grid for contextarea
     contextcont=Gtk.Grid()
     self.navcontextmain.add(contextcont)
     contextcont.set_row_spacing(2)
-    #contextcont.set_border_width(3)
-    contextcont.attach(Gtk.Label("Actions:"),0,0,1,1)
-    addServerButton1=Gtk.Button("Add Server")
-    addServerButton1.connect("clicked", self.add_server)
-    contextcont.attach(addServerButton1,0,1,1,1)
-    deleteServerButton1=Gtk.Button("Delete Server")
-    deleteServerButton1.connect("clicked", self.delete_server)
-    contextcont.attach(deleteServerButton1,0,2,1,1)
-    
-    editServerButton1=Gtk.Button("Edit Server")
-    editServerButton1.connect("clicked", self.edit_server2)
-    contextcont.attach(editServerButton1,0,3,1,1)
+    contextcont.set_column_spacing(2)
+    #contextcont.set_border_width(2)
+
+    navcont_f=Gtk.Frame()
+    navcont_f.set_label("Navigation")
+    navcont=Gtk.Grid()
+    navcont.set_row_spacing(2)
+    navcont.set_border_width(2)
+    navcont_f.add(navcont)
+    contextcont.attach(navcont_f,0,0,1,1)
 
     goServerButton1=Gtk.Button("Use Server")
     goServerButton1.connect("clicked", self.select_server)
-    contextcont.attach(goServerButton1,0,4,1,1)
+    navcont.attach(goServerButton1,0,0,1,1)
+
+
+    servercont_f=Gtk.Frame()
+    servercont_f.set_label("Server Actions")
+    servercont=Gtk.Grid()
+    servercont.set_row_spacing(2)
+    servercont.set_border_width(2)
+    servercont_f.add(servercont)
+    contextcont.attach(servercont_f,0,1,1,1)
+
+
+    addServerButton1=Gtk.Button("Add Server")
+    addServerButton1.connect("clicked", self.add_server)
+    servercont.attach(addServerButton1,0,0,1,1)
+    deleteServerButton1=Gtk.Button("Delete Server")
+    deleteServerButton1.connect("clicked", self.delete_server)
+    servercont.attach(deleteServerButton1,0,1,1,1)
+    
+    editServerButton1=Gtk.Button("Edit Server")
+    editServerButton1.connect("clicked", self.edit_server2)
+    servercont.attach(editServerButton1,0,2,1,1)
+
+
+    #building frame showing message
+    messagef2=Gtk.Frame()
+    messagef2.set_label("Message")
+    self.selectedservermessage=Gtk.Label()
+    self.selectedservermessage.set_selectable(True)
+    #self.linkback.main.c_get_name_message(self.cur_server,self.cur_name)
+    
+    self.selectedservermessage.set_halign(Gtk.Align.START)
+    self.selectedservermessage.set_valign(Gtk.Align.START)
+    self.selectedservermessage.set_hexpand(True)
+    self.selectedservermessage.set_vexpand(True)
+    messagef2.add(self.selectedservermessage)
+    contextcont.attach(messagef2,1,1,1,1)
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_server)
+
     self.navcontextmain.show_all()
+
 
 
   def buildservergui(self):
@@ -272,7 +338,9 @@ class scnPageNavigation(Gtk.Grid):
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildNonegui()
       return
-
+    if self.box_select_handler_id!=None:
+      self.navbox.disconnect(self.box_select_handler_id)
+      self.box_select_handler_id=None
     if len(self.navcontextmain.get_children())==1:
       #print(self.navcontextmain.get_children())
       self.navcontextmain.get_children()[0].destroy()
@@ -280,9 +348,27 @@ class scnPageNavigation(Gtk.Grid):
     #build grid for contextarea
     contextcont=Gtk.Grid()
     contextcont.set_column_spacing(2)
+    contextcont.set_row_spacing(2)
     self.navcontextmain.add(contextcont)
 
     
+    navcont_f=Gtk.Frame()
+    navcont_f.set_label("Navigation")
+    navcont=Gtk.Grid()
+    navcont.set_row_spacing(2)
+    navcont.set_border_width(2)
+    navcont_f.add(navcont)
+    contextcont.attach(navcont_f,0,0,1,1)
+    
+    
+    goNoneButton2=Gtk.Button("Go back")
+    goNoneButton2.connect("clicked", self.goback_none)
+    navcont.attach(goNoneButton2,0,0,1,1)
+
+    goNameButton1=Gtk.Button("Use Name")
+    goNameButton1.connect("clicked", self.select_name)
+    navcont.attach(goNameButton1,0,1,1,1)
+
     ### server actions ###
 
     servercont_f=Gtk.Frame()
@@ -302,13 +388,6 @@ class scnPageNavigation(Gtk.Grid):
     servercont.attach(editServerButton1,0,1,1,1)
 
     
-    goNoneButton2=Gtk.Button("Go back")
-    goNoneButton2.connect("clicked", self.goback_none)
-    servercont.attach(goNoneButton2,0,2,1,1)
-
-    goNameButton1=Gtk.Button("Use Name")
-    goNameButton1.connect("clicked", self.select_name)
-    servercont.attach(goNameButton1,0,3,1,1)
     
     ### name actions ###
 
@@ -318,7 +397,7 @@ class scnPageNavigation(Gtk.Grid):
     namecont.set_row_spacing(2)
     namecont.set_border_width(2)
     namecont_f.add(namecont)
-    contextcont.attach(namecont_f,0,0,1,1)
+    contextcont.attach(namecont_f,0,2,1,1)
 
 
     addNameButton1=Gtk.Button("Register Name")
@@ -337,6 +416,7 @@ class scnPageNavigation(Gtk.Grid):
     messagef.set_label("Server Message")
     tempmessage=self.linkback.main.c_get_server_message(self.cur_server)
     tempshowlabel=Gtk.Label()
+    tempshowlabel.set_selectable(True)
     tempshowlabel.set_halign(Gtk.Align.START)
     tempshowlabel.set_valign(Gtk.Align.START)
     tempshowlabel.set_hexpand(True)
@@ -346,6 +426,20 @@ class scnPageNavigation(Gtk.Grid):
     else:
       tempshowlabel.set_text(tempmessage)
     contextcont.attach(messagef,1,0,1,1)
+
+    #building frame showing message
+    messagef2=Gtk.Frame()
+    messagef2.set_label("Message")
+    self.selectednamemessage=Gtk.Label()
+    self.selectednamemessage.set_halign(Gtk.Align.START)
+    self.selectednamemessage.set_valign(Gtk.Align.START)
+    self.selectednamemessage.set_selectable(True)
+    #self.linkback.main.c_get_name_message(self.cur_server,self.cur_name)
+    self.selectednamemessage.set_hexpand(True)
+    self.selectednamemessage.set_vexpand(True)
+    messagef2.add(self.selectednamemessage)
+    contextcont.attach(messagef2,1,1,1,2)
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_name)
 
 #    self.servercont_f.show_all()
 #    self.namecont_f.show_all()
@@ -357,26 +451,34 @@ class scnPageNavigation(Gtk.Grid):
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildservergui()
       return
-
+    if self.box_select_handler_id!=None:
+      self.navbox.disconnect(self.box_select_handler_id)
+      self.box_select_handler_id=None
+      
     #label counts as child
     if len(self.navcontextmain.get_children())==1:
       self.navcontextmain.get_children()[0].destroy()
     #build grid for contextarea
     contextcont=Gtk.Grid()
+    contextcont.set_column_spacing(2)
+    contextcont.set_row_spacing(2)
     self.navcontextmain.add(contextcont)
 
-    namecont_f=Gtk.Frame()
-    namecont_f.set_label("Name actions")
-    namecont=Gtk.Grid()
-    namecont.set_row_spacing(2)
-    namecont.set_border_width(2)
-    namecont_f.add(namecont)
-    contextcont.attach(namecont_f,0,0,1,1)
+    navcont_f=Gtk.Frame()
+    navcont_f.set_label("Navigation")
+    navcont=Gtk.Grid()
+    navcont.set_row_spacing(2)
+    navcont.set_border_width(2)
+    navcont_f.add(navcont)
+    contextcont.attach(navcont_f,0,0,1,1)
 
+    goServiceButton1=Gtk.Button("Use Service")
+    goServiceButton1.connect("clicked", self.select_service)
+    navcont.attach(goServiceButton1,0,0,1,1)
 
     goServerButton2=Gtk.Button("Go back")
     goServerButton2.connect("clicked", self.goback_server)
-    namecont.attach(goServerButton2,0,2,2,1)
+    navcont.attach(goServerButton2,0,1,1,1)
 
 
     servicecont_f=Gtk.Frame()
@@ -385,68 +487,170 @@ class scnPageNavigation(Gtk.Grid):
     servicecont.set_row_spacing(2)
     servicecont.set_border_width(2)
     servicecont_f.add(servicecont)
-    contextcont.attach(servicecont_f,0,0,1,1)
+    contextcont.attach(servicecont_f,0,1,1,1)
 
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,"admin") is not None:
+      addServiceButton2=Gtk.Button("Add service")
+      addServiceButton2.connect("clicked", self.goback_server)
+      servicecont.attach(addServiceButton2,0,0,1,1)
 
-    reqServiceButton1=Gtk.Button("Create Serve Request")
-    reqServiceButton1.connect("clicked", self.select_service)
-    servicecont.attach(reqServiceButton1,0,0,1,1)
-
-
-    self.ServiceRequest_entry=Gtk.Entry()
-    #reqServiceEntry1.connect("clicked", self.select_service)
-    servicecont.attach(self.ServiceRequest_entry,1,0,1,1)
-
-    delreqServiceButton1=Gtk.Button("Delete Serve Request")
-    delreqServiceButton1.connect("clicked", self.select_service)
-    namecont.attach(delreqServiceButton1,0,1,2,1)
-
-
-    goServiceButton1=Gtk.Button("Use Service")
-    goServiceButton1.connect("clicked", self.select_service)
-    servicecont.attach(goServiceButton1,0,2,2,1)
-
+      delServiceButton2=Gtk.Button("Delete service")
+      delServiceButton2.connect("clicked", self.goback_server)
+      servicecont.attach(delServiceButton2,0,0,1,1)
 
     #building frame showing message
     messagef=Gtk.Frame()
     messagef.set_label("Message")
     tempmessage=self.linkback.main.c_get_name_message(self.cur_server,self.cur_name)
     tempshowlabel=Gtk.Label()
+    tempshowlabel.set_selectable(True)
+    
+    tempshowlabel.set_hexpand(True)
+    tempshowlabel.set_halign(Gtk.Align.START)
+    tempshowlabel.set_valign(Gtk.Align.START)
     messagef.add(tempshowlabel)
     if tempmessage is None or tempmessage=="":
       tempshowlabel.set_text("No message")
     else:
       tempshowlabel.set_text(tempmessage)
-    contextcont.attach(messagef,0,1,1,1)
-
+    contextcont.attach(messagef,1,0,1,1)
+    self.servicef=Gtk.Frame()
+    self.servicef.set_vexpand(True)
+    self.servicef.set_hexpand(True)
+    self.servicef.set_shadow_type(Gtk.ShadowType.NONE)
+    contextcont.attach(self.servicef,1,1,1,1)
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_service)
 
     self.navcontextmain.show_all()
+
+
+  ### service gui ###
 
   def buildservicegui(self):
     if self.cur_server is None or self.cur_name is None or self.cur_service is None:
       self.buildnamegui()
       return
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.7, 0.7, 1))
-    self.listelems.set_title("")
-    self.navcontent.clear()
+    #if self.box_select_handler_id!=None:
+    #  self.navbox.disconnect(self.box_select_handler_id)
+    #  self.box_select_handler_id=None
+    self.updatenodelist()
+
     #label counts as child
     if len(self.navcontextmain.get_children())==1:
       self.navcontextmain.get_children()[0].destroy()
+    
     contextcont=Gtk.Grid()
+    contextcont.set_column_spacing(2)
+    contextcont.set_row_spacing(2)
     self.navcontextmain.add(contextcont)
+
+
+    managecont_f=Gtk.Frame()
+    managecont_f.set_label("Basic Actions:")
+    managecont=Gtk.Grid()
+    managecont.set_row_spacing(2)
+    managecont.set_border_width(2)
+    managecont_f.add(managecont)
+    contextcont.attach(managecont_f,0,0,1,1)
+
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,self.cur_service) is None:
+      createreqButton2=Gtk.Button("Create Request")
+      createreqButton2.connect("clicked", self.goback_name)
+      managecont.attach(createreqButton2,0,0,1,1)
+
+      self.ServiceRequest_entry=Gtk.Entry()
+      managecont.attach(self.ServiceRequest_entry,1,0,1,1)
+    else:
+
+      delreqButton2=Gtk.Button("Delete Request")
+      delreqButton2.connect("clicked", self.goback_name)
+      managecont.attach(delreqButton2,0,0,2,1)
+
+
+
     goNameButton2=Gtk.Button("Go back")
     goNameButton2.connect("clicked", self.goback_name)
-    contextcont.attach(goNameButton2,0,0,1,1)
+    managecont.attach(goNameButton2,0,1,2,1)
+
+
+
+
+
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,self.cur_service) is not None:
+      selfmincont_f=Gtk.Frame()
+      selfmincont_f.set_label("Self administration")
+      selfmincont=Gtk.Grid()
+      selfmincont.set_row_spacing(2)
+      selfmincont.set_border_width(2)
+      selfmincont_f.add(selfmincont)
+      contextcont.attach(selfmincont_f,1,0,1,1)
+
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,"admin") is not None:
+      admincont_f=Gtk.Frame()
+      admincont_f.set_label("Node management")
+      admincont=Gtk.Grid()
+      admincont.set_row_spacing(2)
+      admincont.set_border_width(2)
+      admincont_f.add(admincont)
+      contextcont.attach(admincont_f,0,1,1,1)
+
+
+
     temp=self.genservicecontext(self.cur_service)
     temp.set_vexpand(True)
     temp.set_hexpand(True)
-    contextcont.attach(temp,1,0,1,1)
+    contextcont.attach(temp,1,1,1,1)
     self.navcontextmain.show_all()
     
 
   def genservicecontext(self,_service):
-    return Gtk.Label("Placeholder")
+    if _service=="admin":
+      adminsc_f=Gtk.Frame()
+      adminsc_f.set_label("Admin")
+      adminsc=Gtk.Grid()
+      adminsc.set_row_spacing(2)
+      adminsc.set_border_width(2)
+      adminsc_f.add(adminsc)
+      return adminsc_f
+    elif _service=="special" or \
+         _service in self.special_services:
+      spsc_f=Gtk.Frame()
+      spsc_f.set_label("Specialservice")
+      spsc=Gtk.Grid()
+      spsc.set_row_spacing(2)
+      spsc.set_border_width(2)
+      if self.scn_servers.get_service(self.cur_server,self.cur_name,_service) is None and \
+         self.scn_servers.get_service(self.cur_server,self.cur_name,"special") is None:
+        temp=Gtk.Label("No permission")
+        spsc.attach(temp)
 
+      spsc_f.add(spsc)
+      return spsc_f
+    elif _service=="main":
+      mainsc_f=Gtk.Frame()
+      mainsc_f.set_label("Main node")
+      mainsc=Gtk.Grid()
+      mainsc.set_row_spacing(2)
+      mainsc.set_border_width(2)
+      mainsc_f.add(mainsc)
+      return mainsc_f
+    elif _service=="notify":
+      notifysc_f=Gtk.Frame()
+      notifysc_f.set_label("Notify")
+      notifysc=Gtk.Grid()
+      notifysc.set_row_spacing(2)
+      notifysc.set_border_width(2)
+      notifysc_f.add(notifysc)
+      return notifysc_f
+    else:
+      defaultsc_f=Gtk.Frame()
+      defaultsc_f.set_label("__"+_service)
+      defaultsc=Gtk.Grid()
+      defaultsc.set_row_spacing(2)
+      defaultsc.set_border_width(2)
+      defaultsc_f.add(defaultsc)
+
+      return defaultsc_f
 
   ### select section  ###
   def goback_none(self,*args):
@@ -479,6 +683,36 @@ class scnPageNavigation(Gtk.Grid):
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.update(self.cur_server,self.cur_name,temp[0][temp[1]][0])
     
+  ### ?? section ###
+
+  def select_context_server(self,*args):
+    temp=self.navbox.get_selection().get_selected()
+    if temp[1] is None:
+      return
+    tempmessage=self.linkback.main.c_get_server_message(temp[0][temp[1]][0])
+    if tempmessage is None or tempmessage=="":
+      self.selectedservermessage.set_text("No message")
+    else:
+      self.selectedservermessage.set_text(tempmessage)
+
+  def select_context_name(self,*args):
+    temp=self.navbox.get_selection().get_selected()
+    if temp[1] is None:
+      return
+    tempmessage=self.linkback.main.c_get_name_message(self.cur_server,temp[0][temp[1]][0])
+    if tempmessage is None or tempmessage=="":
+      self.selectednamemessage.set_text("No message")
+    else:
+      self.selectednamemessage.set_text(tempmessage)
+
+  def select_context_service(self,*args):
+    temp=self.navbox.get_selection().get_selected()
+    if temp[1] is None:
+      return
+    if len(self.servicef.get_children())>=1:
+      self.servicef.get_children()[0].destroy()
+    self.servicef.add(self.genservicecontext(temp[0][temp[1]][0]))
+    self.servicef.show_all()
   ### server section ###
 
   def delete_server_intern(self,_delete_server):
@@ -664,30 +898,6 @@ class scnPageNavigation(Gtk.Grid):
       self.updateservicelist()
 
 
-"""
-class scnPageServers(Gtk.Frame):
-  parent=None
-  def __init__(self,_parent):
-    Gtk.Frame.__init__(self)
-    self.parent=_parent
-    cont=Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-    self.serverlist=Gtk.ListBox()#orientation=Gtk.Orientation.VERTICAL)
-    cont.pack_start(self.serverlist,True,True,0)
-    controls=Gtk.Grid()
-    cont.pack_start(controls,True,True,0)
-    add_server_button=Gtk.Button("Add Server")
-    add_server_button.connect("clicked", self.add_server)
-    controls.attach(add_server_button,0,0,1,1)
-    self.add(cont)
-    self.update()
-    self.show_all()
-    
-  def update(self):
-    for elem in self.parent.linkback.main.scn_servers.list_nodes():
-      self.serverlist.add(scnServerNode(elem[0],self.parent))
-
-  def add_server(self,button):
-    pass"""
 
 class scnPageFriends(Gtk.Grid):
   parent=None

@@ -438,6 +438,7 @@ class scn_server(scn_base_server):
            "update_service": scn_base_server.s_update_service,
            "delete_service":scn_base_server.s_delete_service,
            "get_service_secrethash": scn_base_server.s_get_service_secrethash,
+           "get_service": scn_base_server.s_get_service,
            "serve": scn_base_server.s_serve_service,
            "unserve": scn_base_server.s_unserve_service,
            "update_secret": scn_base_server.s_update_secret,
