@@ -221,8 +221,8 @@ class scn_servs_sql(object):
       FOREIGN KEY(servername) REFERENCES scn_urls(servername) ON UPDATE CASCADE ON DELETE CASCADE);''')
 
 
-      con.execute('''CREATE TABLE if not exists scn_urls(servername TEXT, url TEXT, certname TEXT
-      PRIMARY KEY(servername,url),
+      con.execute('''CREATE TABLE if not exists scn_urls(servername TEXT, url TEXT, certname TEXT,
+      PRIMARY KEY(servername,url,certname),
       FOREIGN KEY(certname) REFERENCES scn_certs(certname) ON UPDATE CASCADE ON DELETE CASCADE  );''')
       
       con.execute('''CREATE TABLE if not exists scn_certs(certname TEXT, cert BLOB,PRIMARY KEY(certname), UNIQUE(cert)  );''')
@@ -233,7 +233,12 @@ class scn_servs_sql(object):
       printerror(u)
     con.close()
 
-  def add_server(self,_servername,_url,_cert):
+  def add_server(self,_servername,_url,_cert,_certname=None):
+    if _certname is None:
+      _certname=self.get_cert_name(_cert)
+    if _certname is None:
+      _certname=_servername
+      
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -242,8 +247,8 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''INSERT OR IGNORE into scn_certs(certname,cert) values ''',(_servername,_cert))
-      cur.execute('''INSERT into scn_urls(servername,url) values(?,?);''',(_servername,_url))
+      cur.execute('''INSERT OR IGNORE into scn_certs(certname,cert) values (?,?)''',(_certname,_cert))
+      cur.execute('''INSERT into scn_urls(servername,url,certname) values(?,?,?);''',(_servername,_url,_certname))
       con.commit()
     except sqlite3.IntegrityError:
       printdebug("exists already")
@@ -256,7 +261,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_server(self,_servername,_url,_cert):
+  def update_server(self,_servername,_url,_cert): #,_certname_new=None
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -270,7 +275,11 @@ class scn_servs_sql(object):
       WHERE servername=?;''',(_url,_cert,_servername))
       cur.execute('''
       UPDATE scn_certs(cert) values(?)
-      WHERE certname= (SELECT certname FROM scn_urls WHERE servername=?) ;''',(_cert,_servername))
+      WHERE certname=(SELECT certname FROM scn_urls WHERE servername=?) ;''',(_cert,_servername))
+#      if _certname_new is not None:
+#        cur.execute('''
+#        UPDATE scn_certs(certname) values(?)
+#      WHERE certname=(SELECT certname FROM scn_urls WHERE servername=?) ;'''#,(_certname_new,_servername))
       con.commit();
     except Exception as u:
       printdebug(u)
@@ -300,6 +309,45 @@ class scn_servs_sql(object):
     con.close()
     return True
 
+  def update_cert_name(self,_certname,_certname_new):
+    if self.get_cert(_certname_new) is not None:
+      return False
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''UPDATE scn_certs SET certname=? WHERE certname=?;''',(_certname_new,_certname))
+      con.commit();
+    except Exception as u:
+      printdebug(u)
+      con.rollback()
+      return False
+    con.close()
+    return True
+
+  def change_cert(self,_servername,_certname_new):
+    if self.get_cert(_certname_new) is None:
+      return False
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''UPDATE scn_urls SET certname=? WHERE servername=?;''',(_certname_new,_servername))
+      con.commit();
+    except Exception as u:
+      printdebug(u)
+      con.rollback()
+      return False
+    con.close()
+    return True
 
   def update_service(self,_servername,_name,_service,_secret,_pendingstate=True):
     try:
@@ -399,8 +447,8 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''SELECT c.url,b.cert,a.secret, a.pending
       FROM scn_serves as a,scn_certs as b,scn_urls as c
-      WHERE b.servername=? AND a.name=? AND a.service=?
-      AND a.servername=b.nodename AND b.certname=c.certname;''',(_servername,_name,_servicename))
+      WHERE c.servername=? AND a.name=? AND a.service=?
+      AND a.servername=c.servername AND b.certname=c.certname;''',(_servername,_name,_servicename))
       temp=cur.fetchone()
     except Exception as u:
       printerror(u)
@@ -468,6 +516,43 @@ class scn_servs_sql(object):
       return False
     con.close()
     return True
+  def get_cert(self,_certname):
+    temp=None
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printdebug(u)
+      return None
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''SELECT cert
+      FROM scn_certs
+      WHERE certname=?''',(_certname,))
+      temp=cur.fetchone()
+    except Exception as u:
+      printerror(u)
+    con.close()
+    return temp #cert or None
+  def get_cert_name(self,_cert):
+    temp=None
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printdebug(u)
+      return None
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''SELECT certname
+      FROM scn_certs
+      WHERE cert=?''',(_cert,))
+      temp=cur.fetchone()
+    except Exception as u:
+      printerror(u)
+    con.close()
+    return temp #cert or None
+
 
   def get_server(self,_servername):
     temp=None
@@ -479,10 +564,9 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT a.url,b.cert
+      cur.execute('''SELECT a.url,b.cert,b.certname
       FROM scn_urls as a, scn_certs as b
-      WHERE a.servername=?
-      AND a.certname=b.certname''',(_servername,))
+      WHERE a.servername=? AND a.certname=b.certname''',(_servername,))
       temp=cur.fetchone()
     except Exception as u:
       printerror(u)
@@ -515,7 +599,7 @@ class scn_servs_sql(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''SELECT servername FROM scn_urls''')
+      cur.execute('''SELECT servername,url,certname FROM scn_urls''')
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
@@ -577,6 +661,7 @@ class scn_client(scn_base_client):
 
 #connect methods
   def connect_to(self,_server):
+    
     tempdata=self.scn_servers.get_server(_server)
     if tempdata == None:
       raise (scnConnectException("connect_to: servername doesn't exist"))

@@ -6,6 +6,8 @@ import signal
 import sys
 
 from scn_client import client_master,scn_client,scn_server_client,scn_sock_client
+from scn_base import check_invalid_s,printerror
+
 from gi.repository import Gtk,Gdk
 
 from scn_config import default_config_folder, scn_host
@@ -42,15 +44,25 @@ class scnDeletionDialog(Gtk.Dialog):
 
 class scnServerEditDialog(Gtk.Dialog):
   servername=None
-  urlname=None
-  def __init__(self, _parent, _title, _servername,_url=""):
+  certname=None
+  certchange=None
+  url=None
+  def __init__(self, _parent, _title, _servername,_serverinfo=None):
     self.parent=_parent
     self.servername=Gtk.Entry()
     self.servername.set_hexpand(True)
     self.servername.set_text(_servername)
+    self.certname=Gtk.Entry()
+    self.certname.set_hexpand(True)
+    if _serverinfo is None:
+      self.certname.set_text(_servername)
+    else:
+      self.certname.set_text(_serverinfo[2])
+    self.certchange=Gtk.CheckButton(label="Change to cert")
     self.url=Gtk.Entry()
     self.url.set_hexpand(True)
-    self.url.set_text(_url)
+    if _serverinfo is not None:
+      self.url.set_text(_serverinfo[0])
     
     Gtk.Dialog.__init__(self, _title, self.parent,
                         Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
@@ -66,10 +78,16 @@ class scnServerEditDialog(Gtk.Dialog):
     tsname.set_halign(Gtk.Align.END)
     cont.attach(tsname,0,0,1,1)
     cont.attach(self.servername,1,0,1,1)
+    tcn=Gtk.Label("Certificate name: ")
+    tcn.set_halign(Gtk.Align.END)
+    cont.attach(tcn,0,1,1,1)
+    cont.attach(self.certname,1,1,1,1)
+    if _serverinfo is not None:
+      cont.attach(self.certchange,2,1,1)
     turl=Gtk.Label("Url: ")
     turl.set_halign(Gtk.Align.END)
-    cont.attach(turl,0,1,1,1)
-    cont.attach(self.url,1,1,1,1)
+    cont.attach(turl,0,2,1,1)
+    cont.attach(self.url,1,2,1,1)
 
     self.show_all()
 
@@ -748,10 +766,13 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def add_server(self,*args):
-    dialog = scnServerEditDialog(self.parent,"Add new server","","")
+    dialog = scnServerEditDialog(self.parent,"Add new server","")
     try:
       if dialog.run()==Gtk.ResponseType.OK:
-        if self.linkback.main.c_add_server(dialog.servername.get_text(),dialog.url.get_text())==True:
+        tempcertname=dialog.certname.get_text()
+        if tempcertname=="":
+          tempcertname=None
+        if self.linkback.main.c_add_server(dialog.servername.get_text(),dialog.url.get_text(),tempcertname)==True:
           self.updateserverlist()
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
@@ -779,11 +800,22 @@ class scnPageNavigation(Gtk.Grid):
       self.parent.state_widget.set_text("Not exists")
       return
     #todo: show cert
-    dialog = scnServerEditDialog(self.parent,"Edit server",_server,temp[0])
+    dialog = scnServerEditDialog(self.parent,"Edit server",_server,temp)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
+        tempcertname=dialog.certname.get_text()
+        if check_invalid_s(tempcertname)==False or check_invalid_s(dialog.servername.get_text())==False:
+          printerror("Invalid characters")
+          return False
+        if tempcertname!="" and tempcertname!=temp[2]:
+          if dialog.certchange.get_active()==False:
+            if self.linkback.main.scn_servers.update_cert_name(_server,tempcertname)==False:
+              return False
+          else:
+            if self.linkback.main.scn_servers.change_cert(_server,tempcertname)==False:
+              return False
         if dialog.servername!=_server:
-          self.linkback.main.scn_servers.update_node_name(_server,dialog.servername.get_text())
+          self.linkback.main.scn_servers.update_server_name(_server,dialog.servername.get_text())
           
         if self.linkback.main.c_update_server(dialog.servername.get_text(),dialog.url.get_text())==True:
           returnstate=True

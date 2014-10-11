@@ -1160,7 +1160,7 @@ class scn_base_client(scn_base_base):
       return None
 
 
-  def c_add_server(self,_servername,_url):
+  def c_add_server(self,_servername,_url,_certname=None):
     _socket=scn_socket(self.connect_to_ip(_url))
     if _socket is None:
       printerror("Error: connection failed")
@@ -1172,7 +1172,7 @@ class scn_base_client(scn_base_base):
       return False
     _cert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
-    if self.scn_servers.add_node(_servername,_url,_cert)==True:
+    if self.scn_servers.add_server(_servername,_url,_cert,_cert)==True:
       return True
     else:
       printdebug("server creation failed")
@@ -1181,7 +1181,7 @@ class scn_base_client(scn_base_base):
   def c_update_server(self,_servername,_url): #, update_cert_hook):
     
     if self.scn_servers.get_server(_servername) is None:
-      printerror("Error: Node doesn't exist")
+      printerror("Error: server doesn't exist")
       return False
     _socket=scn_socket(self.connect_to_ip(_url))
     if _socket is None:
@@ -1218,7 +1218,7 @@ class scn_base_client(scn_base_base):
   def c_delete_server(self,_servername):
     if self.scn_servers.del_server(_servername)==True:
       return True
-      #return self.scn_friends.del_server_all(_nodename)
+      #return self.scn_friends.del_server_all(_servername)
     else:
       printerror("server deletion failed")
       return False
