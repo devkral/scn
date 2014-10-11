@@ -265,7 +265,7 @@ class scnPageNavigation(Gtk.Grid):
 
   def buildNonegui(self):
     if self.updateserverlist()==False:
-      self.state_widget.set_text("Error loading servers")
+      self.parent.state_widget.set_text("Error loading servers")
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None

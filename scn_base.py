@@ -1161,9 +1161,6 @@ class scn_base_client(scn_base_base):
 
 
   def c_add_server(self,_servername,_url):
-    if self.scn_servers.get_node(_servername) is not None:
-      printerror("Error: node exists already")
-      return False
     _socket=scn_socket(self.connect_to_ip(_url))
     if _socket is None:
       printerror("Error: connection failed")
@@ -1175,10 +1172,10 @@ class scn_base_client(scn_base_base):
       return False
     _cert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
-    if self.scn_servers.update_node(_servername,_url,_cert)==True:
+    if self.scn_servers.add_node(_servername,_url,_cert)==True:
       return True
     else:
-      printdebug("node update failed")
+      printdebug("server creation failed")
       return False
 
   def c_update_server(self,_servername,_url): #, update_cert_hook):
