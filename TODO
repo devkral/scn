@@ -1,14 +1,15 @@
 important
-
+-rename name to domain, service to serveclass, exposed services as service
 -fix multithreading (later)
--add webgui
--finish server client side
+-finish gui
+-expose real services
+-client connection timeouts (remove this feature from the locking module)
+-move special services to admin
+-rename admin to main
 
 future:
 rename specialservices to plugin
 
 enhancements:
--gui
 -callbacks
 -tunnels
--sslwrap

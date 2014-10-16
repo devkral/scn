@@ -1158,7 +1158,10 @@ class scn_base_client(scn_base_base):
     else:
       _socket.close()
       return None
-
+  def c_expose(self,addr_method,addr,identifier): #identifier is either port num or name
+    pass
+  def c_unexpose(self,identifier): #identifier is either port num or name
+    pass
 
   def c_add_server(self,_servername,_url,_certname=None):
     _socket=scn_socket(self.connect_to_ip(_url))
