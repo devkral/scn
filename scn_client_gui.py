@@ -625,24 +625,44 @@ class scnPageNavigation(Gtk.Grid):
     if _service=="admin":
       adminsc_f=Gtk.Frame()
       adminsc_f.set_label("Admin")
+      if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_domain,"admin") is None:
+        adminsc_f.add(Gtk.Label("No permission"))
+        adminsc_f.show_all()
+        return adminsc_f
       adminsc=Gtk.Grid()
       adminsc.set_row_spacing(2)
       adminsc.set_border_width(2)
       adminsc_f.add(adminsc)
+      adminsc_f.show_all()
       return adminsc_f
     elif _service=="special" or \
          _service in self.special_services:
       spsc_f=Gtk.Frame()
       spsc_f.set_label("Specialservice")
+      if self.scn_servers.get_service(self.cur_server,self.cur_domain,_service) is None and \
+         self.scn_servers.get_service(self.cur_server,self.cur_domain,"special") is None and \
+         self.scn_servers.get_service(self.cur_server,self.cur_domain,"admin") is None:
+        temp=Gtk.Label("No permission")
+        spsc_f.add(temp)
+        spsc_f.show_all()
+        return spsc_f
       spsc=Gtk.Grid()
       spsc.set_row_spacing(2)
       spsc.set_border_width(2)
-      if self.scn_servers.get_service(self.cur_server,self.cur_domain,_service) is None and \
-         self.scn_servers.get_service(self.cur_server,self.cur_domain,"special") is None:
-        temp=Gtk.Label("No permission")
-        spsc.attach(temp)
-
       spsc_f.add(spsc)
+      addnodebut=Gtk.Button("Add Node")
+      spsc.attach(addnodebut,0,0,1,1)
+      addservebut=Gtk.Button("Add Service")
+      spsc.attach(addservebut,0,1,1,1)
+      
+      changemessagebut=Gtk.Button()
+      if self.cur_domain=="admin":
+        changemessagebut.set_text("Change Server Message")
+      else:
+        changemessagebut.set_text("Change Domain Message")
+      spsc.attach(changemessagebut,0,2,1,1)
+      #addusertoservice
+      spsc_f.show_all()
       return spsc_f
     elif _service=="main":
       mainsc_f=Gtk.Frame()
