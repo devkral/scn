@@ -20,20 +20,20 @@ icons=Gtk.IconTheme.get_default()
 
 
 #TODO: redesign: use splitscreen: a small tree with servernames,
-#a subwindow tree with names on server (compressed)
+#a subwindow tree with domains on server (compressed)
 #a subwindow with actions
 
 class scnDeletionDialog(Gtk.Dialog):
-  def __init__(self, _parent, _server,_name=None,_service=None):
+  def __init__(self, _parent, _server,_domain=None,_service=None):
     Gtk.Dialog.__init__(self, "Confirm Deletion", _parent,
                         Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
     self.set_default_size(150, 100)
     self.add_button("Cancel", Gtk.ResponseType.CANCEL)
     self.add_button("OK", Gtk.ResponseType.OK)
-    if _name is not None and _service is not None:
-      label=Gtk.Label("Shall service \""+_service+"\" of "+_server+"/"+_name+" be deleted?")
-    elif _name is not None and _service is None:
-      label=Gtk.Label("Shall name \""+_name+"\" on "+_server+" be deleted?")
+    if _domain is not None and _service is not None:
+      label=Gtk.Label("Shall service \""+_service+"\" of "+_server+"/"+_domain+" be deleted?")
+    elif _domain is not None and _service is None:
+      label=Gtk.Label("Shall domain \""+_domain+"\" on "+_server+" be deleted?")
     else:
       label=Gtk.Label("Shall server \""+_server+"\" be deleted?")
 
@@ -130,7 +130,7 @@ class scnPageNavigation(Gtk.Grid):
   linkback=None
 
   cur_server=None #use only after set by scnupdate
-  cur_name=None #use only after set by scnupdate
+  cur_domain=None #use only after set by scnupdate
   cur_service=None #use only after set by scnupdate
   box_select_handler_id=None
 
@@ -191,21 +191,21 @@ class scnPageNavigation(Gtk.Grid):
     self.update()
 
 
-  def update(self,_server=None,_name=None,_service=None):
+  def update(self,_server=None,_domain=None,_service=None):
     if _server=="":
       _server=None
     self.cur_server=_server
-    self.cur_name=_name
+    self.cur_domain=_domain
     self.cur_service=_service
     if _service is not None:
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
       
-      self.navbar.set_text(self.cur_server+"/"+self.cur_name+"/"+self.cur_service)
+      self.navbar.set_text(self.cur_server+"/"+self.cur_domain+"/"+self.cur_service)
       self.buildservicegui()
 
-    elif _name is not None:
-      self.navbar.set_text(self.cur_server+"/"+self.cur_name+"/")
-      self.buildnamegui()
+    elif _domain is not None:
+      self.navbar.set_text(self.cur_server+"/"+self.cur_domain+"/")
+      self.builddomaingui()
 
     elif _server is not None:
       self.navbar.set_text(self.cur_server+"/")
@@ -230,14 +230,14 @@ class scnPageNavigation(Gtk.Grid):
     for elem in temp2:
       self.navcontent.append((elem[0],))
 
-  def updatenamelist(self):
-    temp_remote=self.linkback.main.c_list_names(self.cur_server)
+  def updatedomainlist(self):
+    temp_remote=self.linkback.main.c_list_domains(self.cur_server)
     if temp_remote is None:
       return False
-    temp_local=self.linkback.main.scn_servers.list_names(self.cur_server)
+    temp_local=self.linkback.main.scn_servers.list_domains(self.cur_server)
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
     self.navbox.show()
-    self.listelems.set_title("Name")
+    self.listelems.set_title("Domain")
     self.navcontent.clear()
 
     for elem in temp_local:
@@ -248,7 +248,7 @@ class scnPageNavigation(Gtk.Grid):
     return True
 
   def updateservicelist(self):
-    temp2=self.linkback.main.c_list_services(self.cur_server,self.cur_name)
+    temp2=self.linkback.main.c_list_services(self.cur_server,self.cur_domain)
     if temp2 is None:
       return False
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
@@ -274,7 +274,7 @@ class scnPageNavigation(Gtk.Grid):
       return True
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.5, 0.5, 1))
 
-    temp2=self.linkback.main.c_get_service(self.cur_server,self.cur_name,self.cur_service)
+    temp2=self.linkback.main.c_get_service(self.cur_server,self.cur_domain,self.cur_service)
     if temp2 is None:
       return False
     self.listelems.set_title("Users")
@@ -337,7 +337,7 @@ class scnPageNavigation(Gtk.Grid):
     messagef2.set_label("Message")
     self.selectedservermessage=Gtk.Label()
     self.selectedservermessage.set_selectable(True)
-    #self.linkback.main.c_get_name_message(self.cur_server,self.cur_name)
+    #self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
     
     self.selectedservermessage.set_halign(Gtk.Align.START)
     self.selectedservermessage.set_valign(Gtk.Align.START)
@@ -352,7 +352,7 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def buildservergui(self):
-    if self.updatenamelist()==False:
+    if self.updatedomainlist()==False:
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildNonegui()
       return
@@ -383,9 +383,9 @@ class scnPageNavigation(Gtk.Grid):
     goNoneButton2.connect("clicked", self.goback_none)
     navcont.attach(goNoneButton2,0,0,1,1)
 
-    goNameButton1=Gtk.Button("Use Name")
-    goNameButton1.connect("clicked", self.select_name)
-    navcont.attach(goNameButton1,0,1,1,1)
+    goDomainButton1=Gtk.Button("Use Domain")
+    goDomainButton1.connect("clicked", self.select_domain)
+    navcont.attach(goDomainButton1,0,1,1,1)
 
     ### server actions ###
 
@@ -407,25 +407,25 @@ class scnPageNavigation(Gtk.Grid):
 
     
     
-    ### name actions ###
+    ### domain actions ###
 
-    namecont_f=Gtk.Frame()
-    namecont_f.set_label("Name actions")
-    namecont=Gtk.Grid()
-    namecont.set_row_spacing(2)
-    namecont.set_border_width(2)
-    namecont_f.add(namecont)
-    contextcont.attach(namecont_f,0,2,1,1)
+    domaincont_f=Gtk.Frame()
+    domaincont_f.set_label("Domain actions")
+    domaincont=Gtk.Grid()
+    domaincont.set_row_spacing(2)
+    domaincont.set_border_width(2)
+    domaincont_f.add(domaincont)
+    contextcont.attach(domaincont_f,0,2,1,1)
 
 
-    addNameButton1=Gtk.Button("Register Name")
-    addNameButton1.connect("clicked", self.register_name)
-    namecont.attach(addNameButton1,0,0,1,1)
+    addDomainButton1=Gtk.Button("Register Domain")
+    addDomainButton1.connect("clicked", self.register_domain)
+    domaincont.attach(addDomainButton1,0,0,1,1)
     
 
-    deleteNameButton3=Gtk.Button("Delete Name")
-    deleteNameButton3.connect("clicked", self.delete_name)
-    namecont.attach(deleteNameButton3,0,1,1,1)
+    deleteDomainButton3=Gtk.Button("Delete Domain")
+    deleteDomainButton3.connect("clicked", self.delete_domain)
+    domaincont.attach(deleteDomainButton3,0,1,1,1)
 
 
     ### space for message
@@ -448,22 +448,22 @@ class scnPageNavigation(Gtk.Grid):
     #building frame showing message
     messagef2=Gtk.Frame()
     messagef2.set_label("Message")
-    self.selectednamemessage=Gtk.Label()
-    self.selectednamemessage.set_halign(Gtk.Align.START)
-    self.selectednamemessage.set_valign(Gtk.Align.START)
-    self.selectednamemessage.set_selectable(True)
-    #self.linkback.main.c_get_name_message(self.cur_server,self.cur_name)
-    self.selectednamemessage.set_hexpand(True)
-    self.selectednamemessage.set_vexpand(True)
-    messagef2.add(self.selectednamemessage)
+    self.selecteddomainmessage=Gtk.Label()
+    self.selecteddomainmessage.set_halign(Gtk.Align.START)
+    self.selecteddomainmessage.set_valign(Gtk.Align.START)
+    self.selecteddomainmessage.set_selectable(True)
+    #self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
+    self.selecteddomainmessage.set_hexpand(True)
+    self.selecteddomainmessage.set_vexpand(True)
+    messagef2.add(self.selecteddomainmessage)
     contextcont.attach(messagef2,1,1,1,2)
-    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_name)
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_domain)
 
 #    self.servercont_f.show_all()
-#    self.namecont_f.show_all()
+#    self.domaincont_f.show_all()
     self.navcontextmain.show_all()
 
-  def buildnamegui(self):
+  def builddomaingui(self):
     
     if self.updateservicelist()==False:
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
@@ -507,7 +507,7 @@ class scnPageNavigation(Gtk.Grid):
     servicecont_f.add(servicecont)
     contextcont.attach(servicecont_f,0,1,1,1)
 
-    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,"admin") is not None:
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_domain,"admin") is not None:
       addServiceButton2=Gtk.Button("Add service")
       addServiceButton2.connect("clicked", self.goback_server)
       servicecont.attach(addServiceButton2,0,0,1,1)
@@ -519,7 +519,7 @@ class scnPageNavigation(Gtk.Grid):
     #building frame showing message
     messagef=Gtk.Frame()
     messagef.set_label("Message")
-    tempmessage=self.linkback.main.c_get_name_message(self.cur_server,self.cur_name)
+    tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
     tempshowlabel=Gtk.Label()
     tempshowlabel.set_selectable(True)
     
@@ -545,8 +545,8 @@ class scnPageNavigation(Gtk.Grid):
   ### service gui ###
 
   def buildservicegui(self):
-    if self.cur_server is None or self.cur_name is None or self.cur_service is None:
-      self.buildnamegui()
+    if self.cur_server is None or self.cur_domain is None or self.cur_service is None:
+      self.builddomaingui()
       return
     #if self.box_select_handler_id!=None:
     #  self.navbox.disconnect(self.box_select_handler_id)
@@ -571,9 +571,9 @@ class scnPageNavigation(Gtk.Grid):
     managecont_f.add(managecont)
     contextcont.attach(managecont_f,0,0,1,1)
 
-    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,self.cur_service) is None:
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_domain,self.cur_service) is None:
       createreqButton2=Gtk.Button("Create Request")
-      createreqButton2.connect("clicked", self.goback_name)
+      createreqButton2.connect("clicked", self.goback_domain)
       managecont.attach(createreqButton2,0,0,1,1)
 
       self.ServiceRequest_entry=Gtk.Entry()
@@ -581,20 +581,20 @@ class scnPageNavigation(Gtk.Grid):
     else:
 
       delreqButton2=Gtk.Button("Delete Request")
-      delreqButton2.connect("clicked", self.goback_name)
+      delreqButton2.connect("clicked", self.goback_domain)
       managecont.attach(delreqButton2,0,0,2,1)
 
 
 
-    goNameButton2=Gtk.Button("Go back")
-    goNameButton2.connect("clicked", self.goback_name)
-    managecont.attach(goNameButton2,0,1,2,1)
+    goDomainButton2=Gtk.Button("Go back")
+    goDomainButton2.connect("clicked", self.goback_domain)
+    managecont.attach(goDomainButton2,0,1,2,1)
 
 
 
 
 
-    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,self.cur_service) is not None:
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_domain,self.cur_service) is not None:
       selfmincont_f=Gtk.Frame()
       selfmincont_f.set_label("Self administration")
       selfmincont=Gtk.Grid()
@@ -603,7 +603,7 @@ class scnPageNavigation(Gtk.Grid):
       selfmincont_f.add(selfmincont)
       contextcont.attach(selfmincont_f,1,0,1,1)
 
-    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_name,"admin") is not None:
+    if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_domain,"admin") is not None:
       admincont_f=Gtk.Frame()
       admincont_f.set_label("Node management")
       admincont=Gtk.Grid()
@@ -637,8 +637,8 @@ class scnPageNavigation(Gtk.Grid):
       spsc=Gtk.Grid()
       spsc.set_row_spacing(2)
       spsc.set_border_width(2)
-      if self.scn_servers.get_service(self.cur_server,self.cur_name,_service) is None and \
-         self.scn_servers.get_service(self.cur_server,self.cur_name,"special") is None:
+      if self.scn_servers.get_service(self.cur_server,self.cur_domain,_service) is None and \
+         self.scn_servers.get_service(self.cur_server,self.cur_domain,"special") is None:
         temp=Gtk.Label("No permission")
         spsc.attach(temp)
 
@@ -684,22 +684,22 @@ class scnPageNavigation(Gtk.Grid):
   def goback_server(self,*args):
     self.update(self.cur_server)
 
-  def select_name(self,*args):
+  def select_domain(self,*args):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.update(self.cur_server,temp[0][temp[1]][0])
 
-  def goback_name(self,*args):
-    self.update(self.cur_server,self.cur_name) 
+  def goback_domain(self,*args):
+    self.update(self.cur_server,self.cur_domain) 
   
   def select_service(self,*args):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    self.update(self.cur_server,self.cur_name,temp[0][temp[1]][0])
+    self.update(self.cur_server,self.cur_domain,temp[0][temp[1]][0])
     
   ### ?? section ###
 
@@ -713,15 +713,15 @@ class scnPageNavigation(Gtk.Grid):
     else:
       self.selectedservermessage.set_text(tempmessage)
 
-  def select_context_name(self,*args):
+  def select_context_domain(self,*args):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    tempmessage=self.linkback.main.c_get_name_message(self.cur_server,temp[0][temp[1]][0])
+    tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,temp[0][temp[1]][0])
     if tempmessage is None or tempmessage=="":
-      self.selectednamemessage.set_text("No message")
+      self.selecteddomainmessage.set_text("No message")
     else:
-      self.selectednamemessage.set_text(tempmessage)
+      self.selecteddomainmessage.set_text(tempmessage)
 
   def select_context_service(self,*args):
     temp=self.navbox.get_selection().get_selected()
@@ -828,12 +828,12 @@ class scnPageNavigation(Gtk.Grid):
     dialog.destroy()
     return returnstate
 
-  def register_name(self,*args):
+  def register_domain(self,*args):
     dialog = scnNameAddDialog(self.parent,"Register",self.cur_server)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
-        if self.linkback.main.c_register_name(self.cur_server,dialog.name.get_text())==True:
-          self.updatenamelist()
+        if self.linkback.main.c_register_domain(self.cur_server,dialog.name.get_text())==True:
+          self.updatedomainlist()
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
         else:
@@ -845,13 +845,13 @@ class scnPageNavigation(Gtk.Grid):
     dialog.destroy()
 
 
-  def delete_name_intern(self,_delete_name):
+  def delete_domain_intern(self,_delete_domain):
     returnstate=False
-    dialog = scnDeletionDialog(self.parent,self.cur_server,_delete_name)
+    dialog = scnDeletionDialog(self.parent,self.cur_server,_delete_domain)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
-        if self.linkback.main.c_delete_name(self.cur_server,_delete_name)==True:
-          self.linkback.main.scn_servers.del_name(self.cur_server,_delete_name)
+        if self.linkback.main.c_delete_domain(self.cur_server,_delete_domain)==True:
+          self.linkback.main.scn_servers.del_domain(self.cur_server,_delete_domain)
           self.parent.state_widget.set_text("Success")
           returnstate=True
           #returnel=Gtk.Label("Success")
@@ -865,29 +865,29 @@ class scnPageNavigation(Gtk.Grid):
     if returnstate==False:
       pass
       #delete anyway dialog
-      #self.linkback.main.scn_servers.del_name(self.cur_server,_delete_name)
+      #self.linkback.main.scn_servers.del_domain(self.cur_server,_delete_domain)
 
     return returnstate
 
-  def delete_name(self, *args):
+  def delete_domain(self, *args):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    if self.delete_name_intern(temp[0][temp[1]][0])==True:
-      self.updatenamelist()
+    if self.delete_domain_intern(temp[0][temp[1]][0])==True:
+      self.updatedomainlist()
 
 
-  def delete_name2(self, *args):
-    if self.delete_name_intern(self.cur_name)==True:
+  def delete_domain2(self, *args):
+    if self.delete_domain_intern(self.cur_domain)==True:
       self.update(self.cur_server)
-      self.updatenamelist()
-  ### name/service section ###
+      self.updatedomainlist()
+  ### domain/service section ###
 
   def add_service(self,*args):
     dialog = scnNameAddDialog(self.parent,"Add Service",self.cur_server)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
-        if True==True:#self.linkback.main.c_register_name(self.cur_server,dialog.name.get_text())==True:
+        if True==True:#self.linkback.main.c_register_domain(self.cur_server,dialog.domain.get_text())==True:
           self.updateservicelist()
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
@@ -902,10 +902,10 @@ class scnPageNavigation(Gtk.Grid):
 
   def delete_service_intern(self,_delete_service):
     returnstate=False
-    dialog = scnDeletionDialog(self.parent,self.cur_server,self.cur_name,_delete_service)
+    dialog = scnDeletionDialog(self.parent,self.cur_server,self.cur_domain,_delete_service)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
-        if self.linkback.main.c_delete_service(self.cur_server,self.cur_name,_delete_service)==True:
+        if self.linkback.main.c_delete_service(self.cur_server,self.cur_domain,_delete_service)==True:
           returnstate=True
           self.parent.state_widget.set_text("Success")
           #returnel=Gtk.Label("Success")
@@ -925,7 +925,7 @@ class scnPageNavigation(Gtk.Grid):
 
 
   def delete_service2(self, *args):
-    if self.delete_service_intern(self.cur_name)==True:
+    if self.delete_service_intern(self.cur_domain)==True:
       self.update(self.cur_service)
       self.updateservicelist()
 
