@@ -558,6 +558,9 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
       return
+      if _service=="admin":
+        _socket.send("error"+sepc+"can't delete admin"+sepm)
+        return
     
     if self.scn_domains.get(_domain).delete_service(_service)==True:
       self.scn_store.del_service(_domain,_service)
@@ -958,7 +961,7 @@ class scn_base_client(scn_base_base):
     temp=self.scn_servers.get_service(_servername,_domain,"admin")
     _socket.send("delete_service"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
-    _socket.send_bytes(_service+sepm)
+    _socket.send(_service+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
     return _server_response

@@ -133,6 +133,7 @@ class scnPageNavigation(Gtk.Grid):
   cur_domain=None #use only after set by scnupdate
   cur_service=None #use only after set by scnupdate
   box_select_handler_id=None
+  box_activate_handler_id=None
 
   def __init__(self,_parent):
     Gtk.Grid.__init__(self)
@@ -149,6 +150,7 @@ class scnPageNavigation(Gtk.Grid):
     self.navbar.connect("activate",self.navbarupdate)
     self.navcontent=Gtk.ListStore(str)
     self.navbox=Gtk.TreeView(self.navcontent)
+    self.navbox.set_activate_on_single_click(False)
     renderer = Gtk.CellRendererText()
     self.listelems = Gtk.TreeViewColumn("Title", renderer, text=0)
     self.navbox.append_column(self.listelems)
@@ -197,9 +199,9 @@ class scnPageNavigation(Gtk.Grid):
     self.cur_server=_server
     self.cur_domain=_domain
     self.cur_service=_service
+
+      #self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     if _service is not None:
-      self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-      
       self.navbar.set_text(self.cur_server+"/"+self.cur_domain+"/"+self.cur_service)
       self.buildservicegui()
 
@@ -287,6 +289,10 @@ class scnPageNavigation(Gtk.Grid):
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
+      
+    if self.box_activate_handler_id!=None:
+      self.navbox.disconnect(self.box_activate_handler_id)
+      self.box_activate_handler_id=None
     #label counts as child, so ignore it
     if len(self.navcontextmain.get_children())==1:
       self.navcontextmain.get_children()[0].destroy()
@@ -346,7 +352,7 @@ class scnPageNavigation(Gtk.Grid):
     messagef2.add(self.selectedservermessage)
     contextcont.attach(messagef2,1,1,1,1)
     self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_server)
-
+    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_server)
     self.navcontextmain.show_all()
 
 
@@ -359,6 +365,10 @@ class scnPageNavigation(Gtk.Grid):
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
+
+    if self.box_activate_handler_id!=None:
+      self.navbox.disconnect(self.box_activate_handler_id)
+      self.box_activate_handler_id=None
     if len(self.navcontextmain.get_children())==1:
       #print(self.navcontextmain.get_children())
       self.navcontextmain.get_children()[0].destroy()
@@ -458,6 +468,8 @@ class scnPageNavigation(Gtk.Grid):
     messagef2.add(self.selecteddomainmessage)
     contextcont.attach(messagef2,1,1,1,2)
     self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_domain)
+    
+    self.box_select_handler_id=self.navbox.connect("row-activated",self.select_domain)
 
 #    self.servercont_f.show_all()
 #    self.domaincont_f.show_all()
@@ -472,7 +484,10 @@ class scnPageNavigation(Gtk.Grid):
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
-      
+    
+    if self.box_activate_handler_id!=None:
+      self.navbox.disconnect(self.box_activate_handler_id)
+      self.box_activate_handler_id=None
     #label counts as child
     if len(self.navcontextmain.get_children())==1:
       self.navcontextmain.get_children()[0].destroy()
@@ -509,12 +524,12 @@ class scnPageNavigation(Gtk.Grid):
 
     if self.linkback.main.scn_servers.get_service(self.cur_server,self.cur_domain,"admin") is not None:
       addServiceButton2=Gtk.Button("Add service")
-      addServiceButton2.connect("clicked", self.goback_server)
+      addServiceButton2.connect("clicked", self.add_service)
       servicecont.attach(addServiceButton2,0,0,1,1)
 
       delServiceButton2=Gtk.Button("Delete service")
-      delServiceButton2.connect("clicked", self.goback_server)
-      servicecont.attach(delServiceButton2,0,0,1,1)
+      delServiceButton2.connect("clicked", self.delete_service)
+      servicecont.attach(delServiceButton2,0,1,1,1)
 
     #building frame showing message
     messagef=Gtk.Frame()
@@ -538,6 +553,7 @@ class scnPageNavigation(Gtk.Grid):
     self.servicef.set_shadow_type(Gtk.ShadowType.NONE)
     contextcont.attach(self.servicef,1,1,1,1)
     self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_service)
+    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_service)
 
     self.navcontextmain.show_all()
 
