@@ -13,7 +13,7 @@ import threading
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc #,sepu
-from scn_base import scn_base_server,scn_base_base,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs
+from scn_base import scn_base_server,scn_base_base,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs,interact
 
 from scn_config import scn_server_port,default_config_folder,scn_host,max_service_nodes
 #,scn_cache_timeout
@@ -48,7 +48,6 @@ class scn_ip_store(object):
       con.close()
       return
     
-  
   def det_con(self,_service):
     if _service=="main" or _service=="notify":
       return sqlite3.connect(self.db_tmp)
@@ -351,6 +350,7 @@ class scn_domain_list_sqlite(object):
     except Exception as e:
       printerror(e)
     return ob
+  
   def list_domains(self):
     try:
       con=sqlite3.connect(self.db_path)
@@ -445,6 +445,7 @@ class scn_server(scn_base_server):
            "use_special_service_auth": scn_base_server.s_use_special_service_auth,
            "use_special_service_unauth":scn_base_server.s_use_special_service_unauth,
            "get_domain_message":scn_base_server.s_get_domain_message,
+           "check_domain": scn_base_server.s_check_domain,
            "list_domains": scn_base_server.s_list_domains,
            "list_services": scn_base_server.s_list_services,
            "get_cert":scn_base_base.s_get_cert,
@@ -556,11 +557,13 @@ class scn_sock_server(socketserver.TCPServer):
   def __init__(self, server_address, HandlerClass,_linkback):
     socketserver.BaseServer.__init__(self, server_address, HandlerClass)
     self.linkback=_linkback
-
+    def interact_wrap():
+      return interact("Please enter passphrase:\n")
+    
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
-    temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert))
+    temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.priv_cert,interact_wrap))
     temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.pub_cert))
     self.socket = SSL.Connection(temp_context,socket.socket(self.address_family, self.socket_type))
     #self.socket.set_accept_state()

@@ -38,12 +38,16 @@ def check_hash(_hashstr):
   if len(_hashstr)==hash_hex_size and all(c in "0123456789abcdefABCDEF" for c in _hashstr):
     return True
   return False
+
+
+_check_invalid_chars_base=re.compile("[\$\0'%\"\n\r\t\b\x1A\x7F]")
 #check if invalid non blob (e.g. domain, command)
-_check_invalid_chars=re.compile("[\$\0'%\" \n\r\t\b\x1A\x7F"+sepm+sepc+sepu+"]")
+_check_invalid_chars_user=re.compile("[ "+sepm+sepc+sepu+"]")
 def check_invalid_s(stin):
   if stin is None or stin=="":
     return False
-  if _check_invalid_chars.search(stin) is not None:
+  if _check_invalid_chars_base.search(stin) is not None or \
+     _check_invalid_chars_user.search(stin) is not None:
     return False
   return True
 
@@ -52,9 +56,27 @@ _check_invalid_name=re.compile("[,; \^\\\\]")
 def check_invalid_name(stin):
   if stin is None or type(stin)==bytes or stin=="":
     return False
-  if _check_invalid_name.search(stin) is not None or _check_invalid_chars.search(stin) or stin.strip(" ").rstrip(" ") =="admin":
+  if _check_invalid_name.search(stin) is not None or \
+     _check_invalid_chars_base.search(stin) is not None or \
+     _check_invalid_chars_user.search(stin) is not None or \
+     stin.strip(" ").rstrip(" ") =="admin":
     return False
   return True
+
+def ltfunc(timelimit=2):
+  def tfunc (func):
+    def tfunc1(*args,**kwargs):
+      __thread=threading.Thread(target=func,*args,**kwargs)
+      __thread.daemon=False
+      __thread.start()
+      __thread.join(timelimit)
+      if __thread.is_alive()==True:
+        __thread.exit()
+        return False
+      else:
+        return True
+    return tfunc1
+  return tfunc
 
 
 
@@ -70,6 +92,8 @@ class scnNoByteseq(scnException):
 class scnReceiveError(scnException):
   pass
 
+def interact(inp):
+  return input(inp)
 
 def printdebug(inp):
   if debug_mode==True:
@@ -151,7 +175,10 @@ class scn_socket(object):
         raise(scnReceiveError("decode_command: Too short"))
       if len(temp[0][:-1])>maxlength:
         raise(scnReceiveError("decode_command: Too long"))
+      if _check_invalid_chars_base.search(temp[0][:-1]) is not None:
+        raise(scnReceiveError("decode_command: Contains invalid characters"))
       return temp[0][:-1]
+    
     #  printdebug("seperator not found")
     #  return None
     if len(temp)>1:
@@ -162,8 +189,9 @@ class scn_socket(object):
       raise(scnReceiveError("decode_command: Too short"))
     if len(temp[0])>maxlength:
       raise(scnReceiveError("decode_command: Too long"))
-    else:
-      return temp[0]
+    if _check_invalid_chars_base.search(temp[0][:-1]) is not None:
+      raise(scnReceiveError("decode_command: Contains invalid characters"))
+    return temp[0]
   def load_socket(self):
     temp=None
     try:
@@ -275,12 +303,12 @@ class scn_socket(object):
       raise(e)
   def close(self):
     self._socket.shutdown()
+    
 
-
-
-def generate_certs(_path,_passphrase=None):
+def generate_certs(_path):
   genproc=None
-  if _passphrase is None:
+  _passphrase=interact("(optional) Enter passphrase for encrypting key:\n")
+  if _passphrase=="":
     genproc=Popen(["openssl", "req", "-x509", "-nodes", "-newkey", "rsa:"+str(key_size), "-keyout",_path+".priv", "-out",_path+".pub"],stdin=PIPE,stdout=PIPE, stderr=PIPE,universal_newlines=True)
     _answer=genproc.communicate("IA\n\n\n\nscn.nodes\n\nsecure communication nodes\n")
   else:
@@ -291,15 +319,15 @@ def generate_certs(_path,_passphrase=None):
   if _answer[1]!="":
     printdebug(_answer[1])
 
-def check_certs(_path,_passphrase=None):
+def check_certs(_path):
   if os.path.exists(_path+".priv")==False or os.path.exists(_path+".pub")==False:
     return False
   _key=None
   with open(_path+".priv", 'r') as readin:
-    if _passphrase is None:
-      _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read())
-    else:
-      _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read(),_passphrase)
+    #def interact_wrap():
+    #  return interact("Please enter passphrase")
+    #,interact_wrap
+    _key=crypto.load_privatekey(crypto.FILETYPE_PEM,readin.read())
   if _key is None:
     return False
 
@@ -308,9 +336,9 @@ def check_certs(_path,_passphrase=None):
     with open(_path+".pub", 'r') as readin:
       try:
         _c=SSL.Context(SSL.TLSv1_2_METHOD)
-        _c.use_privatekey(_key)
+        #_c.use_privatekey(_key)
         _c.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,readin.read()))
-        _c.check_privatekey()
+        #_c.check_privatekey()
         is_ok=True
       except Exception as e:
         printerror(e)
@@ -333,6 +361,7 @@ class scn_base_base(object):
   version=""
   priv_cert=None
   pub_cert=b"\0"
+  
   
   def s_info(self,_socket):
     _socket.send("success"+sepc+self.name+sepc+str(self.version)+sepc+str(secret_size)+sepm)
@@ -378,7 +407,7 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"domain"+sepc+str(e)+sepm)
       return [None,None]
-    if check_invalid_s(_domain)==False or self.scn_domains.length(_domain)==0:
+    if check_invalid_name(_domain)==False or self.scn_domains.length(_domain)==0:
       _socket.send("error"+sepc+"name constraints"+sepm)
       return [None,None]
     try:
@@ -402,7 +431,8 @@ class scn_base_server(scn_base_base):
       self.domain_list_cond.clear()
       self.domain_list_cond.wait() #(scn_cache_timeout)
   
-#admin
+  #admin
+  #@scn_setup
   def s_register_domain(self,_socket):
     try:
       _domain=_socket.receive_one(min_name_length,max_name_length)
@@ -436,7 +466,8 @@ class scn_base_server(scn_base_base):
     self.domain_list_cond.set()
     _socket.send("success"+sepm)
 
-#second level auth would be good as 30 days grace
+  #second level auth would be good as 30 days grace
+  #@scn_setup
   def s_delete_domain(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
     #TODO: check if is_end
@@ -451,6 +482,7 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"deleting failed"+sepm)
       return
 
+  #@scn_setup
   def s_update_message(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
@@ -472,7 +504,8 @@ class scn_base_server(scn_base_base):
       socket.send("error"+sepm)
       return
 
-#"admin" updates admin group is_update True: updates, False adds
+  #"admin" updates admin group is_update True: updates, False adds
+  #@scn_setup
   def s_update_service_intern(self,_socket,is_update):
 
     _domain,_secret=self._s_admin_auth(_socket)
@@ -528,13 +561,16 @@ class scn_base_server(scn_base_base):
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
-
+  
+  #@scn_setup
   def s_update_service(self,_socket):
     self.s_update_service_intern(_socket,True)
 
+  #@scn_setup
   def s_add_service(self,_socket):
     self.s_update_service_intern(_socket,False)
 
+  #@scn_setup
   def s_get_service_secrethash(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
@@ -549,6 +585,7 @@ class scn_base_server(scn_base_base):
       temp+=sepc+str(elem[0])+sepu+str(elem[3])
     _socket.send("success"+temp+sepm)
 
+  #@scn_setup
   def s_delete_service(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
@@ -570,6 +607,7 @@ class scn_base_server(scn_base_base):
 #normal
 
 #priv
+  #@scn_setup
   def _s_service_auth(self,_socket):
     #_domain, _service,_secret):
     try:
@@ -587,7 +625,7 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
       return [None,None,None]
-    if check_invalid_s(_service)==False or check_invalid_s(_service)==False:
+    if check_invalid_name(_domain)==False or check_invalid_name(_service)==False:
       return False
     if _service=="admin" or self.scn_domains.length(_domain)==0 or \
        self.scn_domains.get(_domain).get_service(_service) is None or \
@@ -598,6 +636,7 @@ class scn_base_server(scn_base_base):
 
 #pub auth
 #_socket.socket.getpeername()[1]] how to get port except by giving it
+  #@scn_setup
   def s_serve_service(self,_socket):
     _domain,_service,_servicesecret=self._s_service_auth(_socket)
     if _domain is None:
@@ -629,6 +668,7 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepm)
       return
 
+  #@scn_setup
   def s_unserve_service(self,_socket):
     _domain,_service,_servicesecret=self._s_service_auth(_socket)
     if _domain is None:
@@ -644,6 +684,7 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepm)
       return
 
+  #@scn_setup
   def s_del_serve(self,_socket):
     _domain,_service,_servicesecret=self._s_service_auth(_socket)
     if _domain is None:
@@ -656,8 +697,7 @@ class scn_base_server(scn_base_base):
     else:
       _socket.send("success"+sepm)
       
-
-
+  #@scn_setup
   def s_update_secret(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
@@ -695,8 +735,10 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"update failed"+sepm)
       return
 
+    """
   # I'm not sure if this function is desireable; don't include it in available serveractions yet
   #issue: could be used for quick password checking
+  #@scn_setup
   def s_check_service_cred(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
@@ -716,9 +758,9 @@ class scn_base_server(scn_base_base):
     if self._s_service_auth(_domain,_service,_servicesecret)==True:
       _socket.send("success"+sepm)
     else:
-      _socket.send("error"+sepm)
+      _socket.send("error"+sepm)"""
 
-
+  #@scn_setup
   def s_use_special_service_auth(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
@@ -748,6 +790,21 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"not end"+sepm)
 
 #anonym,unauth
+  #@scn_setup
+  def s_check_domain(self,_socket):
+    try:
+      _domain=_socket.receive_one(min_used_name,max_used_name)
+    except scnReceiveError:
+      print("ddd")
+      _socket.send("error"+sepm)
+      return
+    if self.scn_domains.get(_domain) is None:
+      _socket.send("error"+sepm)
+    else:
+      _socket.send("success"+sepm)
+
+
+  #@scn_setup
   def s_get_service(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
@@ -773,6 +830,7 @@ class scn_base_server(scn_base_base):
         temp+=sepc+elem[0]+sepu+elem[1]+sepu+elem[2] #addrtype, addr, _certhash
       _socket.send("success"+temp+sepm)
 
+  #@scn_setup
   def s_list_services(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
@@ -794,13 +852,14 @@ class scn_base_server(scn_base_base):
 
 #domainnames must be refreshed by a seperate thread because too much traffic elsewise
 #self.domain_list_cache begins with a sepc
+  #@scn_setup
   def s_list_domains(self,_socket):
     if self.domain_list_cache is not None:
       _socket.send("success"+self.domain_list_cache+sepm)
     else:
       _socket.send("error"+sepc+"domain_list_cache empty"+sepm)
 
-
+  #@scn_setup
   def s_get_domain_message(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
@@ -854,6 +913,7 @@ class scn_base_client(scn_base_base):
   direct_list={}
   wrap_list={}
 
+  #@scn_setup
   def c_update_service(self,_servername,_domain,_service,_secrethashstring):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_service(_servername,_domain,"admin")
@@ -870,7 +930,7 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return True
 
-
+  #@scn_setup
   def c_add_service(self,_servername,_domain,_service,_secrethashstring=None):
     _socket=scn_socket(self.connect_to(_servername))
     if _secrethashstring is None:
@@ -898,6 +958,7 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return True
   
+  #@scn_setup
   def c_get_service_secrethash(self,_servername,_domain,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_service(_servername,_domain,"admin")
@@ -918,6 +979,7 @@ class scn_base_client(scn_base_base):
     return _node_list
 
 #pub
+  #@scn_setup
   def c_register_domain(self,_servername,_domain):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
@@ -932,13 +994,24 @@ class scn_base_client(scn_base_base):
       return self.scn_servers.update_service(_servername,_domain,"admin",_secret,False)
     return False
 
+  #@scn_setup
   def c_delete_domain(self,_servername,_domain):
+    if _domain=="admin":
+      printerror("can't delete specialdomain admin")
+      return False
     _socket=scn_socket(self.connect_to(_servername))
+
+    if self.c_check_domain(_servername,_domain)==False:
+      _socket.close()
+      self.scn_servers.del_domain(_servername,_domain)
+      return True
+    
     temp=self.scn_servers.get_service(_servername,_domain,"admin")
     if temp is None:
       printerror("No admin permission")
       _socket.close()
-      return
+      return False
+    
     _socket.send("delete_domain"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)
@@ -947,6 +1020,7 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _server_response
 
+  #@scn_setup
   def c_update_domain_message(self,_servername,_domain,_message):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_service(_servername,_domain,"admin")
@@ -956,7 +1030,12 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _server_response
 
+  #@scn_setup
   def c_delete_service(self,_servername,_domain,_service):
+    if _service=="admin":
+      printerror("can't delete specialservice admin")
+      return False
+    
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_service(_servername,_domain,"admin")
     _socket.send("delete_service"+sepc+_domain+sepc)
@@ -966,7 +1045,7 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _server_response
   
-  
+  #@scn_setup
   def c_unserve_service(self,_servername,_domain,_service):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_service(_servername,_domain,_service)
@@ -977,6 +1056,7 @@ class scn_base_client(scn_base_base):
     return _server_response
     #temp=self.scn_servers.get_(_servername,_domain,_servicename)
 
+  #@scn_setup
   def c_update_secret(self,_servername,_domain,_service,_pub_cert=None):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
@@ -1000,6 +1080,7 @@ class scn_base_client(scn_base_base):
 
 
   #for special services like tunnels, returns socket
+  #@scn_setup
   def c_use_special_service_auth(self, _servername, _domain, _service):
     _socket = scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_service(_servername, _domain, _service)
@@ -1010,6 +1091,7 @@ class scn_base_client(scn_base_base):
     else:
       return None
 
+  #@scn_setup
   def c_get_service(self,_servername,_domain,_service):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("get_service"+sepc+_domain+sepc+_service+sepm)
@@ -1022,7 +1104,7 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _node_list
 
-
+  #@scn_setup
   def c_list_domains(self,_servername):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("list_domains"+sepm)
@@ -1038,6 +1120,7 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _domain_list
 
+  #@scn_setup
   def c_list_services(self,_servername,_domain):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("list_services"+sepc+_domain+sepm)
@@ -1052,8 +1135,8 @@ class scn_base_client(scn_base_base):
       _node_list = None
     _socket.close()
     return _node_list
-
   
+  #@scn_setup
   def c_get_domain_message(self,_servername,_domain):
     _socket = scn_socket(self.connect_to(_servername))
     _socket.send("get_domain_message"+sepc+_domain+sepm)
@@ -1063,10 +1146,10 @@ class scn_base_client(scn_base_base):
       _message = None
     _socket.close()
     return _message
+  
+  #@scn_setup
   def c_get_server_message(self,_servername):
     return self.c_get_domain_message(_servername,"admin")
-
-
 
   #returns socket for use in other functions
   def c_use_special_service_unauth(self,_servername,_domain,_service):
@@ -1078,7 +1161,7 @@ class scn_base_client(scn_base_base):
       _socket.close()
       return None
 
-
+  #@scn_setup
   def c_get_server_cert(self,_servername):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("get_cert"+sepm)
@@ -1086,8 +1169,10 @@ class scn_base_client(scn_base_base):
     if _state==False:
       return None
     _cert=_socket.receive_bytes(0,max_cert_size)
+    _socket.close()
     return [_cert,]
 
+  #@scn_setup
   def c_info(self,_servername):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("info"+sepm)
@@ -1097,15 +1182,32 @@ class scn_base_client(scn_base_base):
     _servername=_socket.receive_one()
     _version=_socket.receive_one()
     _serversecretsize=_socket.receive_one()
+    _socket.close()
     return [_servername,_version,_serversecretsize]
 
+  
+  def c_check_domain(self,_servername,_domain):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.close()
+    return False
+  
+    _socket.send("check_domain"+sepc+_domain+sepm)
+    if _socket.receive_one(7)=="error":
+      _socket.close()
+      return False
+    else:
+      _socket.close()
+      return True
+  
   #generate request for being added in service
+  #@scn_setup
   def c_create_serve(self,_servername,_domain,_service):
     _secret=os.urandom(secret_size)
     if self.scn_servers.update_service(_servername,_domain,_service,_secret,True)==False:
       return None
     return [_servername,_domain,_service,hashlib.sha256(_secret).hexdigest()]
 
+  #@scn_setup
   def c_del_serve(self,_servername,_domain,_service,force=False):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_service(_servername,_domain,_service)
@@ -1120,7 +1222,6 @@ class scn_base_client(scn_base_base):
       return False
     return True
 
-
   def c_serve_service(self,_servername,_domain,_service,_addr_type,_addr):
     _socket=scn_socket(self.connect_to(_servername))
     tempservice=self.scn_servers.get_service(_servername,_domain,_service)
@@ -1134,6 +1235,7 @@ class scn_base_client(scn_base_base):
     else:
       return _server_response
 
+  #@scn_setup
   def s_hello(self,_socket):
     try:
       _reqservice=_socket.receive_one(1,max_name_length) #port or name
@@ -1149,7 +1251,8 @@ class scn_base_client(scn_base_base):
     else:
       _socket.send("error"+sepc+"not available"+sepm)
       return
-  
+    
+  #@scn_setup
   def c_hello(self,_servername,_domain,identifier,_service="main"): #identifier: port or name
     temp=self.c_connect_to_node(_servername,_domain,_service)
     if temp is None:
@@ -1163,11 +1266,16 @@ class scn_base_client(scn_base_base):
     else:
       _socket.close()
       return None
+
+  #@scn_setup
   def c_expose(self,addr_method,addr,identifier): #identifier is either port num or name
     pass
+  
+  #@scn_setup
   def c_unexpose(self,identifier): #identifier is either port num or name
     pass
 
+  #@scn_setup
   def c_add_server(self,_servername,_url,_certname=None):
     _socket=scn_socket(self.connect_to_ip(_url))
     if _socket is None:
@@ -1186,6 +1294,7 @@ class scn_base_client(scn_base_base):
       printdebug("server creation failed")
       return False
 
+  #@scn_setup
   def c_update_server(self,_servername,_url): #, update_cert_hook):
     
     if self.scn_servers.get_server(_servername) is None:
@@ -1222,7 +1331,8 @@ class scn_base_client(scn_base_base):
     else:
       printdebug("server update failed")
       return False
-    
+
+  #@scn_setup
   def c_delete_server(self,_servername):
     if self.scn_servers.del_server(_servername)==True:
       return True

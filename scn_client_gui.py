@@ -148,11 +148,15 @@ class scnPageNavigation(Gtk.Grid):
 
     self.navbar=Gtk.Entry()
     self.navbar.connect("activate",self.navbarupdate)
-    self.navcontent=Gtk.ListStore(str)
+    self.navcontent=Gtk.ListStore(str,str)
+    
     self.navbox=Gtk.TreeView(self.navcontent)
     self.navbox.set_activate_on_single_click(False)
     renderer = Gtk.CellRendererText()
-    self.listelems = Gtk.TreeViewColumn("Title", renderer, text=0)
+    renderer2 = Gtk.CellRendererText()
+    tempelem = Gtk.TreeViewColumn("", renderer2, text=0)
+    self.listelems = Gtk.TreeViewColumn("Title", renderer, text=1)
+    self.navbox.append_column(tempelem)
     self.navbox.append_column(self.listelems)
     self.navbox.get_selection().set_mode(Gtk.SelectionMode.BROWSE)
     self.navbox.set_vexpand(True)
@@ -230,7 +234,7 @@ class scnPageNavigation(Gtk.Grid):
     self.navbox.show()
     self.navcontent.clear()
     for elem in temp2:
-      self.navcontent.append((elem[0],))
+      self.navcontent.append(("",elem[0]))
 
   def updatedomainlist(self):
     temp_remote=self.linkback.main.c_list_domains(self.cur_server)
@@ -244,9 +248,9 @@ class scnPageNavigation(Gtk.Grid):
 
     for elem in temp_local:
       if elem[0] not in temp_remote:
-        self.navcontent.append(("local: "+elem[0],))
+        self.navcontent.append(("local:",elem[0]))
     for elem in temp_remote:
-      self.navcontent.append((elem,))
+      self.navcontent.append(("",elem))
     return True
 
   def updateservicelist(self):
@@ -258,7 +262,7 @@ class scnPageNavigation(Gtk.Grid):
     self.listelems.set_title("Service")
     self.navcontent.clear()
     for elem in temp2:
-      self.navcontent.append((elem,))
+      self.navcontent.append(("",elem))
 
   def updatenodelist(self):
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.2, 0.2, 1))
@@ -281,7 +285,7 @@ class scnPageNavigation(Gtk.Grid):
       return False
     self.listelems.set_title("Users")
     for elem in temp2:
-      self.navcontent.append((elem,))
+      self.navcontent.append(("",elem))
 
   def buildNonegui(self):
     if self.updateserverlist()==False:
@@ -715,7 +719,7 @@ class scnPageNavigation(Gtk.Grid):
     if temp[1] is None:
       return
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    self.update(temp[0][temp[1]][0])
+    self.update(temp[0][temp[1]][1])
 
   def goback_server(self,*args):
     self.update(self.cur_server)
@@ -725,7 +729,7 @@ class scnPageNavigation(Gtk.Grid):
     if temp[1] is None:
       return
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    self.update(self.cur_server,temp[0][temp[1]][0])
+    self.update(self.cur_server,temp[0][temp[1]][1])
 
   def goback_domain(self,*args):
     self.update(self.cur_server,self.cur_domain) 
@@ -735,7 +739,7 @@ class scnPageNavigation(Gtk.Grid):
     if temp[1] is None:
       return
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    self.update(self.cur_server,self.cur_domain,temp[0][temp[1]][0])
+    self.update(self.cur_server,self.cur_domain,temp[0][temp[1]][1])
     
   ### ?? section ###
 
@@ -743,7 +747,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    tempmessage=self.linkback.main.c_get_server_message(temp[0][temp[1]][0])
+    tempmessage=self.linkback.main.c_get_server_message(temp[0][temp[1]][1])
     if tempmessage is None or tempmessage=="":
       self.selectedservermessage.set_text("No message")
     else:
@@ -753,7 +757,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,temp[0][temp[1]][0])
+    tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,temp[0][temp[1]][1])
     if tempmessage is None or tempmessage=="":
       self.selecteddomainmessage.set_text("No message")
     else:
@@ -765,7 +769,7 @@ class scnPageNavigation(Gtk.Grid):
       return
     if len(self.servicef.get_children())>=1:
       self.servicef.get_children()[0].destroy()
-    self.servicef.add(self.genservicecontext(temp[0][temp[1]][0]))
+    self.servicef.add(self.genservicecontext(temp[0][temp[1]][1]))
     self.servicef.show_all()
   ### server section ###
 
@@ -791,7 +795,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    self.delete_server_intern(temp[0][temp[1]][0])
+    self.delete_server_intern(temp[0][temp[1]][1])
 
   #get server by current selection
   def delete_server2(self,*args):
@@ -822,7 +826,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    if self.edit_server_intern(temp[0][temp[1]][0])==True:
+    if self.edit_server_intern(temp[0][temp[1]][1])==True:
       self.updateserverlist()
 
   def edit_server(self,*args):
@@ -909,7 +913,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    if self.delete_domain_intern(temp[0][temp[1]][0])==True:
+    if self.delete_domain_intern(temp[0][temp[1]][1])==True:
       self.updatedomainlist()
 
 
@@ -956,7 +960,7 @@ class scnPageNavigation(Gtk.Grid):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    if self.delete_service_intern(temp[0][temp[1]][0])==True:
+    if self.delete_service_intern(temp[0][temp[1]][1])==True:
       self.updateservicelist()
 
 
