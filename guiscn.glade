@@ -6,28 +6,38 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <child>
-      <placeholder/>
+      <object class="GtkButton" id="gobackserver2">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+        <child>
+          <object class="GtkImage" id="image6">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="icon_name">go-previous</property>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
     </child>
     <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
+      <object class="GtkAlignment" id="dropinservice2">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="hexpand">True</property>
+        <property name="vexpand">True</property>
+        <child>
+          <placeholder/>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">1</property>
+        <property name="width">2</property>
+      </packing>
     </child>
     <child>
       <placeholder/>
@@ -89,13 +99,44 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <placeholder/>
+                  <object class="GtkButton" id="addchannelb">
+                    <property name="label" translatable="yes">Add
+Channel</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <signal name="activate" handler="add_channel" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkButton" id="delchannelb">
+                    <property name="label" translatable="yes">Delete
+Channel</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">1</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkButton" id="button3">
+                    <property name="label" translatable="yes">sinnloser Knopf
+der nichts kann</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">2</property>
+                  </packing>
                 </child>
               </object>
             </child>
@@ -154,7 +195,17 @@
       </packing>
     </child>
     <child>
-      <placeholder/>
+      <object class="GtkAlignment" id="dropinservice1">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <child>
+          <placeholder/>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">3</property>
+        <property name="top_attach">2</property>
+      </packing>
     </child>
     <child>
       <placeholder/>
@@ -171,13 +222,14 @@
   </object>
   <object class="GtkTreeStore" id="navcontent">
     <columns>
-      <!-- column-name   -->
+      <!-- column-name gchararray -->
       <column type="gchararray"/>
       <!-- column-name name -->
       <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkWindow" id="mainwindow">
+    <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="hide_titlebar_when_maximized">True</property>
     <child>
@@ -259,7 +311,10 @@
                       <object class="GtkAlignment" id="contextdropin">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
                         <property name="left_padding">12</property>
+                        <signal name="destroy" handler="destroy_handler" swapped="no"/>
                         <child>
                           <placeholder/>
                         </child>
@@ -620,12 +675,6 @@
         <property name="top_attach">0</property>
       </packing>
     </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
   </object>
   <object class="GtkGrid" id="servercontext">
     <property name="visible">True</property>
@@ -682,13 +731,43 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <placeholder/>
+                  <object class="GtkButton" id="registerdomainb">
+                    <property name="label" translatable="yes">Register
+Domain</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">0</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkButton" id="deldomainb">
+                    <property name="label" translatable="yes">Delete
+Domain</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">1</property>
+                  </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkButton" id="button8">
+                    <property name="label" translatable="yes">sinnloser Knopf
+der nichts kann</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">2</property>
+                  </packing>
                 </child>
               </object>
             </child>
