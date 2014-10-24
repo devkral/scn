@@ -778,24 +778,25 @@ class scn_client(scn_base_client):
   #             "wrap": scn_base_client.s_wrap}
 
 
-  clientactions_bool = {"register": scn_base_client.c_register_domain, 
-                        "deldomain": scn_base_client.c_delete_domain, 
-                        "updmessage": scn_base_client.c_update_domain_message, 
-                        "addservice": scn_base_client.c_add_service, 
-                        "updservice": scn_base_client.c_update_service, 
-                        "delservice": scn_base_client.c_delete_service, 
-                        "serveip": c_serve_service_ip, 
-                        "unserve": scn_base_client.c_unserve_service, 
-                        "updsecret": scn_base_client.c_update_secret,
-                        "addserver": scn_base_client.c_add_server,
-                        "updserver": scn_base_client.c_update_server, 
-                        "delserver": scn_base_client.c_delete_server}
-  clientactions_list = {"getservicehash": scn_base_client.c_get_service_secrethash, 
-                        "getmessage": scn_base_client.c_get_domain_message, 
-                        "getservercert": scn_base_client.c_get_server_cert, 
-                        "info": scn_base_client.c_info, 
-                        "getlist": c_get_server_list, 
-                        "getnode": c_get_server}
+  clientactions = {"register": scn_base_client.c_register_domain, 
+                   "deldomain": scn_base_client.c_delete_domain, 
+                   "updmessage": scn_base_client.c_update_domain_message,
+                   "chkdomain": scn_base_client.c_check_domain,
+                   "addservice": scn_base_client.c_add_service, 
+                   "updservice": scn_base_client.c_update_service, 
+                   "delservice": scn_base_client.c_delete_service, 
+                   "serveip": c_serve_service_ip, 
+                   "unserve": scn_base_client.c_unserve_service, 
+                   "updsecret": scn_base_client.c_update_secret,
+                   "addserver": scn_base_client.c_add_server,
+                   "updserver": scn_base_client.c_update_server, 
+                   "delserver": scn_base_client.c_delete_server,
+                   "getservicehash": scn_base_client.c_get_service_secrethash, 
+                   "getmessage": scn_base_client.c_get_domain_message, 
+                   "getservercert": scn_base_client.c_get_server_cert, 
+                   "info": scn_base_client.c_info, 
+                   "getlist": c_get_server_list, 
+                   "getnode": c_get_server}
 
 #,"use_auth": use_special_service_auth,"use_unauth":use_special_service_unauth
   def debug(self):
@@ -813,40 +814,25 @@ class scn_client(scn_base_client):
         except Exception as e:
           printerror(e)
 
-      elif command[0] in self.clientactions_bool:
+      elif command[0] in self.clientactions:
         try:
           if len(command)>1:
             tempcom=command[1].split(sepc)
-            serveranswer = self.clientactions_bool[command[0]](self,*tempcom)
+            serveranswer = self.clientactions[command[0]](self,*tempcom)
           else:
-            serveranswer = self.clientactions_bool[command[0]](self)
+            serveranswer = self.clientactions[command[0]](self)
         except TypeError as e:
           printerror(e)
         except BrokenPipeError:
           printdebug("Socket closed unexpected") 
         except Exception as e:
           printerror(e)
-        if serveranswer == True:
-          print("Command finished successfull")
-        else:
-          print("Command finished with errors")
-
-      elif command[0] in self.clientactions_list:
-        
-        try:
-          if len(command) > 1:
-            tempcom = command[1].split(sepc)
-            serveranswer = self.clientactions_list[command[0]](self,*tempcom)
-          else:
-            serveranswer = self.clientactions_list[command[0]](self)
-        except TypeError as e:
-          printerror(e)
-        except BrokenPipeError:
-          printdebug("Socket closed unexpected") 
-        except Exception as e:
-          printerror(e)
-        if serveranswer != None:
+        if isinstance(serveranswer,bool)==True:
+          print(serveranswer)
+        elif isinstance(serveranswer,list)==True or isinstance(serveranswer,tuple)==True:
           print(*serveranswer, sep = ", ")
+        else:
+          print("Not recognized")
       else:
         print(command)
         printerror("No such function client")

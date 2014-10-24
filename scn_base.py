@@ -794,14 +794,13 @@ class scn_base_server(scn_base_base):
   def s_check_domain(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
-    except scnReceiveError:
-      print("ddd")
-      _socket.send("error"+sepm)
+    except scnReceiveError as e:
+      _socket.send("error"+str(e)+sepm)
       return
     if self.scn_domains.get(_domain) is None:
-      _socket.send("error"+sepm)
+      _socket.send("success"+sepc+"true"+sepm)
     else:
-      _socket.send("success"+sepm)
+      _socket.send("success"+"false"+sepm)
 
 
   #@scn_setup
@@ -1188,16 +1187,16 @@ class scn_base_client(scn_base_base):
   
   def c_check_domain(self,_servername,_domain):
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.close()
-    return False
-  
     _socket.send("check_domain"+sepc+_domain+sepm)
-    if _socket.receive_one(7)=="error":
+    if scn_check_return(_socket)==False:
       _socket.close()
       return False
-    else:
+    if _socket.receive_one()=="true":
       _socket.close()
       return True
+    else:
+      _socket.close()
+      return False
   
   #generate request for being added in service
   #@scn_setup

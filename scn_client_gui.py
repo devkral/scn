@@ -887,6 +887,9 @@ class scnPageNavigation(Gtk.Grid):
 
   def delete_domain_intern(self,_delete_domain):
     returnstate=False
+    if _delete_domain=="admin":
+      self.parent.state_widget.set_text("Can't delete admin")
+      return
     dialog = scnDeletionDialog(self.parent,self.cur_server,_delete_domain)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
@@ -1025,13 +1028,14 @@ class scnGUI(Gtk.Window):
 
 
 win=None
+run=True
 
-def signal_handler(_signal, frame):
+def signal_handler(*args):
+  global run
   #win.close()
   win.destroy()
-  Gtk.main_quit()
+  run=False
   #app.close()
-  sys.exit(0)
 
 if __name__ == "__main__":
   cm.main=scn_client(cm,default_config_folder)
@@ -1047,10 +1051,11 @@ if __name__ == "__main__":
 
   win = scnGUI(cm)
   
-  win.connect("delete-event", Gtk.main_quit)
-  #win.connect("destroy", Gtk.main_quit) 
+  win.connect("delete-event", signal_handler)
+  win.connect("destroy", signal_handler) 
 
   win.show_all()
-  Gtk.main()
+  while run==True:
+    Gtk.main_iteration_do(True)
   
   sys.exit(0)
