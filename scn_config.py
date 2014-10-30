@@ -2,8 +2,8 @@
 import os
 
 #max_client_receive_it=5
-max_user_services=10 #how many services can a user have
-max_service_nodes=10 #how many nodes can a service have
+max_user_channels=10 #how many channels can a user have
+max_channel_nodes=10 #how many nodes can a channel have
 min_name_length=6
 max_name_length=15
 max_message_length=30

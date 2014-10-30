@@ -23,7 +23,7 @@ from OpenSSL import SSL,crypto
 
 #import Enum from enum
 
-from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_services, max_service_nodes, secret_size, key_size,protcount_max,hash_hex_size
+from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_channels, max_channel_nodes, secret_size, key_size,protcount_max,hash_hex_size
 #, scn_cache_timeout
 
 # from scn_config import scn_client_port
@@ -377,23 +377,23 @@ class scn_base_base(object):
     return scn_check_return(_socket)
   
 
-#service_types:
-#  "admin": special service, not disclosed
+#channel_types:
+#  "admin": special channel, not disclosed
 #  "main": points to current used computer
 #  "store": points to storage
 #  "notify": points to primary message device
-#  "special": group for using special_services
-#tunnellist: uid:service:tunnel
+#  "special": group for using special_channels
+#tunnellist: uid:channel:tunnel
 
 min_used_name=min(len("admin"),min_name_length)
 max_used_name=max(len("admin"),max_name_length)
 
-#services in 
+#channels in
 class scn_base_server(scn_base_base):
   scn_domains=None #scn_domain_list()
   scn_store=None #scn_ip_store()
-  special_services={}
-  special_services_unauth={}
+  special_channels={}
+  special_channels_unauth={}
   tunnel={}
   domain_list_cache=None
   domain_list_cond=None
@@ -506,30 +506,30 @@ class scn_base_server(scn_base_base):
 
   #"admin" updates admin group is_update True: updates, False adds
   #@scn_setup
-  def s_update_service_intern(self,_socket,is_update):
+  def s_update_channel_intern(self,_socket,is_update):
 
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
       return
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
     _domainob=self.scn_domains.get(_domain)
-    if is_update==False and (_domainob.get_service(_service) is not None):
-      _socket.send("error"+sepc+"service exists"+sepm)
+    if is_update==False and (_domainob.get_channel(_channel) is not None):
+      _socket.send("error"+sepc+"channel exists"+sepm)
       return
-    elif is_update==True and (_domainob.get_service(_service) is None):
-      _socket.send("error"+sepc+"service not exists"+sepm)
+    elif is_update==True and (_domainob.get_channel(_channel) is None):
+      _socket.send("error"+sepc+"channel not exists"+sepm)
       return
     else:
       _socket.send("success"+sepm)
 
     #64 is the size of sha256 in hex, format sepc hash sepu domain sepc ...
-    _secrethashstring=str(_socket.receive_bytes(0, hash_hex_size*max_name_length*max_user_services+2*max_user_services), "utf8")
-    if self.scn_domains.get_service(_service) is None and \
-       self.scn_domains.length(_domain)>=max_user_services+1:
+    _secrethashstring=str(_socket.receive_bytes(0, hash_hex_size*max_name_length*max_user_channels+2*max_user_channels), "utf8")
+    if self.scn_domains.get_channel(_channel) is None and \
+       self.scn_domains.length(_domain)>=max_user_channels+1:
 
       _socket.send("error"+sepc+"limit serveclasses"+sepm)
       return
@@ -537,10 +537,10 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"invalid character"+sepm)
       return
     temphashes=_secrethashstring.split(sepc)
-    if len(temphashes)>max_service_nodes:
+    if len(temphashes)>max_channel_nodes:
       _socket.send("error"+sepc+"limit"+sepm)
       return
-    self.scn_store.del_service(_domain,_service)
+    self.scn_store.del_channel(_domain,_channel)
     temp2=[]
     for count in range(0,len(temphashes)):
       _hash_name_split=temphashes[count].split(sepu)
@@ -557,50 +557,50 @@ class scn_base_server(scn_base_base):
         _socket.send("error"+sepc+"invalid hash or name"+sepm)
         return
     
-    if self.scn_domains.get(_domain).update_service(_service,temp2)==True:
+    if self.scn_domains.get(_domain).update_channel(_channel,temp2)==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
   
   #@scn_setup
-  def s_update_service(self,_socket):
-    self.s_update_service_intern(_socket,True)
+  def s_update_channel(self,_socket):
+    self.s_update_channel_intern(_socket,True)
 
   #@scn_setup
-  def s_add_service(self,_socket):
-    self.s_update_service_intern(_socket,False)
+  def s_add_channel(self,_socket):
+    self.s_update_channel_intern(_socket,False)
 
   #@scn_setup
-  def s_get_service_secrethash(self,_socket):
+  def s_get_channel_secrethash(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
       return
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
     temp=""
-    for elem in self.scn_domains.get(_domain).get_service(_service):
+    for elem in self.scn_domains.get(_domain).get_channel(_channel):
       temp+=sepc+str(elem[0])+sepu+str(elem[3])
     _socket.send("success"+temp+sepm)
 
   #@scn_setup
-  def s_delete_service(self,_socket):
+  def s_delete_channel(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
       return
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
-      if _service=="admin":
+      if _channel=="admin":
         _socket.send("error"+sepc+"can't delete admin"+sepm)
         return
     
-    if self.scn_domains.get(_domain).delete_service(_service)==True:
-      self.scn_store.del_service(_domain,_service)
+    if self.scn_domains.get(_domain).delete_channel(_channel)==True:
+      self.scn_store.del_channel(_domain,_channel)
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -608,41 +608,41 @@ class scn_base_server(scn_base_base):
 
 #priv
   #@scn_setup
-  def _s_service_auth(self,_socket):
-    #_domain, _service,_secret):
+  def _s_channel_auth(self,_socket):
+    #_domain, _channel,_secret):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return [None,None,None]
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return [None,None,None]
     try:
       _secret=_socket.receive_bytes(0,secret_size)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
       return [None,None,None]
-    if check_invalid_name(_domain)==False or check_invalid_name(_service)==False:
+    if check_invalid_name(_domain)==False or check_invalid_name(_channel)==False:
       return False
-    if _service=="admin" or self.scn_domains.length(_domain)==0 or \
-       self.scn_domains.get(_domain).get_service(_service) is None or \
-       not self.scn_domains.verify_secret(_service,_secret):
+    if _channel=="admin" or self.scn_domains.length(_domain)==0 or \
+       self.scn_domains.get(_domain).get_channel(_channel) is None or \
+       not self.scn_domains.verify_secret(_channel,_secret):
       _socket.send("error"+sepc+"auth failed"+sepm)      
       return [None,None,None]
-    return [_domain,_service,_secret]
+    return [_domain,_channel,_secret]
 
 #pub auth
 #_socket.socket.getpeername()[1]] how to get port except by giving it
   #@scn_setup
-  def s_serve_service(self,_socket):
-    _domain,_service,_servicesecret=self._s_service_auth(_socket)
+  def s_serve_channel(self,_socket):
+    _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
     if _domain is None:
       return
     
-    if _service in self.special_services:
+    if _channel in self.special_channels:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     try:
@@ -662,23 +662,23 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepm)
       return
     
-    if self.scn_store.update(_address[0],_address[1],self.scn_domains.get(_domain).get_cert(hashlib.sha256(_servicesecret).hexdigest()))==True:
+    if self.scn_store.update(_address[0],_address[1],self.scn_domains.get(_domain).get_cert(hashlib.sha256(_channelsecret).hexdigest()))==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
       return
 
   #@scn_setup
-  def s_unserve_service(self,_socket):
-    _domain,_service,_servicesecret=self._s_service_auth(_socket)
+  def s_unserve_channel(self,_socket):
+    _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
     if _domain is None:
       return
-    if _service in self.special_services:
+    if _channel in self.special_channels:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     #check if end
       
-    if self.scn_store.del_server(_domain,_service,hashlib.sha256(_servicesecret).hexdigest())==True:
+    if self.scn_store.del_server(_domain,_channel,hashlib.sha256(_channelsecret).hexdigest())==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -686,12 +686,12 @@ class scn_base_server(scn_base_base):
 
   #@scn_setup
   def s_del_serve(self,_socket):
-    _domain,_service,_servicesecret=self._s_service_auth(_socket)
+    _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
     if _domain is None:
       return
     #check if end
-    if self.scn_domains.get(_domain).delete_secret(_service,_servicesecret)==False or \
-    self.scn_store.del_server(_domain,_service,hashlib.sha256(_servicesecret).hexdigest())==False:
+    if self.scn_domains.get(_domain).delete_secret(_channel,_channelsecret)==False or \
+    self.scn_store.del_server(_domain,_channel,hashlib.sha256(_channelsecret).hexdigest())==False:
       _socket.send("error"+sepm)
       return
     else:
@@ -705,16 +705,16 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
     try:
-      _servicesecret=_socket.receive_bytes(0,secret_size)
+      _channelsecret=_socket.receive_bytes(0,secret_size)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
       return
-    if self._s_service_auth(_domain,_service,_servicesecret)==False:
+    if self._s_channel_auth(_domain,_channel,_channelsecret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     try:
@@ -729,7 +729,7 @@ class scn_base_server(scn_base_base):
       except scnReceiveError as e:
         _socket.send("error"+sepc+"certhash"+sepc+str(e)+sepm)
         return
-    if self.scn_domains.get(_domain).update_secret(_service,_servicesecret,_newsecret_hash,_newcert_hash)==True:
+    if self.scn_domains.get(_domain).update_secret(_channel,_channelsecret,_newsecret_hash,_newcert_hash)==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepc+"update failed"+sepm)
@@ -739,53 +739,53 @@ class scn_base_server(scn_base_base):
   # I'm not sure if this function is desireable; don't include it in available serveractions yet
   #issue: could be used for quick password checking
   #@scn_setup
-  def s_check_service_cred(self,_socket):
+  def s_check_channel_cred(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
     try:
-      _servicesecret=_socket.receive_bytes(0,secret_size)
+      _channelsecret=_socket.receive_bytes(0,secret_size)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
       return
-    if self._s_service_auth(_domain,_service,_servicesecret)==True:
+    if self._s_channel_auth(_domain,_channel,_channelsecret)==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)"""
 
   #@scn_setup
-  def s_use_special_service_auth(self,_socket):
+  def s_use_special_channel_auth(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
     try:
-      _servicesecret=_socket.receive_bytes(0,secret_size)
+      _channelsecret=_socket.receive_bytes(0,secret_size)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
       return
-    if self._s_service_auth(_domain,_service,_servicesecret)==False and self._s_service_auth(_domain,"special",_servicesecret)==False:
+    if self._s_channel_auth(_domain,_channel,_channelsecret)==False and self._s_channel_auth(_domain,"special",_channelsecret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
-    if _service not in self.special_services:
-      _socket.send("error"+sepc+"specialservice not exist"+sepm)
+    if _channel not in self.special_channels:
+      _socket.send("error"+sepc+"specialchannel not exist"+sepm)
       return
     if _socket.is_end()==True:
       _socket.send("success"+sepm)
-      self.special_services[_service](self,_socket,_domain)
+      self.special_channels[_channel](self,_socket,_domain)
     else:
       _socket.send("error"+sepc+"not end"+sepm)
 
@@ -804,33 +804,33 @@ class scn_base_server(scn_base_base):
 
 
   #@scn_setup
-  def s_get_service(self,_socket):
+  def s_get_channel(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
-    if _service=="admin":
+    if _channel=="admin":
       _socket.send("error"+sepc+"admin"+sepm)
-    elif _service=="special":
+    elif _channel=="special":
       _socket.send("error"+sepc+"special"+sepm)
     elif self.scn_domains.length(_domain)==0:
       _socket.send("error"+sepc+"not exists"+sepm)
-    elif not self.scn_domains.get(_domain).length( _service)==0:
-      _socket.send("error"+sepc+"service not exist"+sepm)
+    elif not self.scn_domains.get(_domain).length( _channel)==0:
+      _socket.send("error"+sepc+"channel not exist"+sepm)
     else:
       temp=""
-      for elem in self.scn_store.get(_domain,_service):
+      for elem in self.scn_store.get(_domain,_channel):
         temp+=sepc+elem[0]+sepu+elem[1]+sepu+elem[2] #addrtype, addr, _certhash
       _socket.send("success"+temp+sepm)
 
   #@scn_setup
-  def s_list_services(self,_socket):
+  def s_list_channels(self,_socket):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
     except scnReceiveError as e:
@@ -840,9 +840,9 @@ class scn_base_server(scn_base_base):
     if tempdomain is None:
       _socket.send("error"+sepc+"domain"+sepm)
       return
-    tempcont=tempdomain.list_services()
+    tempcont=tempdomain.list_channels()
     if tempcont is None:
-      _socket.send("error"+sepc+"service"+sepm)
+      _socket.send("error"+sepc+"channel"+sepm)
       return
     temp=""
     for elem in tempcont:
@@ -876,19 +876,19 @@ class scn_base_server(scn_base_base):
         _socket.send_bytes(bytes(temp,encoding="utf8"),True)
 
 
-  def s_use_special_service_unauth(self,_socket):
+  def s_use_special_channel_unauth(self,_socket):
     try:
-      _service=_socket.receive_one(1,max_name_length)
+      _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"special service"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"special channel"+sepc+str(e)+sepm)
       return
 
-    if _service not in self.special_services_unauth:
+    if _channel not in self.special_channels_unauth:
       _socket.send("error"+sepc+"not exist"+sepm)
       return
     if _socket.is_end()==True:
       _socket.send("success"+sepm)
-    self.special_services_unauth[_service](self,_socket)
+    self.special_channels_unauth[_channel](self,_socket)
 
 
 
@@ -897,9 +897,9 @@ class scn_base_server(scn_base_base):
 
 
 #client receives:
-#hello: servicename
+#hello: channelname
 #disconnected: reason
-#service_wrap
+#channel_wrap
 
 #client get answer
 #error,errormessage;
@@ -913,12 +913,12 @@ class scn_base_client(scn_base_base):
   wrap_list={}
 
   #@scn_setup
-  def c_update_service(self,_servername,_domain,_service,_secrethashstring):
+  def c_update_channel(self,_servername,_domain,_channel,_secrethashstring):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servers.get_service(_servername,_domain,"admin")
-    _socket.send("update_service"+sepc+_domain+sepc)
+    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    _socket.send("update_channel"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
-    _socket.send(_service+sepc)
+    _socket.send(_channel+sepc)
     if scn_check_return(_socket)==False:
       _socket.close()
       return False
@@ -930,19 +930,19 @@ class scn_base_client(scn_base_base):
     return True
 
   #@scn_setup
-  def c_add_service(self,_servername,_domain,_service,_secrethashstring=None):
+  def c_add_channel(self,_servername,_domain,_channel,_secrethashstring=None):
     _socket=scn_socket(self.connect_to(_servername))
     if _secrethashstring is None:
       _secret=os.urandom(secret_size)
       temphash=hashlib.sha256(bytes(_domain,"utf8"))
       temphash.update(self.pub_cert)
-    temp=self.scn_servers.get_service(_servername,_domain,"admin")
+    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     if temp is None:
       printerror("Error: no admin rights")
       return False
-    _socket.send("add_service"+sepc+_domain+sepc)
+    _socket.send("add_channel"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
-    _socket.send(_service+sepc)
+    _socket.send(_channel+sepc)
     if scn_check_return(_socket)==False:
       _socket.close()
       return False
@@ -958,12 +958,12 @@ class scn_base_client(scn_base_base):
     return True
   
   #@scn_setup
-  def c_get_service_secrethash(self,_servername,_domain,_service):
+  def c_get_channel_secrethash(self,_servername,_domain,_channel):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servers.get_service(_servername,_domain,"admin")
-    _socket.send("get_service_secrethash"+sepc+_domain)
+    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    _socket.send("get_channel_secrethash"+sepc+_domain)
     _socket.send_bytes(temp[2])
-    _socket.send(_service+sepm)
+    _socket.send(_channel+sepm)
     _node_list=[]
     if scn_check_return(_socket)==True:
       for protcount in range(0,protcount_max):
@@ -990,7 +990,7 @@ class scn_base_client(scn_base_base):
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
-      return self.scn_servers.update_service(_servername,_domain,"admin",_secret,False)
+      return self.scn_servers.update_channel(_servername,_domain,"admin",_secret,False)
     return False
 
   #@scn_setup
@@ -1005,7 +1005,7 @@ class scn_base_client(scn_base_base):
       self.scn_servers.del_domain(_servername,_domain)
       return True
     
-    temp=self.scn_servers.get_service(_servername,_domain,"admin")
+    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     if temp is None:
       printerror("No admin permission")
       _socket.close()
@@ -1022,7 +1022,7 @@ class scn_base_client(scn_base_base):
   #@scn_setup
   def c_update_domain_message(self,_servername,_domain,_message):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servers.get_service(_servername,_domain,"admin")
+    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     _socket.send("update_message"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)
@@ -1030,37 +1030,37 @@ class scn_base_client(scn_base_base):
     return _server_response
 
   #@scn_setup
-  def c_delete_service(self,_servername,_domain,_service):
-    if _service=="admin":
-      printerror("can't delete specialservice admin")
+  def c_delete_channel(self,_servername,_domain,_channel):
+    if _channel=="admin":
+      printerror("can't delete specialchannel admin")
       return False
     
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servers.get_service(_servername,_domain,"admin")
-    _socket.send("delete_service"+sepc+_domain+sepc)
+    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    _socket.send("delete_channel"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
-    _socket.send(_service+sepm)
+    _socket.send(_channel+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
     return _server_response
   
   #@scn_setup
-  def c_unserve_service(self,_servername,_domain,_service):
+  def c_unserve_channel(self,_servername,_domain,_channel):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servers.get_service(_servername,_domain,_service)
-    _socket.send("unserve"+sepc+_domain+sepc+_service+sepc)
+    temp=self.scn_servers.get_channel(_servername,_domain,_channel)
+    _socket.send("unserve"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[2],_socket,True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     return _server_response
-    #temp=self.scn_servers.get_(_servername,_domain,_servicename)
+    #temp=self.scn_servers.get_(_servername,_domain,_channelname)
 
   #@scn_setup
-  def c_update_secret(self,_servername,_domain,_service,_pub_cert=None):
+  def c_update_secret(self,_servername,_domain,_channel,_pub_cert=None):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
-    temp=self.scn_servers.get_service(_servername,_domain,_service)
-    _socket.send("update_secret"+sepc+_domain+sepc+_service+sepc)
+    temp=self.scn_servers.get_channel(_servername,_domain,_channel)
+    _socket.send("update_secret"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[2])
     if scn_check_return(_socket)==False:
       _socket.close()
@@ -1074,16 +1074,16 @@ class scn_base_client(scn_base_base):
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
-      self.scn_servers.update_service(_servername,_domain,_service,_secret)
+      self.scn_servers.update_channel(_servername,_domain,_channel,_secret)
     return _server_response
 
 
-  #for special services like tunnels, returns socket
+  #for special channels like tunnels, returns socket
   #@scn_setup
-  def c_use_special_service_auth(self, _servername, _domain, _service):
+  def c_use_special_channel_auth(self, _servername, _domain, _channel):
     _socket = scn_socket(self.connect_to(_servername))
-    temp=self.scn_servers.get_service(_servername, _domain, _service)
-    _socket.send("use_special_service_auth"+sepc+_domain+sepc+_service+sepc)
+    temp=self.scn_servers.get_channel(_servername, _domain, _channel)
+    _socket.send("use_special_channel_auth"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[2],True)
     if scn_check_return(_socket):
       return _socket
@@ -1091,9 +1091,9 @@ class scn_base_client(scn_base_base):
       return None
 
   #@scn_setup
-  def c_get_service(self,_servername,_domain,_service):
+  def c_get_channel(self,_servername,_domain,_channel):
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("get_service"+sepc+_domain+sepc+_service+sepm)
+    _socket.send("get_channel"+sepc+_domain+sepc+_channel+sepm)
     _node_list=[]
     if scn_check_return(_socket) == True:
       for protcount in range(0,protcount_max):
@@ -1120,9 +1120,9 @@ class scn_base_client(scn_base_base):
     return _domain_list
 
   #@scn_setup
-  def c_list_services(self,_servername,_domain):
+  def c_list_channels(self,_servername,_domain):
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("list_services"+sepc+_domain+sepm)
+    _socket.send("list_channels"+sepc+_domain+sepm)
     _node_list=[]
     if scn_check_return(_socket) == True:
       if _socket.is_end()==False: #security against malformed requests
@@ -1151,9 +1151,9 @@ class scn_base_client(scn_base_base):
     return self.c_get_domain_message(_servername,"admin")
 
   #returns socket for use in other functions
-  def c_use_special_service_unauth(self,_servername,_domain,_service):
+  def c_use_special_channel_unauth(self,_servername,_domain,_channel):
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("use_special_service_unauth"+sepc+_domain+sepc+_service+sepm)
+    _socket.send("use_special_channel_unauth"+sepc+_domain+sepc+_channel+sepm)
     if scn_check_return(_socket) == True:
       return _socket
     else:
@@ -1198,39 +1198,39 @@ class scn_base_client(scn_base_base):
       _socket.close()
       return False
   
-  #generate request for being added in service
+  #generate request for being added in channel
   #@scn_setup
-  def c_create_serve(self,_servername,_domain,_service):
+  def c_create_serve(self,_servername,_domain,_channel):
     _secret=os.urandom(secret_size)
-    if self.scn_servers.update_service(_servername,_domain,_service,_secret,True)==False:
+    if self.scn_servers.update_channel(_servername,_domain,_channel,_secret,True)==False:
       return None
-    return [_servername,_domain,_service,hashlib.sha256(_secret).hexdigest()]
+    return [_servername,_domain,_channel,hashlib.sha256(_secret).hexdigest()]
 
   #@scn_setup
-  def c_del_serve(self,_servername,_domain,_service,force=False):
+  def c_del_serve(self,_servername,_domain,_channel,force=False):
     _socket=scn_socket(self.connect_to(_servername))
-    temp=self.scn_servers.get_service(_servername,_domain,_service)
-    _socket.send("del_serve"+sepc+_domain+sepc+_service+sepc)
+    temp=self.scn_servers.get_channel(_servername,_domain,_channel)
+    _socket.send("del_serve"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[3],True)
     _server_response=scn_check_return(_socket)
     if _server_response==False:
       printerror("Error: deleting on server failed")
       if force==False:
         return False
-    if self.scn_servers.del_service(_servername,_domain,_service)==False:
+    if self.scn_servers.del_channel(_servername,_domain,_channel)==False:
       return False
     return True
 
-  def c_serve_service(self,_servername,_domain,_service,_addr_type,_addr):
+  def c_serve_channel(self,_servername,_domain,_channel,_addr_type,_addr):
     _socket=scn_socket(self.connect_to(_servername))
-    tempservice=self.scn_servers.get_service(_servername,_domain,_service)
-    _socket.send("serve"+sepc+_domain+sepc+_service+sepc)
-    _socket.send_bytes(tempservice[2])
+    tempchannel=self.scn_servers.get_channel(_servername,_domain,_channel)
+    _socket.send("serve"+sepc+_domain+sepc+_channel+sepc)
+    _socket.send_bytes(tempchannel[2])
     _socket.send(_addr_type+sepc+_addr+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
-    if _server_response == True and tempservice[4] == 1:
-      return self.scn_servers.update_service_pendingstate(_servername,_domain,_service,False)
+    if _server_response == True and tempchannel[4] == 1:
+      return self.scn_servers.update_channel_pendingstate(_servername,_domain,_channel,False)
     else:
       return _server_response
 
@@ -1252,8 +1252,8 @@ class scn_base_client(scn_base_base):
       return
     
   #@scn_setup
-  def c_hello(self,_servername,_domain,identifier,_service="main"): #identifier: port or name
-    temp=self.c_connect_to_node(_servername,_domain,_service)
+  def c_hello(self,_servername,_domain,identifier,_channel="main"): #identifier: port or name
+    temp=self.c_connect_to_node(_servername,_domain,_channel)
     if temp is None:
       return None
     _socket=scn_socket(temp[0])

@@ -29,7 +29,7 @@ class client_master(object):
 cm=client_master()
 
 
-#scn_servs: _servicename: _server,_domain:secret
+#scn_servs: _channelname: _server,_domain:secret
 class scn_friends_sql(object):
   view_cur=None
   db_path=None
@@ -204,7 +204,7 @@ class scn_friends_sql(object):
     return True
 
 
-#scn_servs: _servicename: _server,_name:secret
+#scn_servs: _channelname: _server,_name:secret
 class scn_servs_sql(object):
   db_path=None
   def __init__(self,_db):
@@ -216,8 +216,8 @@ class scn_servs_sql(object):
       return
     try:
       con.execute('''CREATE TABLE if not exists
-      scn_serves(servername TEXT, domain TEXT, service TEXT,
-      secret BLOB, pending INTEGER,PRIMARY KEY(servername,domain,service),
+      scn_serves(servername TEXT, domain TEXT, channel TEXT,
+      secret BLOB, pending INTEGER,PRIMARY KEY(servername,domain,channel),
       FOREIGN KEY(servername) REFERENCES scn_urls(servername) ON UPDATE CASCADE ON DELETE CASCADE);''')
 
 
@@ -349,7 +349,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_service(self,_servername,_domain,_service,_secret,_pendingstate=True):
+  def update_channel(self,_servername,_domain,_channel,_secret,_pendingstate=True):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -361,9 +361,9 @@ class scn_servs_sql(object):
       cur.execute('''INSERT OR REPLACE into scn_serves(
       servername,
       domain,
-      service,
+      channel,
       secret, pending)
-      values (?,?,?,?,?)''',(_servername,_domain,_service,_secret,_pendingstate))
+      values (?,?,?,?,?)''',(_servername,_domain,_channel,_secret,_pendingstate))
       con.commit();
     except Exception as u:
       con.rollback()
@@ -372,7 +372,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_service_pendingstate(self,_servername,_domain,_service,_pendingstate=False):
+  def update_channel_pendingstate(self,_servername,_domain,_channel,_pendingstate=False):
     if _pendingstate==False:
       _pendingstate=0
     else:
@@ -386,8 +386,8 @@ class scn_servs_sql(object):
       #con.beginn()
       cur = con.cursor()
       cur.execute('''UPDATE scn_serves SET pending=? WHERE
-      servername=? AND domain=? AND service=?;
-      ''',(_servername,_domain,_service,_pendingstate))
+      servername=? AND domain=? AND channel=?;
+      ''',(_servername,_domain,_channel,_pendingstate))
       con.commit();
     except Exception as u:
       con.rollback()
@@ -416,7 +416,7 @@ class scn_servs_sql(object):
     return temp #domain
 
   
-  def list_services(self,_servername,_domain):
+  def list_channels(self,_servername,_domain):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -426,16 +426,16 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT service
+      cur.execute('''SELECT channel
       FROM scn_serves
       WHERE servername=? AND domain=?;''',(_servername,_domain))
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #servicename erurl,cert,secret,pending state
+    return temp #channelname erurl,cert,secret,pending state
 
-  def get_service(self,_servername,_domain,_servicename):
+  def get_channel(self,_servername,_domain,_channelname):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -447,15 +447,15 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''SELECT c.url,b.cert,a.secret, a.pending
       FROM scn_serves as a,scn_certs as b,scn_urls as c
-      WHERE c.servername=? AND a.domain=? AND a.service=?
-      AND a.servername=c.servername AND b.certname=c.certname;''',(_servername,_domain,_servicename))
+      WHERE c.servername=? AND a.domain=? AND a.channel=?
+      AND a.servername=c.servername AND b.certname=c.certname;''',(_servername,_domain,_channelname))
       temp=cur.fetchone()
     except Exception as u:
       printerror(u)
     con.close()
     return temp #serverurl,cert,secret,pending state
   
-  def del_service(self,_servername,_domain,_servicename):
+  def del_channel(self,_servername,_domain,_channelname):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -467,7 +467,7 @@ class scn_servs_sql(object):
       cur.execute('''DELETE FROM scn_serves
       WHERE servername=?
       AND domain=?
-      AND service=?''',(_servername,_domain,_servicename))
+      AND channel=?''',(_servername,_domain,_channelname))
       con.commit()
     except Exception as u:
       printerror(u)
@@ -607,7 +607,7 @@ class scn_servs_sql(object):
     return temp # [(servername),...]
 
 
-  def list_serves(self,_servicename=None):
+  def list_serves(self,_channelname=None):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -617,13 +617,13 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      if _servicename==None:
-        cur.execute('''SELECT servername,domain,service,pending
+      if _channelname==None:
+        cur.execute('''SELECT servername,domain,channel,pending
         FROM scn_serves''')
       else:
-        cur.execute('''SELECT servername,domain,service,pending
+        cur.execute('''SELECT servername,domain,channel,pending
         FROM scn_serves
-        WHERE service=?''')
+        WHERE channel=?''')
 
       temp=cur.fetchall()
     except Exception as u:
@@ -713,14 +713,14 @@ class scn_client(scn_base_client):
     tempsocket.setblocking(True)
     return tempsocket
   
-  def c_connect_to_node(self,_server,_domain,_service="main",_com_method=None):
+  def c_connect_to_node(self,_server,_domain,_channel="main",_com_method=None):
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
     tempsocket=None
     method=_com_method
     _cert=None
-    for elem in self.c_get_service(_server,_domain,_service):
+    for elem in self.c_get_channel(_server,_domain,_channel):
       if _com_method is None:
         method=elem[0]
       if method=="ip" or method=="wrap":
@@ -763,8 +763,8 @@ class scn_client(scn_base_client):
     return True
     
 
-  def c_serve_service_ip(self,_servername,_domain,_service):
-    return self.c_serve_service(self,_servername,_domain,_service,"ip",self.linkback.receiver.host[1])
+  def c_serve_channel_ip(self,_servername,_domain,_channel):
+    return self.c_serve_channel(self,_servername,_domain,_channel,"ip",self.linkback.receiver.host[1])
   
   def c_get_server_list(self):
     return self.scn_servers.list_servers()
@@ -782,23 +782,23 @@ class scn_client(scn_base_client):
                    "deldomain": scn_base_client.c_delete_domain, 
                    "updmessage": scn_base_client.c_update_domain_message,
                    "chkdomain": scn_base_client.c_check_domain,
-                   "addservice": scn_base_client.c_add_service, 
-                   "updservice": scn_base_client.c_update_service, 
-                   "delservice": scn_base_client.c_delete_service, 
-                   "serveip": c_serve_service_ip, 
-                   "unserve": scn_base_client.c_unserve_service, 
+                   "addchannel": scn_base_client.c_add_channel, 
+                   "updchannel": scn_base_client.c_update_channel, 
+                   "delchannel": scn_base_client.c_delete_channel, 
+                   "serveip": c_serve_channel_ip, 
+                   "unserve": scn_base_client.c_unserve_channel, 
                    "updsecret": scn_base_client.c_update_secret,
                    "addserver": scn_base_client.c_add_server,
                    "updserver": scn_base_client.c_update_server, 
                    "delserver": scn_base_client.c_delete_server,
-                   "getservicehash": scn_base_client.c_get_service_secrethash, 
+                   "getchannelhash": scn_base_client.c_get_channel_secrethash, 
                    "getmessage": scn_base_client.c_get_domain_message, 
                    "getservercert": scn_base_client.c_get_server_cert, 
                    "info": scn_base_client.c_info, 
                    "getlist": c_get_server_list, 
                    "getnode": c_get_server}
 
-#,"use_auth": use_special_service_auth,"use_unauth":use_special_service_unauth
+#,"use_auth": use_special_channel_auth,"use_unauth":use_special_channel_unauth
   def debug(self):
     while self.is_active == True:
       serveranswer = None

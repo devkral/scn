@@ -1,5 +1,5 @@
 important
--rename service to ?? (optionally??), exposed services as service
+-rename service to channel, exposed services as service
 -fix multithreading (later)
 -finish gui
 -expose real services

@@ -15,7 +15,7 @@ from OpenSSL import SSL,crypto
 from scn_base import sepm,sepc #,sepu
 from scn_base import scn_base_server,scn_base_base,scn_socket,printdebug,printerror,init_config_folder,check_certs,generate_certs,interact
 
-from scn_config import scn_server_port,default_config_folder,scn_host,max_service_nodes
+from scn_config import scn_server_port,default_config_folder,scn_host,max_channel_nodes
 #,scn_cache_timeout
 
 
@@ -29,7 +29,7 @@ class scn_ip_store(object):
     self.db_tmp=self.db_temp_keep_alive.name
     try:
       con=sqlite3.connect(self.db_pers)
-      con.execute('''CREATE TABLE if not exists addr_store(domain TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT, hashed_pub_cert TEXT, PRIMARY KEY(domain,service,hashed_pub_cert));''')
+      con.execute('''CREATE TABLE if not exists addr_store(domain TEXT, channel TEXT, clientid INT, addr_type TEXT, addr TEXT, hashed_pub_cert TEXT, PRIMARY KEY(domain,channel,hashed_pub_cert));''')
       con.commit()
       con.close()
     except Exception as e:
@@ -39,7 +39,7 @@ class scn_ip_store(object):
 
     try:
       con=sqlite3.connect(self.db_tmp)
-      con.execute('''CREATE TABLE if not exists addr_store(domain TEXT, service TEXT, clientid INT, addr_type TEXT, addr TEXT,hashed_pub_cert TEXT, PRIMARY KEY(domain,service,hashed_pub_cert));''')
+      con.execute('''CREATE TABLE if not exists addr_store(domain TEXT, channel TEXT, clientid INT, addr_type TEXT, addr TEXT,hashed_pub_cert TEXT, PRIMARY KEY(domain,channel,hashed_pub_cert));''')
       
       con.commit()
       con.close()
@@ -48,22 +48,22 @@ class scn_ip_store(object):
       con.close()
       return
     
-  def det_con(self,_service):
-    if _service=="main" or _service=="notify":
+  def det_con(self,_channel):
+    if _channel=="main" or _channel=="notify":
       return sqlite3.connect(self.db_tmp)
-    elif _service=="store":
+    elif _channel=="store":
       return sqlite3.connect(self.db_pers)
     else:
       return None
 
-  def get(self,_domain,_service,):
+  def get(self,_domain,_channel,):
     nodelist=None
-    con=self.det_con(_service)
+    con=self.det_con(_channel)
     try:
       cur = con.cursor()
       cur.execute('''SELECT addr_type,addr,hashed_pub_cert
       FROM addr_store
-      WHERE domain=? AND service=? ORDER BY clientid''',(_domain,_service))
+      WHERE domain=? AND channel=? ORDER BY clientid''',(_domain,_channel))
       nodelist=cur.fetchall()
     except Exception as e:
       printerror(e)
@@ -73,45 +73,45 @@ class scn_ip_store(object):
     return nodelist
 
 
-  def update(self,_domain,_service,_nodeid,_pub_cert_hash,_addr_type,_addr):
-    con=self.det_con(_service)
+  def update(self,_domain,_channel,_nodeid,_pub_cert_hash,_addr_type,_addr):
+    con=self.det_con(_channel)
     try:
       cur = con.cursor()
       #single entry
-      if _service[0]=="=" or _service=="main":
+      if _channel[0]=="=" or _channel=="main":
         cur.execute('''DELETE FROM addr_store
         WHERE domain=? AND
-        service=?;''',(_domain, _service))
+        channel=?;''',(_domain, _channel))
 
         cur.execute('''INSERT into
-        addr_store(domain,service,clientid,hashed_pub_cert,addr_type, addr)
+        addr_store(domain,channel,clientid,hashed_pub_cert,addr_type, addr)
         values(?,?,0,?,?);''',
-        (_domain,_service, _pub_cert_hash, _addr_type, _addr))
+        (_domain,_channel, _pub_cert_hash, _addr_type, _addr))
       #order by activity
-      elif _service[0]=="+" or _service=="notify":
+      elif _channel[0]=="+" or _channel=="notify":
 
         cur.execute('''UPDATE addr_store
         SET clientid = clientid+1
         WHERE domain=? AND
-        service=?;''',
-        (_domain, _service))
+        channel=?;''',
+        (_domain, _channel))
 
         cur.execute('''DELETE FROM addr_store
         WHERE domain=? AND
-        service=? AND
+        channel=? AND
         nodeid>?;''',
-        (_domain, _service, max_service_nodes))
+        (_domain, _channel, max_channel_nodes))
 
         cur.execute('''INSERT into
-        addr_store(domain,service,clientid,hashed_pub_cert,addr_type, addr)
+        addr_store(domain,channel,clientid,hashed_pub_cert,addr_type, addr)
         values(?,?,0,?,?)''',
-        (_domain,_service, _pub_cert_hash, _addr_type, _addr))
+        (_domain,_channel, _pub_cert_hash, _addr_type, _addr))
       #order by nodeid (default)
-      elif _service[0]=="-" or True:
+      elif _channel[0]=="-" or True:
         cur.execute('''INSERT OR REPLACE into
-        addr_store(domain,service,clientid,hashed_pub_cert,addr_type, addr)
+        addr_store(domain,channel,clientid,hashed_pub_cert,addr_type, addr)
         values(?,?,?,?,?)''',
-        (_domain,_service, _nodeid, _pub_cert_hash, _addr_type, _addr))
+        (_domain,_channel, _nodeid, _pub_cert_hash, _addr_type, _addr))
     except Exception as e:
       printerror(e)
       con.close()
@@ -119,14 +119,14 @@ class scn_ip_store(object):
     con.close()
     return True
 
-  def del_node(self,_domain,_service,_pub_cert_hash):
-    con=self.det_con(_service)
+  def del_node(self,_domain,_channel,_pub_cert_hash):
+    con=self.det_con(_channel)
     try:
       cur = con.cursor()
       cur.execute('''DELETE FROM addr_store
       WHERE domain=? AND
-      service=? AND
-      hashed_pub_cert=?;''',(_domain, _service,_pub_cert_hash))
+      channel=? AND
+      hashed_pub_cert=?;''',(_domain, _channel,_pub_cert_hash))
     except Exception as e:
       printerror(e)
       con.close()
@@ -134,13 +134,13 @@ class scn_ip_store(object):
     con.close()
     return True
 
-  def del_service(self,_domain,_service):
-    con=self.det_con(_service)
+  def del_channel(self,_domain,_channel):
+    con=self.det_con(_channel)
     try:
       cur = con.cursor()
       cur.execute('''DELETE FROM addr_store
       WHERE domain=? AND
-      service=?;''',(_domain, _service))
+      channel=?;''',(_domain, _channel))
     except Exception as e:
       printerror(e)
       con.close()
@@ -175,7 +175,7 @@ class scn_ip_store(object):
 class scn_domain_sql(object):
 #  message=""
 #  pub_cert=None
-#  scn_services={"admin":[]}
+#  scn_channels={"admin":[]}
   dbcon=None
   domain=None
 
@@ -206,41 +206,41 @@ class scn_domain_sql(object):
       return None
     return message[0]
 
-#=get_service
-  def get_service(self,_servicename,_nodeid=None):
+#=get_channel
+  def get_channel(self,_channelname,_nodeid=None):
     ob=None
     try:
       cur = self.dbcon.cursor()
       if _nodeid is None:
         cur.execute('''SELECT nodeid,nodename,hashed_secret,hashed_pub_cert
-        FROM scn_node WHERE scn_domain=? AND servicename=?
-        ORDER BY nodeid''',(self.domain,_servicename))
+        FROM scn_node WHERE scn_domain=? AND channelname=?
+        ORDER BY nodeid''',(self.domain,_channelname))
       else:
         cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret
-        FROM scn_node WHERE scn_domain=? AND servicename=? AND nodeid=?''',(self.domain,_servicename,_nodeid))
+        FROM scn_node WHERE scn_domain=? AND channelname=? AND nodeid=?''',(self.domain,_channelname,_nodeid))
 
       ob=cur.fetchall()
     except Exception as e:
       printerror(e)
     return ob #nodeid,nodename,hashed_pub_cert,hashed_secret
 
-  def list_services(self):
+  def list_channels(self):
     ob=None
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''SELECT servicename
+      cur.execute('''SELECT channelname
       FROM scn_node WHERE scn_domain=?;''',(self.domain,))
       ob=cur.fetchall()
     except Exception as e:
       printerror(e)
-    return ob #servicename
+    return ob #channelname
 
-  def get_cert(self,_servicename,_secret_hash):
+  def get_cert(self,_channelname,_secret_hash):
     ob=None
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT hashed_pub_cert
-      FROM scn_node WHERE scn_domain=? AND servicename=? AND hashed_pub_cert=?''',(self.domain,_servicename,_secret_hash))
+      FROM scn_node WHERE scn_domain=? AND channelname=? AND hashed_pub_cert=?''',(self.domain,_channelname,_secret_hash))
 
       ob=cur.fetchone()
     except Exception as e:
@@ -248,21 +248,21 @@ class scn_domain_sql(object):
     return ob #hashed_pub_cert
 
 #"admin" is admin
-  def update_service(self,_servicename,_secrethashlist):
-#max_service_nodes checked in body
+  def update_channel(self,_channelname,_secrethashlist):
+#max_channel_nodes checked in body
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''SELECT nodeid FROM scn_node WHERE scn_domain=? AND servicename=?''',(self.domain,_servicename))
+      cur.execute('''SELECT nodeid FROM scn_node WHERE scn_domain=? AND channelname=?''',(self.domain,_channelname))
       a=len(_secrethashlist)
       b=cur.rowcount
       for c in range(0,max(a,b)):
         if c<=a:
           cur.execute('''INSERT OR REPLACE into
-          scn_node(scn_domain,servicename, nodeid, nodename, hashed_pub_cert, hashed_secret)
+          scn_node(scn_domain,channelname, nodeid, nodename, hashed_pub_cert, hashed_secret)
           values(?,?,?,?,?,?);''',
-          self.domain,_servicename,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2])
+          self.domain,_channelname,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2])
         elif c<b:
-          cur.execute('''DELETE FROM scn_node WHERE scn_domain=? AND servicename=? AND nodeid=?;''',(self.domain,_servicename,c))
+          cur.execute('''DELETE FROM scn_node WHERE scn_domain=? AND channelname=? AND nodeid=?;''',(self.domain,_channelname,c))
       self.dbcon.commit()
     except Exception as e:
       self.dbcon.rollback()
@@ -272,11 +272,11 @@ class scn_domain_sql(object):
 
   #security related
   #_secret should be already bytes
-  def verify_secret(self,_servicename,_secret):
+  def verify_secret(self,_channelname,_secret):
     state=False
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''SELECT scn_domain FROM scn_node WHERE scn_domain=? AND servicename=? AND hashed_secret=?;''',(self.domain,_servicename,hashlib.sha256(_secret).hexdigest()))
+      cur.execute('''SELECT scn_domain FROM scn_node WHERE scn_domain=? AND channelname=? AND hashed_secret=?;''',(self.domain,_channelname,hashlib.sha256(_secret).hexdigest()))
       if cur.fetchone() is not None:
         state=True
     except Exception as e:
@@ -285,15 +285,15 @@ class scn_domain_sql(object):
     return state
 
   #_secret should be already bytes
-  def update_secret(self,_servicename,_secret,_newsecret_hash,_pub_cert_hash=None):
-    if self.verify_secret(_servicename,_secret)==False:
+  def update_secret(self,_channelname,_secret,_newsecret_hash,_pub_cert_hash=None):
+    if self.verify_secret(_channelname,_secret)==False:
       return False
     try:
       cur = self.dbcon.cursor()
       if _pub_cert_hash is not None:
-        cur.execute('''UPDATE scn_node SET hashed_secret=?, hashed_pub_cert=? WHERE servicename=? AND scn_domain=? AND hashed_secret=?;''',(_newsecret_hash,_pub_cert_hash,_servicename,self.domain,hashlib.sha256(_secret).hexdigest()))
+        cur.execute('''UPDATE scn_node SET hashed_secret=?, hashed_pub_cert=? WHERE channelname=? AND scn_domain=? AND hashed_secret=?;''',(_newsecret_hash,_pub_cert_hash,_channelname,self.domain,hashlib.sha256(_secret).hexdigest()))
       else:
-        cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE servicename=? AND scn_domain=? AND hashed_secret=?;''',(_newsecret_hash,_servicename,self.domain,hashlib.sha256(_secret).hexdigest()))
+        cur.execute('''UPDATE scn_node SET hashed_secret=? WHERE channelname=? AND scn_domain=? AND hashed_secret=?;''',(_newsecret_hash,_channelname,self.domain,hashlib.sha256(_secret).hexdigest()))
       self.dbcon.commit()
     except Exception as e:
       cur.rollback()
@@ -301,12 +301,12 @@ class scn_domain_sql(object):
       return False
     return True
 
-  def delete_secret(self,_servicename,_secret):
-    if self.verify_secret(_servicename,_secret)==False:
+  def delete_secret(self,_channelname,_secret):
+    if self.verify_secret(_channelname,_secret)==False:
       return False
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''DELETE FROM scn_node WHERE servicename=? AND scn_domain=? AND hashed_secret=?;''',(_servicename,self.domain,hashlib.sha256(bytes(_secret)).hexdigest()))
+      cur.execute('''DELETE FROM scn_node WHERE channelname=? AND scn_domain=? AND hashed_secret=?;''',(_channelname,self.domain,hashlib.sha256(bytes(_secret)).hexdigest()))
       self.dbcon.commit()
     except Exception as e:
       cur.rollback()
@@ -327,7 +327,7 @@ class scn_domain_list_sqlite(object):
       con.execute('''CREATE TABLE if not exists scn_domain(name TEXT, message TEXT);''')
       con.commit()
 
-      con.execute('''CREATE TABLE if not exists scn_node(scn_domain TEXT,servicename TEXT, nodeid INTEGER, nodename TEXT, hashed_pub_cert TEXT, hashed_secret TEXT, PRIMARY KEY(scn_domain,servicename,nodeid),FOREIGN KEY(scn_domain) REFERENCES scn_domain(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
+      con.execute('''CREATE TABLE if not exists scn_node(scn_domain TEXT,channelname TEXT, nodeid INTEGER, nodename TEXT, hashed_pub_cert TEXT, hashed_secret TEXT, PRIMARY KEY(scn_domain,channelname,nodeid),FOREIGN KEY(scn_domain) REFERENCES scn_domain(name) ON UPDATE CASCADE ON DELETE CASCADE);''')
       con.commit()
     except Exception as e:
       con.rollback()
@@ -375,7 +375,7 @@ class scn_domain_list_sqlite(object):
     length=0
     try:
       cur = con.cursor()
-      cur.execute(' SELECT DISTINCT servicename FROM scn_node WHERE scn_domain=?', (_domain,))
+      cur.execute(' SELECT DISTINCT channelname FROM scn_node WHERE scn_domain=?', (_domain,))
       length=cur.rowcount
     except Exception as e:
       printerror(e)
@@ -415,7 +415,7 @@ class scn_domain_list_sqlite(object):
     try:
       cur = con.cursor()
       cur.execute('''INSERT into scn_node
-      (scn_domain,servicename,nodeid,nodename,hashed_secret,hashed_pub_cert)
+      (scn_domain,channelname,nodeid,nodename,hashed_secret,hashed_pub_cert)
       values(?,'admin',0, 'init',?,?)''', (_domain,_secrethash,_certhash))
       cur.execute('''INSERT into scn_domain(name,message) values(?,'')''', (_domain,))
       con.commit()
@@ -434,20 +434,20 @@ class scn_server(scn_base_server):
   actions={"register_domain": scn_base_server.s_register_domain,
            "delete_domain": scn_base_server.s_delete_domain,
            "update_message": scn_base_server.s_update_message,
-           "add_service": scn_base_server.s_add_service,
-           "update_service": scn_base_server.s_update_service,
-           "delete_service":scn_base_server.s_delete_service,
-           "get_service_secrethash": scn_base_server.s_get_service_secrethash,
-           "get_service": scn_base_server.s_get_service,
-           "serve": scn_base_server.s_serve_service,
-           "unserve": scn_base_server.s_unserve_service,
+           "add_channel": scn_base_server.s_add_channel,
+           "update_channel": scn_base_server.s_update_channel,
+           "delete_channel":scn_base_server.s_delete_channel,
+           "get_channel_secrethash": scn_base_server.s_get_channel_secrethash,
+           "get_channel": scn_base_server.s_get_channel,
+           "serve": scn_base_server.s_serve_channel,
+           "unserve": scn_base_server.s_unserve_channel,
            "update_secret": scn_base_server.s_update_secret,
-           "use_special_service_auth": scn_base_server.s_use_special_service_auth,
-           "use_special_service_unauth":scn_base_server.s_use_special_service_unauth,
+           "use_special_channel_auth": scn_base_server.s_use_special_channel_auth,
+           "use_special_channel_unauth":scn_base_server.s_use_special_channel_unauth,
            "get_domain_message":scn_base_server.s_get_domain_message,
            "check_domain": scn_base_server.s_check_domain,
            "list_domains": scn_base_server.s_list_domains,
-           "list_services": scn_base_server.s_list_services,
+           "list_channels": scn_base_server.s_list_channels,
            "get_cert":scn_base_base.s_get_cert,
            "info":scn_base_base.s_info,
            "pong":scn_base_base.pong}
@@ -473,8 +473,8 @@ class scn_server(scn_base_server):
     if self.scn_domains.get("admin") is None:
       #fixme: create working acc
       self.scn_domains.create_domain("admin",0,0)
-    #self.special_services={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
-    #self.special_services_unauth={"test":self.s_info ,"callback":self.callback}
+    #self.special_channels={"retrieve_callback": self.retrieve_callback,"auth_callback": self.auth_callback}
+    #self.special_channels_unauth={"test":self.s_info ,"callback":self.callback}
     self.refresh_domains_thread=threading.Thread(target=self.refresh_domain_list)
     self.refresh_domains_thread.daemon = True
     self.refresh_domains_thread.start()
@@ -501,7 +501,7 @@ class scn_server(scn_base_server):
 
   def auth_callback(self,_socket,_name,_store_name,_secret):
     if self.scn_names.contains(_name)==False or \
- self.service_auth(_store_name,"callback",_secret)==False \
+ self.channel_auth(_store_name,"callback",_secret)==False \
 or self.scn_names.contains(_store_name)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
@@ -511,7 +511,7 @@ or self.scn_names.contains(_store_name)==False:
     _socket.send("success"+sepm)
     
   def retrieve_callback(self,_socket,_name,_secret):
-    if self.scn_names.contains(_name)==False or self.service_auth(_name,"callback",_secret)==False:
+    if self.scn_names.contains(_name)==False or self.channel_auth(_name,"callback",_secret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     temp=""
