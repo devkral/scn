@@ -220,11 +220,16 @@ der nichts kann</property>
       <column type="GtkExpander"/>
     </columns>
   </object>
-  <object class="GtkTreeStore" id="navcontent">
+  <object class="GtkAdjustment" id="navboxbar">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkListStore" id="navcontent">
     <columns>
-      <!-- column-name gchararray -->
+      <!-- column-name first -->
       <column type="gchararray"/>
-      <!-- column-name name -->
+      <!-- column-name title -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -232,6 +237,7 @@ der nichts kann</property>
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="hide_titlebar_when_maximized">True</property>
+    <property name="icon">icon.png</property>
     <child>
       <object class="GtkGrid" id="grid1">
         <property name="visible">True</property>
@@ -269,7 +275,7 @@ der nichts kann</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkEntry" id="entry1">
+                      <object class="GtkEntry" id="navbar">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="hexpand">True</property>
@@ -280,7 +286,7 @@ der nichts kann</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="button1">
+                      <object class="GtkButton" id="navbarok">
                         <property name="label" translatable="yes">Ok</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
@@ -348,14 +354,16 @@ der nichts kann</property>
                   <object class="GtkViewport" id="viewport2">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="vadjustment">navboxbar</property>
                     <child>
-                      <object class="GtkTreeView" id="treeview1">
+                      <object class="GtkTreeView" id="navbox">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="vexpand">True</property>
                         <property name="model">navcontent</property>
+                        <property name="rules_hint">True</property>
                         <child internal-child="selection">
-                          <object class="GtkTreeSelection" id="treeview-selection1"/>
+                          <object class="GtkTreeSelection" id="navboxselection"/>
                         </child>
                       </object>
                     </child>
@@ -587,7 +595,7 @@ der nichts kann</property>
           </packing>
         </child>
         <child>
-          <object class="GtkSpinner" id="spinner1">
+          <object class="GtkSpinner" id="activity">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
           </object>
@@ -597,7 +605,7 @@ der nichts kann</property>
           </packing>
         </child>
         <child>
-          <object class="GtkStatusbar" id="statusbar1">
+          <object class="GtkStatusbar" id="statusbar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="margin_left">10</property>
@@ -609,6 +617,7 @@ der nichts kann</property>
             <property name="hexpand">True</property>
             <property name="orientation">vertical</property>
             <property name="spacing">2</property>
+            <signal name="text-pushed" handler="pushmanage" swapped="no"/>
           </object>
           <packing>
             <property name="left_attach">1</property>
@@ -650,28 +659,120 @@ der nichts kann</property>
         </child>
       </object>
       <packing>
-        <property name="left_attach">1</property>
+        <property name="left_attach">2</property>
         <property name="top_attach">0</property>
       </packing>
     </child>
     <child>
-      <object class="GtkButton" id="useserver">
+      <object class="GtkGrid" id="grid7">
         <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">True</property>
-        <property name="halign">start</property>
+        <property name="can_focus">False</property>
         <property name="valign">start</property>
-        <property name="yalign">0.55000001192092896</property>
         <child>
-          <object class="GtkImage" id="image1">
+          <object class="GtkButton" id="addserver">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="icon_name">go-jump</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="yalign">0.55000001192092896</property>
+            <signal name="clicked" handler="add_server" swapped="no"/>
+            <child>
+              <object class="GtkImage" id="image7">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_name">list-add</property>
+              </object>
+            </child>
           </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="delserver">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="yalign">0.55000001192092896</property>
+            <signal name="clicked" handler="delete_server" swapped="no"/>
+            <child>
+              <object class="GtkImage" id="image8">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_name">list-remove</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="edit_server">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="yalign">0.55000001192092896</property>
+            <signal name="clicked" handler="edit_server" swapped="no"/>
+            <child>
+              <object class="GtkImage" id="image9">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_name">preferences-system</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="useserver">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="halign">start</property>
+            <property name="valign">start</property>
+            <property name="yalign">0.55000001192092896</property>
+            <signal name="clicked" handler="select_server" swapped="no"/>
+            <child>
+              <object class="GtkImage" id="image1">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_name">go-jump</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">0</property>
+          </packing>
         </child>
       </object>
       <packing>
         <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSeparator" id="separator3">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="margin_left">3</property>
+        <property name="margin_right">3</property>
+        <property name="vexpand">True</property>
+        <property name="orientation">vertical</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
         <property name="top_attach">0</property>
       </packing>
     </child>
@@ -684,6 +785,7 @@ der nichts kann</property>
         <property name="visible">True</property>
         <property name="can_focus">True</property>
         <property name="receives_default">True</property>
+        <signal name="clicked" handler="select_domain" swapped="no"/>
         <child>
           <object class="GtkImage" id="image2">
             <property name="visible">True</property>
@@ -702,6 +804,7 @@ der nichts kann</property>
         <property name="visible">True</property>
         <property name="can_focus">True</property>
         <property name="receives_default">True</property>
+        <signal name="clicked" handler="goback_none" swapped="no"/>
         <child>
           <object class="GtkImage" id="image3">
             <property name="visible">True</property>
@@ -737,6 +840,7 @@ Domain</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
+                    <signal name="clicked" handler="register_domain" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -750,6 +854,7 @@ Domain</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
+                    <signal name="clicked" handler="delete_domain" swapped="no"/>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -758,8 +863,8 @@ Domain</property>
                 </child>
                 <child>
                   <object class="GtkButton" id="button8">
-                    <property name="label" translatable="yes">sinnloser Knopf
-der nichts kann</property>
+                    <property name="label" translatable="yes">Edit
+Domain</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>

@@ -4,6 +4,7 @@
 import threading
 import signal
 import sys
+import time
 
 from scn_client import client_master,scn_client,scn_server_client,scn_sock_client
 from scn_base import check_invalid_s,printerror
@@ -125,78 +126,63 @@ class scnNameAddDialog(Gtk.Dialog):
 
 
 
-class scnPageNavigation(Gtk.Grid):
-  parent=None
-  linkback=None
 
+class scnGUI(object):
+  confirm_button_id=None
+  reset_button_id=None
+  state_widget=None
+  note_main=None
+  linkback=None
+  builder=None
   cur_server=None #use only after set by scnupdate
   cur_domain=None #use only after set by scnupdate
   cur_channel=None #use only after set by scnupdate
   box_select_handler_id=None
   box_activate_handler_id=None
 
-  def __init__(self,_parent):
-    Gtk.Grid.__init__(self)
-    self.parent=_parent
-    self.linkback=self.parent.linkback
-
-    self.set_row_spacing(2)
-    self.set_margin_left(5)
-    self.set_margin_right(5)
-    self.set_margin_top(5)
-    self.set_margin_bottom(2)
-
-    self.navbar=Gtk.Entry()
-    self.navbar.connect("activate",self.navbarupdate)
-    self.navcontent=Gtk.ListStore(str,str)
+  navbar=None
+  navbox=None
+  navcontent=None
+  listelems=None
+  statusbar=None
+  messagecount=0
+  messageid=1
+  win=None
+  
+  def __init__(self,_linkback,_uipath):
+    self.linkback=_linkback
+    self.builder=Gtk.Builder()
+    self.builder.add_from_file(_uipath)
+    #_uipath);
+    #win=self.builder.get_object("mainwindow")
+    #win.
     
-    self.navbox=Gtk.TreeView(self.navcontent)
-    self.navbox.set_activate_on_single_click(False)
+    self.win=self.builder.get_object("mainwin")
+    self.navbar=self.builder.get_object("navbar")
+    self.statusbar=self.builder.get_object("statusbar")
+
+    self.navcontent=self.builder.get_object("navcontent")
+    self.navbox=self.builder.get_object("navbox")
     renderer = Gtk.CellRendererText()
     renderer2 = Gtk.CellRendererText()
     tempelem = Gtk.TreeViewColumn("", renderer2, text=0)
     self.listelems = Gtk.TreeViewColumn("Title", renderer, text=1)
     self.navbox.append_column(tempelem)
     self.navbox.append_column(self.listelems)
-    self.navbox.get_selection().set_mode(Gtk.SelectionMode.BROWSE)
-    self.navbox.set_vexpand(True)
-    self.navcontextmain=Gtk.Frame()
-    #self.navcontextmain.set_margin_right(5)
-    self.navcontextmain.set_hexpand(True)
-    self.navcontextmain.set_shadow_type(Gtk.ShadowType.NONE)
-
-    navcontainer=Gtk.Grid()
-    navcontainer.set_column_spacing(2)
-
-    #navcontainer.set_margin_top(2)
-    #navcontainer.set_margin_left(5)
-    #navcontainer.set_margin_right(5)
-    labelnavbar=Gtk.Label("Navigation: ")
-    navbarconfirm=Gtk.Button("OK")
-    navbarconfirm.connect("clicked",self.navbarupdate)
-    navcontainer.attach(labelnavbar,0,0,1,1)
-    self.navbar.set_hexpand (True)
-    self.navbar.connect("activate",self.navbarupdate)
-    navcontainer.attach(self.navbar,1,0,1,1)
-    navcontainer.attach(navbarconfirm,2,0,1,1)
-
-    self.attach(navcontainer,0,0,2,1)
-    self.attach(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),0,1,2,1)
-
-    frame_nav=Gtk.Frame()
-    frame_nav.add(self.navbox)
-    frame_nav.set_margin_left(5)
-    frame_nav.set_margin_right(5)
-
-    #self.attach(self.navcontextsmall,0,2,1,1)
-    self.attach(frame_nav,0,2,1,1)
-
     
-    self.navcontextmain.set_label_align(0.1,0.8)
-    self.attach(self.navcontextmain,1,2,1,1)
+    self.builder.connect_signals(self)
     self.update()
+    
 
-
+  def destroy_handler(self,*args):
+    signal_handler()
+  def pushmanage(self,*args):
+    self.messagecount+=1
+    if self.messagecount>1:
+      time.sleep(5)
+      self.messagecount-=1
+      self.statusbar.pop(self.messageid)
+      
   def update(self,_server=None,_domain=None,_channel=None):
     if _server=="":
       _server=None
@@ -288,78 +274,21 @@ class scnPageNavigation(Gtk.Grid):
       self.navcontent.append(("",elem))
 
   def buildNonegui(self):
+    
     if self.updateserverlist()==False:
-      self.parent.state_widget.set_text("Error loading servers")
+      pass
+      #self.parent.state_widget.set_text("Error loading servers")
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
-      
-    if self.box_activate_handler_id!=None:
-      self.navbox.disconnect(self.box_activate_handler_id)
-      self.box_activate_handler_id=None
-    #label counts as child, so ignore it
-    if len(self.navcontextmain.get_children())==1:
-      self.navcontextmain.get_children()[0].destroy()
-      #self.navcontextmain.set_label("Context")
-    #build grid for contextarea
-    contextcont=Gtk.Grid()
-    self.navcontextmain.add(contextcont)
-    contextcont.set_row_spacing(2)
-    contextcont.set_column_spacing(2)
-    #contextcont.set_border_width(2)
+    newob=self.builder.get_object("nocontext")
 
-    navcont_f=Gtk.Frame()
-    navcont_f.set_label("Navigation")
-    navcont=Gtk.Grid()
-    navcont.set_row_spacing(2)
-    navcont.set_border_width(2)
-    navcont_f.add(navcont)
-    contextcont.attach(navcont_f,0,0,1,1)
-
-    goServerButton1=Gtk.Button("Use Server")
-    goServerButton1.connect("clicked", self.select_server)
-    navcont.attach(goServerButton1,0,0,1,1)
-
-
-    servercont_f=Gtk.Frame()
-    servercont_f.set_label("Server Actions")
-    servercont=Gtk.Grid()
-    servercont.set_row_spacing(2)
-    servercont.set_border_width(2)
-    servercont_f.add(servercont)
-    contextcont.attach(servercont_f,0,1,1,1)
-
-
-    addServerButton1=Gtk.Button("Add Server")
-    addServerButton1.connect("clicked", self.add_server)
-    servercont.attach(addServerButton1,0,0,1,1)
-    deleteServerButton1=Gtk.Button("Delete Server")
-    deleteServerButton1.connect("clicked", self.delete_server)
-    servercont.attach(deleteServerButton1,0,1,1,1)
-    
-    editServerButton1=Gtk.Button("Edit Server")
-    editServerButton1.connect("clicked", self.edit_server2)
-    servercont.attach(editServerButton1,0,2,1,1)
-
-
-    #building frame showing message
-    messagef2=Gtk.Frame()
-    messagef2.set_label("Message")
-    self.selectedservermessage=Gtk.Label()
-    self.selectedservermessage.set_selectable(True)
-    #self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
-    
-    self.selectedservermessage.set_halign(Gtk.Align.START)
-    self.selectedservermessage.set_valign(Gtk.Align.START)
-    self.selectedservermessage.set_hexpand(True)
-    self.selectedservermessage.set_vexpand(True)
-    messagef2.add(self.selectedservermessage)
-    contextcont.attach(messagef2,1,1,1,1)
+    cdin=self.builder.get_object("contextdropin")
+    if len(cdin.get_children())==1:
+      cdin.remove(cdin.get_children()[0])
+    cdin.add(newob)
     self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_server)
     self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_server)
-    self.navcontextmain.show_all()
-
-
 
   def buildservergui(self):
     if self.updatedomainlist()==False:
@@ -373,458 +302,18 @@ class scnPageNavigation(Gtk.Grid):
     if self.box_activate_handler_id!=None:
       self.navbox.disconnect(self.box_activate_handler_id)
       self.box_activate_handler_id=None
-    if len(self.navcontextmain.get_children())==1:
-      #print(self.navcontextmain.get_children())
-      self.navcontextmain.get_children()[0].destroy()
-      #print(self.navcontextmain.get_children())
-    #build grid for contextarea
-    contextcont=Gtk.Grid()
-    contextcont.set_column_spacing(2)
-    contextcont.set_row_spacing(2)
-    self.navcontextmain.add(contextcont)
-
-    
-    navcont_f=Gtk.Frame()
-    navcont_f.set_label("Navigation")
-    navcont=Gtk.Grid()
-    navcont.set_row_spacing(2)
-    navcont.set_border_width(2)
-    navcont_f.add(navcont)
-    contextcont.attach(navcont_f,0,0,1,1)
     
     
-    goNoneButton2=Gtk.Button("Go back")
-    goNoneButton2.connect("clicked", self.goback_none)
-    navcont.attach(goNoneButton2,0,0,1,1)
-
-    goDomainButton1=Gtk.Button("Use Domain")
-    goDomainButton1.connect("clicked", self.select_domain)
-    navcont.attach(goDomainButton1,0,1,1,1)
-
-    ### server actions ###
-
-    servercont_f=Gtk.Frame()
-    servercont_f.set_label("Server actions")
-    servercont=Gtk.Grid()
-    servercont.set_row_spacing(2)
-    servercont.set_border_width(2)
-    servercont_f.add(servercont)
-    contextcont.attach(servercont_f,0,1,1,1)
-
-    deleteServerButton3=Gtk.Button("Delete server")
-    deleteServerButton3.connect("clicked", self.delete_server2)
-    servercont.attach(deleteServerButton3,0,0,1,1)
-    
-    editServerButton1=Gtk.Button("Edit Server")
-    editServerButton1.connect("clicked", self.edit_server2)
-    servercont.attach(editServerButton1,0,1,1,1)
-
-    
-    
-    ### domain actions ###
-
-    domaincont_f=Gtk.Frame()
-    domaincont_f.set_label("Domain actions")
-    domaincont=Gtk.Grid()
-    domaincont.set_row_spacing(2)
-    domaincont.set_border_width(2)
-    domaincont_f.add(domaincont)
-    contextcont.attach(domaincont_f,0,2,1,1)
-
-
-    addDomainButton1=Gtk.Button("Register Domain")
-    addDomainButton1.connect("clicked", self.register_domain)
-    domaincont.attach(addDomainButton1,0,0,1,1)
-    
-
-    deleteDomainButton3=Gtk.Button("Delete Domain")
-    deleteDomainButton3.connect("clicked", self.delete_domain)
-    domaincont.attach(deleteDomainButton3,0,1,1,1)
-
-
-    ### space for message
-    #building frame showing message
-    messagef=Gtk.Frame()
-    messagef.set_label("Server Message")
-    tempmessage=self.linkback.main.c_get_server_message(self.cur_server)
-    tempshowlabel=Gtk.Label()
-    tempshowlabel.set_selectable(True)
-    tempshowlabel.set_halign(Gtk.Align.START)
-    tempshowlabel.set_valign(Gtk.Align.START)
-    tempshowlabel.set_hexpand(True)
-    messagef.add(tempshowlabel)
-    if tempmessage is None or tempmessage=="":
-      tempshowlabel.set_text("No message")
-    else:
-      tempshowlabel.set_text(tempmessage)
-    contextcont.attach(messagef,1,0,1,1)
-
-    #building frame showing message
-    messagef2=Gtk.Frame()
-    messagef2.set_label("Message")
-    self.selecteddomainmessage=Gtk.Label()
-    self.selecteddomainmessage.set_halign(Gtk.Align.START)
-    self.selecteddomainmessage.set_valign(Gtk.Align.START)
-    self.selecteddomainmessage.set_selectable(True)
-    #self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
-    self.selecteddomainmessage.set_hexpand(True)
-    self.selecteddomainmessage.set_vexpand(True)
-    messagef2.add(self.selecteddomainmessage)
-    contextcont.attach(messagef2,1,1,1,2)
+    newob=self.builder.get_object("servercontext")
+    cdin=self.builder.get_object("contextdropin")
+    if len(cdin.get_children())==1:
+      cdin.remove(cdin.get_children()[0])
+    cdin.add(newob)
     self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_domain)
-    
-    self.box_select_handler_id=self.navbox.connect("row-activated",self.select_domain)
+    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_domain)
 
-#    self.servercont_f.show_all()
-#    self.domaincont_f.show_all()
-    self.navcontextmain.show_all()
-
-  def builddomaingui(self):
-    
-    if self.updatechannellist()==False:
-      self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
-      self.buildservergui()
-      return
-    if self.box_select_handler_id!=None:
-      self.navbox.disconnect(self.box_select_handler_id)
-      self.box_select_handler_id=None
-    
-    if self.box_activate_handler_id!=None:
-      self.navbox.disconnect(self.box_activate_handler_id)
-      self.box_activate_handler_id=None
-    #label counts as child
-    if len(self.navcontextmain.get_children())==1:
-      self.navcontextmain.get_children()[0].destroy()
-    #build grid for contextarea
-    contextcont=Gtk.Grid()
-    contextcont.set_column_spacing(2)
-    contextcont.set_row_spacing(2)
-    self.navcontextmain.add(contextcont)
-
-    navcont_f=Gtk.Frame()
-    navcont_f.set_label("Navigation")
-    navcont=Gtk.Grid()
-    navcont.set_row_spacing(2)
-    navcont.set_border_width(2)
-    navcont_f.add(navcont)
-    contextcont.attach(navcont_f,0,0,1,1)
-
-    goChannelButton1=Gtk.Button("Use Channel")
-    goChannelButton1.connect("clicked", self.select_channel)
-    navcont.attach(goChannelButton1,0,0,1,1)
-
-    goServerButton2=Gtk.Button("Go back")
-    goServerButton2.connect("clicked", self.goback_server)
-    navcont.attach(goServerButton2,0,1,1,1)
-
-
-    channelcont_f=Gtk.Frame()
-    channelcont_f.set_label("Channel actions")
-    channelcont=Gtk.Grid()
-    channelcont.set_row_spacing(2)
-    channelcont.set_border_width(2)
-    channelcont_f.add(channelcont)
-    contextcont.attach(channelcont_f,0,1,1,1)
-
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is not None:
-      addChannelButton2=Gtk.Button("Add channel")
-      addChannelButton2.connect("clicked", self.add_channel)
-      channelcont.attach(addChannelButton2,0,0,1,1)
-
-      delChannelButton2=Gtk.Button("Delete channel")
-      delChannelButton2.connect("clicked", self.delete_channel)
-      channelcont.attach(delChannelButton2,0,1,1,1)
-
-    #building frame showing message
-    messagef=Gtk.Frame()
-    messagef.set_label("Message")
-    tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
-    tempshowlabel=Gtk.Label()
-    tempshowlabel.set_selectable(True)
-    
-    tempshowlabel.set_hexpand(True)
-    tempshowlabel.set_halign(Gtk.Align.START)
-    tempshowlabel.set_valign(Gtk.Align.START)
-    messagef.add(tempshowlabel)
-    if tempmessage is None or tempmessage=="":
-      tempshowlabel.set_text("No message")
-    else:
-      tempshowlabel.set_text(tempmessage)
-    contextcont.attach(messagef,1,0,1,1)
-    self.channelf=Gtk.Frame()
-    self.channelf.set_vexpand(True)
-    self.channelf.set_hexpand(True)
-    self.channelf.set_shadow_type(Gtk.ShadowType.NONE)
-    contextcont.attach(self.channelf,1,1,1,1)
-    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_channel)
-    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_channel)
-
-    self.navcontextmain.show_all()
-
-
-  ### channel gui ###
-
-  def buildchannelgui(self):
-    if self.cur_server is None or self.cur_domain is None or self.cur_channel is None:
-      self.builddomaingui()
-      return
-    #if self.box_select_handler_id!=None:
-    #  self.navbox.disconnect(self.box_select_handler_id)
-    #  self.box_select_handler_id=None
-    self.updatenodelist()
-
-    #label counts as child
-    if len(self.navcontextmain.get_children())==1:
-      self.navcontextmain.get_children()[0].destroy()
-    
-    contextcont=Gtk.Grid()
-    contextcont.set_column_spacing(2)
-    contextcont.set_row_spacing(2)
-    self.navcontextmain.add(contextcont)
-
-
-    managecont_f=Gtk.Frame()
-    managecont_f.set_label("Basic Actions:")
-    managecont=Gtk.Grid()
-    managecont.set_row_spacing(2)
-    managecont.set_border_width(2)
-    managecont_f.add(managecont)
-    contextcont.attach(managecont_f,0,0,1,1)
-
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is None:
-      createreqButton2=Gtk.Button("Create Request")
-      createreqButton2.connect("clicked", self.goback_domain)
-      managecont.attach(createreqButton2,0,0,1,1)
-
-      self.ChannelRequest_entry=Gtk.Entry()
-      managecont.attach(self.ChannelRequest_entry,1,0,1,1)
-    else:
-
-      delreqButton2=Gtk.Button("Delete Request")
-      delreqButton2.connect("clicked", self.goback_domain)
-      managecont.attach(delreqButton2,0,0,2,1)
-
-
-
-    goDomainButton2=Gtk.Button("Go back")
-    goDomainButton2.connect("clicked", self.goback_domain)
-    managecont.attach(goDomainButton2,0,1,2,1)
-
-
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is not None:
-      selfmincont_f=Gtk.Frame()
-      selfmincont_f.set_label("Self administration")
-      selfmincont=Gtk.Grid()
-      selfmincont.set_row_spacing(2)
-      selfmincont.set_border_width(2)
-      selfmincont_f.add(selfmincont)
-      contextcont.attach(selfmincont_f,1,0,1,1)
-
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is not None:
-      admincont_f=Gtk.Frame()
-      admincont_f.set_label("Node management")
-      admincont=Gtk.Grid()
-      admincont.set_row_spacing(2)
-      admincont.set_border_width(2)
-      admincont_f.add(admincont)
-      contextcont.attach(admincont_f,0,1,1,1)
-
-
-
-    temp=self.genchannelcontext(self.cur_channel)
-    temp.set_vexpand(True)
-    temp.set_hexpand(True)
-    contextcont.attach(temp,1,1,1,1)
-    self.navcontextmain.show_all()
-    
-
-  def genchannelcontext(self,_channel):
-    if _channel=="admin":
-      adminsc_f=Gtk.Frame()
-      adminsc_f.set_label("Admin")
-      if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
-        adminsc_f.add(Gtk.Label("No permission"))
-        adminsc_f.show_all()
-        return adminsc_f
-      adminsc=Gtk.Grid()
-      adminsc.set_row_spacing(2)
-      adminsc.set_border_width(2)
-      adminsc_f.add(adminsc)
-      adminsc_f.show_all()
-      return adminsc_f
-    elif _channel=="special" or \
-         _channel in self.special_channels:
-      spsc_f=Gtk.Frame()
-      spsc_f.set_label("Specialchannel")
-      if self.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel) is None and \
-         self.scn_servers.get_channel(self.cur_server,self.cur_domain,"special") is None and \
-         self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
-        temp=Gtk.Label("No permission")
-        spsc_f.add(temp)
-        spsc_f.show_all()
-        return spsc_f
-      spsc=Gtk.Grid()
-      spsc.set_row_spacing(2)
-      spsc.set_border_width(2)
-      spsc_f.add(spsc)
-      addnodebut=Gtk.Button("Add Node")
-      spsc.attach(addnodebut,0,0,1,1)
-      addservebut=Gtk.Button("Add Channel")
-      spsc.attach(addservebut,0,1,1,1)
-      
-      changemessagebut=Gtk.Button()
-      if self.cur_domain=="admin":
-        changemessagebut.set_text("Change Server Message")
-      else:
-        changemessagebut.set_text("Change Domain Message")
-      spsc.attach(changemessagebut,0,2,1,1)
-      #addusertochannel
-      spsc_f.show_all()
-      return spsc_f
-    elif _channel=="main":
-      mainsc_f=Gtk.Frame()
-      mainsc_f.set_label("Main node")
-      mainsc=Gtk.Grid()
-      mainsc.set_row_spacing(2)
-      mainsc.set_border_width(2)
-      mainsc_f.add(mainsc)
-      return mainsc_f
-    elif _channel=="notify":
-      notifysc_f=Gtk.Frame()
-      notifysc_f.set_label("Notify")
-      notifysc=Gtk.Grid()
-      notifysc.set_row_spacing(2)
-      notifysc.set_border_width(2)
-      notifysc_f.add(notifysc)
-      return notifysc_f
-    else:
-      defaultsc_f=Gtk.Frame()
-      defaultsc_f.set_label("__"+_channel)
-      defaultsc=Gtk.Grid()
-      defaultsc.set_row_spacing(2)
-      defaultsc.set_border_width(2)
-      defaultsc_f.add(defaultsc)
-
-      return defaultsc_f
-
-    ######################################################################
-
-class scnGUI(object):
-  confirm_button_id=None
-  reset_button_id=None
-  state_widget=None
-  note_main=None
-  linkback=None
-  builder=None
-  cur_server=None #use only after set by scnupdate
-  cur_domain=None #use only after set by scnupdate
-  cur_channel=None #use only after set by scnupdate
-  box_select_handler_id=None
-  box_activate_handler_id=None
-
-  def __init__(self,_linkback,_uipath):
-    self.builder=Gtk.Builder()
-    self.builder.add_from_file(_uipath)
-    #_uipath);
-    #win=self.builder.get_object("mainwindow")
-    #win.
-    self.builder.connect_signals(self)
-
-  def destroy_handler(self,*args):
-    signal_handler()
-
-  def update(self,_server=None,_domain=None,_channel=None):
-    if _server=="":
-      _server=None
-    self.cur_server=_server
-    self.cur_domain=_domain
-    self.cur_channel=_channel
-
-      #self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    if _channel is not None:
-      self.navbar.set_text(self.cur_server+"/"+self.cur_domain+"/"+self.cur_channel)
-      self.buildchannelgui()
-
-    elif _domain is not None:
-      self.navbar.set_text(self.cur_server+"/"+self.cur_domain+"/")
-      self.builddomaingui()
-
-    elif _server is not None:
-      self.navbar.set_text(self.cur_server+"/")
-      self.buildservergui()
-      
-    else:
-      self.navbar.set_text("")
-      self.buildNonegui()
-  #update by navbar
-  def navbarupdate(self, *args):
-    splitnavbar=self.navbar.get_text().strip("/").rstrip("/").split("/")
-    self.update(*splitnavbar[:3])
-
-  def updateserverlist(self):
-    temp2=self.linkback.main.scn_servers.list_servers()
-    if temp2 is None:
-      return False
-    self.listelems.set_title("Server")
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.5, 0.5, 1, 1))
-    self.navbox.show()
-    self.navcontent.clear()
-    for elem in temp2:
-      self.navcontent.append(("",elem[0]))
-
-  def updatedomainlist(self):
-    temp_remote=self.linkback.main.c_list_domains(self.cur_server)
-    if temp_remote is None:
-      return False
-    temp_local=self.linkback.main.scn_servers.list_domains(self.cur_server)
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
-    self.navbox.show()
-    self.listelems.set_title("Domain")
-    self.navcontent.clear()
-
-    for elem in temp_local:
-      if elem[0] not in temp_remote:
-        self.navcontent.append(("local:",elem[0]))
-    for elem in temp_remote:
-      self.navcontent.append(("",elem))
-    return True
-
-  def updatechannellist(self):
-    temp2=self.linkback.main.c_list_channels(self.cur_server,self.cur_domain)
-    if temp2 is None:
-      return False
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
-    self.navbox.show()
-    self.listelems.set_title("Channel")
-    self.navcontent.clear()
-    for elem in temp2:
-      self.navcontent.append(("",elem))
-
-  def updatenodelist(self):
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.2, 0.2, 1))
-    self.navbox.show()
-    self.navcontent.clear()
-
-    if self.cur_channel=="admin":
-      self.navbox.hide()
-      #self.listelems.set_title("Admin")
-      return True
-    elif self.cur_channel=="special" or \
-       self.cur_channel in self.special_channels:
-      self.navbox.hide()
-#      self.listelems.set_title("Special")
-      return True
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.5, 0.5, 1))
-
-    temp2=self.linkback.main.c_get_channel(self.cur_server,self.cur_domain,self.cur_channel)
-    if temp2 is None:
-      return False
-    self.listelems.set_title("Users")
-    for elem in temp2:
-      self.navcontent.append(("",elem))
 
     
-
   ### select section  ###
   def goback_none(self,*args):
     self.update()
@@ -843,6 +332,8 @@ class scnGUI(object):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
+    if self.cur_server is None:
+      return  
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.update(self.cur_server,temp[0][temp[1]][1])
 
@@ -853,30 +344,43 @@ class scnGUI(object):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
+    if self.cur_server is None:
+      return
+    if self.cur_domain is None:
+      return
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.update(self.cur_server,self.cur_domain,temp[0][temp[1]][1])
     
-  ### ?? section ###
+  ### message section ###
 
   def select_context_server(self,*args):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    tempmessage=self.linkback.main.c_get_server_message(temp[0][temp[1]][1])
+    try:
+      tempmessage=self.linkback.main.c_get_server_message(temp[0][temp[1]][1])
+    except Exception:
+      return
+    guimessage=self.builder.get_object("servermessage1")
     if tempmessage is None or tempmessage=="":
-      self.selectedservermessage.set_text("No message")
+      guimessage.set_text("No message")
     else:
-      self.selectedservermessage.set_text(tempmessage)
+      guimessage.set_text(tempmessage)
 
   def select_context_domain(self,*args):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,temp[0][temp[1]][1])
+    try:
+      tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,temp[0][temp[1]][1])
+    
+    except Exception:
+      return
+    guimessage=self.builder.get_object("domainmessage1")
     if tempmessage is None or tempmessage=="":
-      self.selecteddomainmessage.set_text("No message")
+      guimessage.set_text("No message")
     else:
-      self.selecteddomainmessage.set_text(tempmessage)
+      guimessage.set_text(tempmessage)
 
   def select_context_channel(self,*args):
     temp=self.navbox.get_selection().get_selected()
@@ -890,18 +394,18 @@ class scnGUI(object):
 
   def delete_server_intern(self,_delete_server):
     returnstate=False
-    dialog = scnDeletionDialog(self.parent,_delete_server)
+    dialog = scnDeletionDialog(self.win,_delete_server)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_server(_delete_server)==True:
           self.updateserverlist()
           returnstate=True
-          self.parent.state_widget.set_text("Success")
+          self.statusbar.push("Success")
           #returnel=Gtk.Label("Success")
         else:
           self.parent.state_widget.set_text("Error, something happened")
     except Exception as e:
-      self.parent.state_widget.set_text(str(e))
+      self.statusbar.push(str(e))
     dialog.destroy()
     return returnstate
 
@@ -921,7 +425,7 @@ class scnGUI(object):
 
 
   def add_server(self,*args):
-    dialog = scnServerEditDialog(self.parent,"Add new server","")
+    dialog = scnServerEditDialog(self.win,"Add new server","")
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         tempcertname=dialog.certname.get_text()
@@ -929,12 +433,12 @@ class scnGUI(object):
           tempcertname=None
         if self.linkback.main.c_add_server(dialog.servername.get_text(),dialog.url.get_text(),tempcertname)==True:
           self.updateserverlist()
-          self.parent.state_widget.set_text("Success")
+          self.statusbar.push("Success")
           #returnel=Gtk.Label("Success")
         else:
-          self.parent.state_widget.set_text("Error2")
+          self.statusbar.push("Error2")
     except Exception as e:
-      self.parent.state_widget.set_text(str(e))
+      self.statusbar.push(str(e))
     dialog.destroy()
     
   def edit_server2(self,*args):
@@ -952,10 +456,10 @@ class scnGUI(object):
     returnstate=False
     temp=self.linkback.main.scn_servers.get_server(_server)
     if temp is None:
-      self.parent.state_widget.set_text("Not exists")
+      self.statusbar.push("Not exists")
       return
     #todo: show cert
-    dialog = scnServerEditDialog(self.parent,"Edit server",_server,temp)
+    dialog = scnServerEditDialog(self.win,"Edit server",_server,temp)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         tempcertname=dialog.certname.get_text()
@@ -974,29 +478,29 @@ class scnGUI(object):
           
         if self.linkback.main.c_update_server(dialog.servername.get_text(),dialog.url.get_text())==True:
           returnstate=True
-          self.parent.state_widget.set_text("Success")
+          self.statusbar.push("Success")
           #returnel=Gtk.Label("Success")
       else:
-          self.parent.state_widget.set_text("Aborted")
+          self.statusbar.push("Aborted")
     except Exception as e:
       self.parent.state_widget.set_text(str(e))
     dialog.destroy()
     return returnstate
 
   def register_domain(self,*args):
-    dialog = scnNameAddDialog(self.parent,"Register",self.cur_server)
+    dialog = scnNameAddDialog(self.win,"Register",self.cur_server)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_register_domain(self.cur_server,dialog.name.get_text())==True:
           self.updatedomainlist()
-          self.parent.state_widget.set_text("Success")
+          self.statusbar.push("Success")
           #returnel=Gtk.Label("Success")
         else:
-          self.parent.state_widget.set_text("Error2")
+          self.statusbar.push("Error2")
       else:
-        self.parent.state_widget.set_text("Error")
+        self.statusbar.push("Error")
     except Exception as e:
-      self.parent.state_widget.set_text(str(e))
+      self.statusbar.push(str(e))
     dialog.destroy()
 
 
@@ -1005,12 +509,12 @@ class scnGUI(object):
     if _delete_domain=="admin":
       self.parent.state_widget.set_text("Can't delete admin")
       return
-    dialog = scnDeletionDialog(self.parent,self.cur_server,_delete_domain)
+    dialog = scnDeletionDialog(self.win,self.cur_server,_delete_domain)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_domain(self.cur_server,_delete_domain)==True:
           self.linkback.main.scn_servers.del_domain(self.cur_server,_delete_domain)
-          self.parent.state_widget.set_text("Success")
+          self.state_widget.set_text("Success")
           returnstate=True
           #returnel=Gtk.Label("Success")
         else:
@@ -1042,7 +546,7 @@ class scnGUI(object):
   ### domain/channel section ###
 
   def add_channel(self,*args):
-    dialog = scnNameAddDialog(self.parent,"Add Channel",self.cur_server)
+    dialog = scnNameAddDialog(self.win,"Add Channel",self.cur_server)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if True==True:#self.linkback.main.c_register_domain(self.cur_server,dialog.domain.get_text())==True:
@@ -1060,7 +564,7 @@ class scnGUI(object):
 
   def delete_channel_intern(self,_delete_channel):
     returnstate=False
-    dialog = scnDeletionDialog(self.parent,self.cur_server,self.cur_domain,_delete_channel)
+    dialog = scnDeletionDialog(self.win,self.cur_server,self.cur_domain,_delete_channel)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_channel(self.cur_server,self.cur_domain,_delete_channel)==True:
