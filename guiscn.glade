@@ -6,7 +6,15 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <child>
-      <placeholder/>
+      <object class="GtkImage" id="image17">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="stock">gtk-missing-image</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
     </child>
     <child>
       <placeholder/>
@@ -42,6 +50,8 @@
         <property name="can_focus">True</property>
         <property name="receives_default">True</property>
         <property name="tooltip_text" translatable="yes">Go back</property>
+        <property name="halign">start</property>
+        <property name="valign">start</property>
         <signal name="clicked" handler="goback_domain" swapped="no"/>
         <child>
           <object class="GtkImage" id="image6">
@@ -91,6 +101,7 @@
     </child>
   </object>
   <object class="GtkListStore" id="csettingstore"/>
+  <object class="GtkTextBuffer" id="domainmessage"/>
   <object class="GtkGrid" id="domaincontext">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -107,12 +118,11 @@
             <property name="can_focus">False</property>
             <property name="left_padding">12</property>
             <child>
-              <object class="GtkLabel" id="domainmessage2">
+              <object class="GtkTextView" id="domainmessagev2">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="selectable">True</property>
-                <property name="ellipsize">middle</property>
-                <property name="track_visited_links">False</property>
+                <property name="can_focus">True</property>
+                <property name="editable">False</property>
+                <property name="buffer">domainmessage</property>
               </object>
             </child>
           </object>
@@ -698,6 +708,46 @@
       </object>
     </child>
   </object>
+  <object class="GtkGrid" id="notifychannel">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkImage" id="image18">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="stock">gtk-missing-image</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <placeholder/>
+    </child>
+  </object>
+  <object class="GtkTextBuffer" id="servermessage"/>
   <object class="GtkGrid" id="nocontext">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -713,10 +763,11 @@
             <property name="can_focus">False</property>
             <property name="left_padding">12</property>
             <child>
-              <object class="GtkLabel" id="servermessage1">
+              <object class="GtkTextView" id="servermessagev1">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="selectable">True</property>
+                <property name="can_focus">True</property>
+                <property name="editable">False</property>
+                <property name="buffer">servermessage</property>
               </object>
             </child>
           </object>
@@ -873,37 +924,6 @@
       </packing>
     </child>
   </object>
-  <object class="GtkGrid" id="notifychannel">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-  </object>
   <object class="GtkGrid" id="servercontext">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -920,14 +940,11 @@
             <property name="can_focus">False</property>
             <property name="left_padding">12</property>
             <child>
-              <object class="GtkLabel" id="servermessage2">
+              <object class="GtkTextView" id="servermessagev2">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="hexpand">True</property>
-                <property name="vexpand">True</property>
-                <property name="selectable">True</property>
-                <property name="ellipsize">middle</property>
-                <property name="track_visited_links">False</property>
+                <property name="can_focus">True</property>
+                <property name="editable">False</property>
+                <property name="buffer">servermessage</property>
               </object>
             </child>
           </object>
@@ -958,12 +975,11 @@
             <property name="can_focus">False</property>
             <property name="left_padding">12</property>
             <child>
-              <object class="GtkLabel" id="domainmessage1">
+              <object class="GtkTextView" id="domainmessagev1">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="selectable">True</property>
-                <property name="ellipsize">middle</property>
-                <property name="track_visited_links">False</property>
+                <property name="can_focus">True</property>
+                <property name="editable">False</property>
+                <property name="buffer">domainmessage</property>
               </object>
             </child>
           </object>
@@ -1116,7 +1132,15 @@
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <child>
-      <placeholder/>
+      <object class="GtkImage" id="image19">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="stock">gtk-missing-image</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
     </child>
     <child>
       <placeholder/>

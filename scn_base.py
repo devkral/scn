@@ -750,12 +750,8 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
-    if _channel=="admin":
-      _socket.send("error"+sepc+"admin"+sepm)
-    elif _channel=="special":
-      _socket.send("error"+sepc+"special"+sepm)
-    elif self.scn_domains.length(_domain)==0:
-      _socket.send("error"+sepc+"not exists"+sepm)
+    if self.scn_domains.length(_domain)==0:
+      _socket.send("error"+sepc+"domain not exists"+sepm)
     elif not self.scn_domains.get(_domain).length( _channel)==0:
       _socket.send("error"+sepc+"channel not exist"+sepm)
     else:

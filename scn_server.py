@@ -49,14 +49,15 @@ class scn_ip_store(object):
       return
     
   def det_con(self,_channel):
-    if _channel=="main" or _channel=="notify":
+    if _channel[0]=="=" or _channel=="main" or _channel=="notify":
       return sqlite3.connect(self.db_tmp)
-    elif _channel=="store":
-      return sqlite3.connect(self.db_pers)
+    #elif _channel=="store":
+    #  return sqlite3.connect(self.db_pers)
     else:
-      return None
+      return sqlite3.connect(self.db_pers)
+      #return None
 
-  def get(self,_domain,_channel,):
+  def get(self,_domain,_channel):
     nodelist=None
     con=self.det_con(_channel)
     try:
@@ -247,9 +248,21 @@ class scn_domain_sql(object):
       printerror(e)
     return ob #hashed_pub_cert
 
-#"admin" is admin
+  def length(self, _channel):
+
+    length=0
+    try:
+      cur = self.dbcon.cursor()
+      cur.execute(' SELECT nodeid FROM scn_node WHERE scn_domain=? AND channelname=?', (self.domain,_channel))
+      length=cur.rowcount
+    except Exception as e:
+      printerror(e)
+      length=0
+    return length
+  
+  #"admin" is admin
   def update_channel(self,_channelname,_secrethashlist):
-#max_channel_nodes checked in body
+  #max_channel_nodes checked in body
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT nodeid FROM scn_node WHERE scn_domain=? AND channelname=?''',(self.domain,_channelname))

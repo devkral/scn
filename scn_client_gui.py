@@ -260,15 +260,6 @@ class scnGUI(object):
     self.navbox.show()
     self.navcontent.clear()
 
-    if self.cur_channel=="admin":
-      self.navbox.hide()
-      #self.listelems.set_title("Admin")
-      return True
-    elif self.cur_channel=="special" or \
-       self.cur_channel in self.special_channels:
-      self.navbox.hide()
-#      self.listelems.set_title("Special")
-      return True
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.5, 0.5, 1))
 
     temp2=self.linkback.main.c_get_channel(self.cur_server,self.cur_domain,self.cur_channel)
@@ -277,6 +268,7 @@ class scnGUI(object):
     self.listelems.set_title("Users")
     for elem in temp2:
       self.navcontent.append(("",elem))
+    return True
 
   def buildNonegui(self):
     
@@ -293,7 +285,6 @@ class scnGUI(object):
     self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_server)
     
     newob=self.builder.get_object("nocontext")
-
     cdin=self.builder.get_object("contextdropin")
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
@@ -318,12 +309,17 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
-    servermessage=self.builder.get_object("servermessage2")
+    servermessage=self.builder.get_object("servermessage")
+    servermessagebuffer=self.builder.get_object("servermessagev2")
     tempmes=self.linkback.main.c_get_server_message(self.cur_server)
+    servermessagebuffer.set_editable(False)
     if tempmes is None:
-      servermessage.set_text("No message")
+      servermessage.set_text("")
     else:
       servermessage.set_text(tempmes)
+    #if
+    #servermessagebuffer.set_editable(True)
+      
     
 
   def builddomaingui(self):
@@ -346,10 +342,12 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
-    domainmessage=self.builder.get_object("domainmessage2")
+    domainmessage=self.builder.get_object("domainmessage")
+    domainmessagebuffer=self.builder.get_object("domainmessagev2")
+    domainmessagebuffer.set_editable(False)
     tempmes=self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
     if tempmes is None:
-      domainmessage.set_text("No message")
+      domainmessage.set_text("")
     else:
       domainmessage.set_text(tempmes)
     
@@ -460,9 +458,11 @@ class scnGUI(object):
       tempmessage=self.linkback.main.c_get_server_message(temp[0][temp[1]][1])
     except Exception:
       return
-    guimessage=self.builder.get_object("servermessage1")
-    if tempmessage is None or tempmessage=="":
-      guimessage.set_text("No message")
+    guimessage=self.builder.get_object("servermessage")
+    guimessagebuffer=self.builder.get_object("servermessagev1")
+    guimessagebuffer.set_editable(False)
+    if tempmessage is None:
+      guimessage.set_text("")
     else:
       guimessage.set_text(tempmessage)
 
@@ -475,9 +475,11 @@ class scnGUI(object):
     
     except Exception:
       return
-    guimessage=self.builder.get_object("domainmessage1")
-    if tempmessage is None or tempmessage=="":
-      guimessage.set_text("No message")
+    guimessage=self.builder.get_object("domainmessage")
+    domainmessagebuffer=self.builder.get_object("domainmessagev2")
+    domainmessagebuffer.set_editable(False)
+    if tempmessage is None:
+      guimessage.set_text("")
     else:
       guimessage.set_text(tempmessage)
 
