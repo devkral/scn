@@ -495,13 +495,13 @@ class scn_base_server(scn_base_base):
     #here some checks
     if ob is not None:
       if ob.set_message(_message)==True:
-        socket.send("success"+sepm)
+        _socket.send("success"+sepm)
         return
       else:
-        socket.send("error"+sepm)
+        _socket.send("error"+sepm)
         return
     else:
-      socket.send("error"+sepm)
+      _socket.send("error"+sepm)
       return
 
   #"admin" updates admin group is_update True: updates, False adds
@@ -699,22 +699,8 @@ class scn_base_server(scn_base_base):
       
   #@scn_setup
   def s_update_secret(self,_socket):
-    try:
-      _domain=_socket.receive_one(min_used_name,max_used_name)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
-      return
-    try:
-      _channel=_socket.receive_one(1,max_name_length)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
-      return
-    try:
-      _channelsecret=_socket.receive_bytes(0,secret_size)
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
-      return
-    if self._s_channel_auth(_domain,_channel,_channelsecret)==False:
+    _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
+    if _domain is None:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
     try:
