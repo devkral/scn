@@ -1,4 +1,56 @@
 
+  #for special channels like tunnels, returns socket
+  #@scn_setup
+  def c_use_special_channel_auth(self, _servername, _domain, _channel):
+    _socket = scn_socket(self.connect_to(_servername))
+    temp=self.scn_servers.get_channel(_servername, _domain, _channel)
+    _socket.send("use_special_channel_auth"+sepc+_domain+sepc+_channel+sepc)
+    _socket.send_bytes(temp[2],True)
+    if scn_check_return(_socket):
+      return _socket
+    else:
+      return None
+
+  #@scn_setup
+  def s_use_special_channel_auth(self,_socket):
+    _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
+    #TODO: _domain should be also special
+    if _domain is None:
+      _socket.send("error"+sepc+"auth failed"+sepm)
+      return
+    if _channel not in self.special_channels:
+      _socket.send("error"+sepc+"specialchannel not exist"+sepm)
+      return
+    if _socket.is_end()==True:
+      _socket.send("success"+sepm)
+      self.special_channels[_channel](self,_socket,_domain)
+    else:
+      _socket.send("error"+sepc+"not end"+sepm)
+
+    """
+  # I'm not sure if this function is desireable; don't include it in available serveractions yet
+  #issue: could be used for quick password checking
+  #@scn_setup
+  def s_check_channel_cred(self,_socket):
+    try:
+      _domain=_socket.receive_one(min_used_name,max_used_name)
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
+      return
+    try:
+      _channel=_socket.receive_one(1,max_name_length)
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
+      return
+    try:
+      _channelsecret=_socket.receive_bytes(0,secret_size)
+    except scnReceiveError as e:
+      _socket.send("error"+sepc+"secret"+sepc+str(e)+sepm)
+      return
+    if self._s_channel_auth(_domain,_channel,_channelsecret)==True:
+      _socket.send("success"+sepm)
+    else:
+      _socket.send("error"+sepm)"""
 
 class scnPageNavigation(Gtk.Grid):
   parent=None

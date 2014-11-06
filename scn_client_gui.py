@@ -286,14 +286,18 @@ class scnGUI(object):
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_server)
+    if self.box_activate_handler_id!=None:
+      self.navbox.disconnect(self.box_activate_handler_id)
+      self.box_activate_handler_id=None
+    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_server)
+    
     newob=self.builder.get_object("nocontext")
 
     cdin=self.builder.get_object("contextdropin")
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
-    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_server)
-    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_server)
 
   def buildservergui(self):
     if self.updatedomainlist()==False:
@@ -303,42 +307,52 @@ class scnGUI(object):
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
-
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_domain)
     if self.box_activate_handler_id!=None:
       self.navbox.disconnect(self.box_activate_handler_id)
       self.box_activate_handler_id=None
-    
+    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_domain)
     
     newob=self.builder.get_object("servercontext")
     cdin=self.builder.get_object("contextdropin")
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
-    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_domain)
-    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_domain)
+    servermessage=self.builder.get_object("servermessage2")
+    tempmes=self.linkback.main.c_get_server_message(self.cur_server)
+    if tempmes is None:
+      servermessage.set_text("No message")
+    else:
+      servermessage.set_text(tempmes)
+    
 
   def builddomaingui(self):
     if self.updatechannellist()==False:
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildservergui()
       return
+
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
-
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_channel)
     if self.box_activate_handler_id!=None:
       self.navbox.disconnect(self.box_activate_handler_id)
       self.box_activate_handler_id=None
-    
+    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_channel)
     
     newob=self.builder.get_object("domaincontext")
     cdin=self.builder.get_object("contextdropin")
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
-    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_channel)
-    self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_channel)
-
+    domainmessage=self.builder.get_object("domainmessage2")
+    tempmes=self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
+    if tempmes is None:
+      domainmessage.set_text("No message")
+    else:
+      domainmessage.set_text(tempmes)
+    
   def buildchannelgui(self):
     if self.cur_server is None or self.cur_domain is None or self.cur_channel is None:
       self.builddomaingui()

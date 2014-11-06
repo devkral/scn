@@ -442,7 +442,7 @@ class scn_server(scn_base_server):
            "serve": scn_base_server.s_serve_channel,
            "unserve": scn_base_server.s_unserve_channel,
            "update_secret": scn_base_server.s_update_secret,
-           "use_special_channel_auth": scn_base_server.s_use_special_channel_auth,
+           #"use_special_channel_auth": scn_base_server.s_use_special_channel_auth,
            "use_special_channel_unauth":scn_base_server.s_use_special_channel_unauth,
            "get_domain_message":scn_base_server.s_get_domain_message,
            "check_domain": scn_base_server.s_check_domain,
