@@ -733,9 +733,9 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+str(e)+sepm)
       return
     if self.scn_domains.get(_domain) is None:
-      _socket.send("success"+sepc+"true"+sepm)
+      _socket.send("success"+sepc+"false"+sepm)
     else:
-      _socket.send("success"+"false"+sepm)
+      _socket.send("success"+sepc+"true"+sepm)
 
 
   #@scn_setup
@@ -944,19 +944,17 @@ class scn_base_client(scn_base_base):
     if _domain=="admin":
       printerror("can't delete specialdomain admin")
       return False
-    _socket=scn_socket(self.connect_to(_servername))
-
+    
     if self.c_check_domain(_servername,_domain)==False:
-      _socket.close()
       self.scn_servers.del_domain(_servername,_domain)
       return True
     
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     if temp is None:
       printerror("No admin permission")
-      _socket.close()
       return False
-    
+
+    _socket=scn_socket(self.connect_to(_servername))
     _socket.send("delete_domain"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)

@@ -163,7 +163,7 @@ class scn_ip_store(object):
     try:
       cur = con.cursor()
       cur.execute('''DELETE FROM addr_store
-      WHERE domain=?;''',(_domain))
+      WHERE domain=?;''',(_domain,))
     except Exception as e:
       con.close()
       printerror(e)
