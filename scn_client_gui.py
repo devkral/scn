@@ -84,7 +84,7 @@ class scnServerEditDialog(Gtk.Dialog):
     cont.attach(tcn,0,1,1,1)
     cont.attach(self.certname,1,1,1,1)
     if _serverinfo is not None:
-      cont.attach(self.certchange,2,1,1)
+      cont.attach(self.certchange,2,1,1,1)
     turl=Gtk.Label("Url: ")
     turl.set_halign(Gtk.Align.END)
     cont.attach(turl,0,2,1,1)

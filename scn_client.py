@@ -272,7 +272,9 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''
       UPDATE scn_urls(url) values(?)
-      WHERE servername=?;''',(_url,_cert,_servername))
+      WHERE servername=?;''',(_url,_servername))
+
+      
       cur.execute('''
       UPDATE scn_certs(cert) values(?)
       WHERE certname=(SELECT certname FROM scn_urls WHERE servername=?) ;''',(_cert,_servername))
