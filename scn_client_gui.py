@@ -262,7 +262,7 @@ class scnGUI(object):
 
     self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.5, 0.5, 1))
 
-    temp2=self.linkback.main.c_get_channel(self.cur_server,self.cur_domain,self.cur_channel)
+    temp2=self.linkback.main.c_get_channel_nodes(self.cur_server,self.cur_domain,self.cur_channel)
     if temp2 is None:
       return False
     self.listelems.set_title("Users")

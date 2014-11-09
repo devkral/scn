@@ -248,17 +248,6 @@ class scn_domain_sql(object):
       printerror(e)
     return ob #hashed_pub_cert
 
-  def length(self, _channel):
-
-    length=0
-    try:
-      cur = self.dbcon.cursor()
-      cur.execute(' SELECT nodeid FROM scn_node WHERE scn_domain=? AND channelname=?', (self.domain,_channel))
-      length=cur.rowcount
-    except Exception as e:
-      printerror(e)
-      length=0
-    return length
   
   #"admin" is admin
   def update_channel(self,_channelname,_secrethashlist):
@@ -451,7 +440,8 @@ class scn_server(scn_base_server):
            "update_channel": scn_base_server.s_update_channel,
            "delete_channel":scn_base_server.s_delete_channel,
            "get_channel_secrethash": scn_base_server.s_get_channel_secrethash,
-           "get_channel": scn_base_server.s_get_channel,
+           "get_channel_addr": scn_base_server.s_get_channel_addr,
+           "get_channel_nodes": scn_base_server.s_get_channel_nodes,
            "serve": scn_base_server.s_serve_channel,
            "unserve": scn_base_server.s_unserve_channel,
            "update_secret": scn_base_server.s_update_secret,
@@ -591,6 +581,7 @@ class scn_sock_server(socketserver.TCPServer):
       #explicitly shutdown.  socket.close() merely releases
       #the socket and waits for GC to perform the actual close.
       request.shutdown()
+      request.sock_shutdown(socket.SHUT_RDWR)
     except (OSError):
       pass #some platforms may raise ENOTCONN here
     except Exception as e:

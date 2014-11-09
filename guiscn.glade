@@ -82,7 +82,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="tooltip_text" translatable="yes">Reload channels</property>
+            <property name="tooltip_text" translatable="yes">Reload Nodes</property>
             <property name="halign">center</property>
             <signal name="clicked" handler="updatenodelist" swapped="no"/>
             <child>
@@ -103,7 +103,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="tooltip_text" translatable="yes">Add Channel</property>
+            <property name="tooltip_text" translatable="yes">Add Node</property>
             <property name="halign">center</property>
             <child>
               <object class="GtkImage" id="image21">
@@ -123,7 +123,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="tooltip_text" translatable="yes">Delete Channel</property>
+            <property name="tooltip_text" translatable="yes">Delete Node</property>
             <property name="halign">center</property>
             <child>
               <object class="GtkImage" id="image22">
