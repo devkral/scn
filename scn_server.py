@@ -207,7 +207,6 @@ class scn_domain_sql(object):
       return None
     return message[0]
 
-#=get_channel
   def get_channel(self,_channelname,_nodeid=None):
     ob=None
     try:
@@ -223,8 +222,12 @@ class scn_domain_sql(object):
       ob=cur.fetchall()
     except Exception as e:
       printerror(e)
-    return ob #nodeid,nodename,hashed_pub_cert,hashed_secret
+    if ob==[]:
+      return None
+    else:
+      return ob #nodeid,nodename,hashed_pub_cert,hashed_secret
 
+    
   def list_channels(self):
     ob=None
     try:
@@ -262,7 +265,7 @@ class scn_domain_sql(object):
           cur.execute('''INSERT OR REPLACE into
           scn_node(scn_domain,channelname, nodeid, nodename, hashed_pub_cert, hashed_secret)
           values(?,?,?,?,?,?);''',
-          self.domain,_channelname,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2])
+          (self.domain,_channelname,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2]))
         elif c<b:
           cur.execute('''DELETE FROM scn_node WHERE scn_domain=? AND channelname=? AND nodeid=?;''',(self.domain,_channelname,c))
       self.dbcon.commit()
@@ -272,6 +275,16 @@ class scn_domain_sql(object):
       return False
     return True
 
+  def delete_channel(self,_channelname):
+    try:
+      cur = self.dbcon.cursor()
+      cur.execute('''DELETE FROM scn_node WHERE scn_domain=? AND channelname=?;''',(self.domain,_channelname))
+      self.dbcon.commit()
+    except Exception as e:
+      printerror(e)
+      return False
+    return True
+  
   #security related
   #_secret should be already bytes
   def verify_secret(self,_channelname,_secret):

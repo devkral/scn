@@ -527,13 +527,10 @@ class scn_base_server(scn_base_base):
 
     #64 is the size of sha256 in hex, format sepc hash sepu domain sepc ...
     _secrethashstring=str(_socket.receive_bytes(0, hash_hex_size*max_name_length*max_user_channels+2*max_user_channels), "utf8")
-    if self.scn_domains.get_channel(_channel) is None and \
+    if _domainob.get_channel(_channel) is None and \
        self.scn_domains.length(_domain)>=max_user_channels+1:
 
-      _socket.send("error"+sepc+"limit serveclasses"+sepm)
-      return
-    if check_invalid_name(_secrethashstring)==False:
-      _socket.send("error"+sepc+"invalid character"+sepm)
+      _socket.send("error"+sepc+"limit channels"+sepm)
       return
     temphashes=_secrethashstring.split(sepc)
     if len(temphashes)>max_channel_nodes:
@@ -581,7 +578,7 @@ class scn_base_server(scn_base_base):
       return
     temp=""
     for elem in self.scn_domains.get(_domain).get_channel(_channel):
-      temp+=sepc+str(elem[0])+sepu+str(elem[3])
+      temp+=sepc+str(elem[0])+sepu+str(elem[2])
     _socket.send("success"+temp+sepm)
 
   #@scn_setup
@@ -723,7 +720,6 @@ class scn_base_server(scn_base_base):
 
 
 
-
 #anonym,unauth
   #@scn_setup
   def s_check_domain(self,_socket):
@@ -760,7 +756,7 @@ class scn_base_server(scn_base_base):
     if self.scn_domains.get(_domain).get_channel(_channel) is not None:
 
       for elem in self.scn_domains.get(_domain).get_channel(_channel):
-        temp+=sepc+elem[1] #name
+        temp+=sepc+elem[1]+sepu+elem[3] #name,hashed_pubcert
     _socket.send("success"+temp+sepm)
       
   #@scn_setup
@@ -795,6 +791,8 @@ class scn_base_server(scn_base_base):
         temp+=sepc+elem[0]+sepu+elem[1]+sepu+elem[2] #addrtype, addr, _certhash
     _socket.send("success"+temp+sepm)
 
+
+    
   #@scn_setup
   def s_list_channels(self,_socket):
     try:
@@ -1064,7 +1062,12 @@ class scn_base_client(scn_base_base):
       for protcount in range(0,max_channel_nodes):
         if _socket.is_end()==True:
           break
-        _node_list += [_socket.receive_one(),]
+        
+        temp=_socket.receive_one(hash_hex_size+max_cmd_size).split(sepu)
+        if len(temp)!=2:
+          printdebug("invalid node object parsed")
+          continue
+        _node_list += [temp,]
     else:
       _node_list = None
     _socket.close()

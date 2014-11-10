@@ -267,7 +267,7 @@ class scnGUI(object):
       return False
     self.listelems.set_title("Users")
     for elem in temp2:
-      self.navcontent.append(("",elem))
+      self.navcontent.append(("",elem[0]))
     return True
 
   def buildNonegui(self):
@@ -387,8 +387,7 @@ class scnGUI(object):
       if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
         return Gtk.Label("No permission")
       return Gtk.Label("Not implemented")
-    elif _channel=="special" or \
-         _channel in self.special_channels:
+    elif _channel=="special":# or         _channel in self.linkback.main.special_channels
       self.builder.get_object("channel1").set_text("Special")
       self.builder.get_object("channel2").set_text("Special")
       if self.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel) is None and \
@@ -648,10 +647,10 @@ class scnGUI(object):
   ### domain/channel section ###
 
   def add_channel(self,*args):
-    dialog = scnNameAddDialog(self.win,"Add Channel",self.cur_server)
+    dialog = scnNameAddDialog(self.win,"Add Channel",self.cur_server,self.cur_domain)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
-        if True==True:#self.linkback.main.c_register_domain(self.cur_server,dialog.domain.get_text())==True:
+        if self.linkback.main.c_add_channel(self.cur_server,self.cur_domain,dialog.name.get_text())==True:
           self.updatechannellist()
           self.statusbar.push(self.messageid,"Success")
           #returnel=Gtk.Label("Success")
