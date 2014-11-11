@@ -350,7 +350,8 @@ class scnGUI(object):
       domainmessage.set_text("")
     else:
       domainmessage.set_text(tempmes)
-    
+      
+  #channel
   def buildchannelgui(self):
     if self.cur_server is None or self.cur_domain is None or self.cur_channel is None:
       self.builddomaingui()
@@ -371,8 +372,14 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
+    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
+      self.builder.get_object("addnodeb1").hide()
+      self.builder.get_object("delnodeb1").hide()
+    else:
+      self.builder.get_object("addnodeb1").show()
+      self.builder.get_object("delnodeb1").show()
     
-    channelf=self.builder.get_object("dropinservice2")
+    channelf=self.builder.get_object("dropinchannelcontext2")
     if len(channelf.get_children())>=1:
       channelf.remove(channelf.get_children()[0])
     channelf.add(self.genchannelcontext(self.cur_channel))
@@ -486,7 +493,7 @@ class scnGUI(object):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    channelf=self.builder.get_object("dropinservice1")
+    channelf=self.builder.get_object("dropinchannelcontext1")
     if len(channelf.get_children())>=1:
       channelf.get_children()[0].destroy()
     channelf.add(self.genchannelcontext(temp[0][temp[1]][1]))
