@@ -714,10 +714,13 @@ Request:</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkViewport" id="viewport2">
+                  <object class="GtkScrolledWindow" id="scrolledwindow1">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="vadjustment">navboxbar</property>
+                    <property name="can_focus">True</property>
+                    <property name="hadjustment">navboxbar</property>
+                    <property name="vadjustment">maxlength</property>
+                    <property name="shadow_type">in</property>
+                    <property name="min_content_width">100</property>
                     <child>
                       <object class="GtkTreeView" id="navbox">
                         <property name="visible">True</property>
@@ -1021,7 +1024,7 @@ Request:</property>
           <attribute name="style" value="normal"/>
           <attribute name="weight" value="ultraheavy"/>
           <attribute name="variant" value="small-caps"/>
-          <attribute name="scale" value="4"/>
+          <attribute name="scale" value="2"/>
         </attributes>
       </object>
       <packing>

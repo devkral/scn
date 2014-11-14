@@ -234,11 +234,12 @@ class scn_servs_sql(object):
     con.close()
 
   def add_server(self,_servername,_url,_cert,_certname=None):
+    
     if _certname is None:
       _certname=self.get_cert_name(_cert)
     if _certname is None:
       _certname=_servername
-      
+
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -549,7 +550,7 @@ class scn_servs_sql(object):
       cur.execute('''SELECT certname
       FROM scn_certs
       WHERE cert=?''',(_cert,))
-      temp=cur.fetchone()
+      temp=cur.fetchone()[0]
     except Exception as u:
       printerror(u)
     con.close()
@@ -694,6 +695,8 @@ class scn_client(scn_base_client):
     return tempsocket
   
   def connect_to_ip(self,_url):
+    if bool(_url)==False:
+      return None
     tempconnectdata=_url.split(sepu)
     if len(tempconnectdata)==1:
       tempconnectdata+=[scn_server_port,]

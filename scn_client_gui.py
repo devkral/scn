@@ -221,7 +221,6 @@ class scnGUI(object):
     if temp2 is None:
       return False
     self.listelems.set_title("Server")
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.5, 0.5, 1, 1))
     self.navbox.show()
     self.navcontent.clear()
     for elem in temp2:
@@ -232,7 +231,6 @@ class scnGUI(object):
     if temp_remote is None:
       return False
     temp_local=self.linkback.main.scn_servers.list_domains(self.cur_server)
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0.7, 0.7, 1))
     self.navbox.show()
     self.listelems.set_title("Domain")
     self.navcontent.clear()
@@ -248,15 +246,13 @@ class scnGUI(object):
     temp2=self.linkback.main.c_list_channels(self.cur_server,self.cur_domain)
     if temp2 is None:
       return False
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 0.7))
     self.navbox.show()
     self.listelems.set_title("Channel")
     self.navcontent.clear()
     for elem in temp2:
       self.navcontent.append(("",elem))
-
+      
   def updatenodelist(self, *args):
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.2, 0.2, 0.7))
     self.navbox.show()
     self.navcontent.clear()
 
@@ -389,6 +385,10 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
+    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is None:
+      self.builder.get_object("renewsecret").hide()
+    else:
+      self.builder.get_object("renewsecret").show()
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
       self.builder.get_object("addnodeb1").hide()
       self.builder.get_object("delnodeb1").hide()
@@ -413,7 +413,7 @@ class scnGUI(object):
       self.builder.get_object("channel2").set_text("Admin")
       if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
         noperm=self.builder.get_object("nopermissionchannel")
-        self.fill_request(self.builder.get_object("genrequestdropin1"))
+        self.fill_request(self.builder.get_object("genrequestdropin1"),_channel)
         return noperm
       tcha=self.builder.get_object("adminchannel")
       return tcha
