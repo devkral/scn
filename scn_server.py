@@ -189,7 +189,7 @@ class scn_domain_sql(object):
   def set_message(self,_message):
     try:
       cur = self.dbcon.cursor()
-      cur.execute('''UPDATE scn_domain SET message=? WHERE domain=?''', (_message,self.domain))
+      cur.execute('''UPDATE scn_domain SET message=? WHERE name=?''', (_message,self.domain))
       self.dbcon.commit()
     except Exception as e:
       self.dbcon.rollback()

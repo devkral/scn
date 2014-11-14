@@ -782,7 +782,7 @@ class scn_client(scn_base_client):
 
   clientactions = {"register": scn_base_client.c_register_domain, 
                    "deldomain": scn_base_client.c_delete_domain, 
-                   "updmessage": scn_base_client.c_update_domain_message,
+                   "updmessage": scn_base_client.c_update_message,
                    "chkdomain": scn_base_client.c_check_domain,
                    "addchannel": scn_base_client.c_add_channel, 
                    "updchannel": scn_base_client.c_update_channel, 

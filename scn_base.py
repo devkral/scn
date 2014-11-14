@@ -487,7 +487,7 @@ class scn_base_server(scn_base_base):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
       return
-    _message=_socket.receive_bytes(0,max_message_length)
+    _message=str(_socket.receive_bytes(0,max_message_length),"utf-8")
     if check_invalid_s(_message)==False:
       _socket.send("error"+sepc+"invalid chars"+sepm)
       return
@@ -839,18 +839,6 @@ class scn_base_server(scn_base_base):
       else:
         _socket.send_bytes(bytes(temp,encoding="utf8"),True)
         
-  def s_update_domain_message(self,_socket):
-    _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
-    if _domain is None:
-      _socket.send("error"+sepc+"auth"+sepm)
-      return
-
-    tempm=str(_socket.receive_bytes(0,max_message_length),"utf-8")
-    if tempm is None or self.scn_domains.get(_domain).set_message(tempm)==False:
-      _socket.send("error"+sepc+"update message failed"+sepm)
-    else:
-      _socket.send(True)
-
   def s_use_special_channel_unauth(self,_socket):
     try:
       _channel=_socket.receive_one(1,max_name_length)
@@ -993,12 +981,12 @@ class scn_base_client(scn_base_base):
     return _server_response
 
   #@scn_setup
-  def c_update_domain_message(self,_servername,_domain,_message):
+  def c_update_message(self,_servername,_domain,_message):
     _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     _socket.send("update_message"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
-    _socket.send_bytes(_message,True)
+    _socket.send_bytes(bytes(_message,"utf-8"),True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     return _server_response

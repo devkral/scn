@@ -248,7 +248,7 @@ class scnGUI(object):
     temp2=self.linkback.main.c_list_channels(self.cur_server,self.cur_domain)
     if temp2 is None:
       return False
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 0.7))
     self.navbox.show()
     self.listelems.set_title("Channel")
     self.navcontent.clear()
@@ -256,12 +256,11 @@ class scnGUI(object):
       self.navcontent.append(("",elem))
 
   def updatenodelist(self, *args):
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.2, 0.2, 1))
+    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.2, 0.2, 0.2, 0.7))
     self.navbox.show()
     self.navcontent.clear()
 
-    self.navbox.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 0.5, 0.5, 1))
-
+    
     temp2=self.linkback.main.c_get_channel_nodes(self.cur_server,self.cur_domain,self.cur_channel)
     if temp2 is None:
       return False
@@ -337,6 +336,7 @@ class scnGUI(object):
       self.box_activate_handler_id=None
     self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_channel)
     
+    
     newob=self.builder.get_object("domaincontext")
     cdin=self.builder.get_object("contextdropin")
     if len(cdin.get_children())==1:
@@ -350,6 +350,11 @@ class scnGUI(object):
       domainmessage.set_text("")
     else:
       domainmessage.set_text(tempmes)
+    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
+      self.builder.get_object("domainmessagecontrols").hide()
+    else:
+      domainmessagebuffer.set_editable(True)
+      self.builder.get_object("domainmessagecontrols").show_all()
       
   #channel
   def buildchannelgui(self):
@@ -367,6 +372,7 @@ class scnGUI(object):
       self.navbox.disconnect(self.box_activate_handler_id)
       self.box_activate_handler_id=None
 
+    
     newob=self.builder.get_object("channelcontext")
     cdin=self.builder.get_object("contextdropin")
     if len(cdin.get_children())==1:
@@ -379,6 +385,9 @@ class scnGUI(object):
       self.builder.get_object("addnodeb1").show()
       self.builder.get_object("delnodeb1").show()
     
+    channelfold=self.builder.get_object("dropinchannelcontext1")
+    if len(channelfold.get_children())>=1:
+      channelfold.remove(channelfold.get_children()[0])
     channelf=self.builder.get_object("dropinchannelcontext2")
     if len(channelf.get_children())>=1:
       channelf.remove(channelf.get_children()[0])
@@ -392,31 +401,44 @@ class scnGUI(object):
       self.builder.get_object("channel1").set_text("Admin")
       self.builder.get_object("channel2").set_text("Admin")
       if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
-        return Gtk.Label("No permission")
-      return Gtk.Label("Not implemented")
+        noperm=self.builder.get_object("nopermissionchannel")
+        self.fill_request(self.builder.get_object("genrequestdropin1"))
+        return noperm
+      tcha=self.builder.get_object("adminchannel")
+      return tcha
     elif _channel=="special":# or         _channel in self.linkback.main.special_channels
       self.builder.get_object("channel1").set_text("Special")
       self.builder.get_object("channel2").set_text("Special")
       if self.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel) is None and \
          self.scn_servers.get_channel(self.cur_server,self.cur_domain,"special") is None and \
          self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
-        temp=Gtk.Label("No permission")
-        return temp
-      return Gtk.Label("Not implemented")
+        noperm=self.builder.get_object("nopermissionchannel")
+        #self.fill_request(self.builder.get_object("genrequestdropin1"))
+        return noperm
+      tcha=self.builder.get_object("specialchannel")
+      return tcha
     elif _channel=="main":
       self.builder.get_object("channel1").set_text("Main")
       self.builder.get_object("channel2").set_text("Main")
-      return Gtk.Label("Main")
+      tcha=self.builder.get_object("genericchannel")
+      return tcha
     elif _channel=="notify":
       self.builder.get_object("channel1").set_text("Notify")
       self.builder.get_object("channel2").set_text("Notify")
-      return Gtk.Label("Not implemented")
+      tcha=self.builder.get_object("genericchannel")
+      return tcha
     else:
       self.builder.get_object("channel1").set_text("__"+_channel)
       self.builder.get_object("channel2").set_text("__"+_channel)
-      return Gtk.Label("Not implemented")
+      tcha=self.builder.get_object("genericchannel")
+      return tcha
 
-    
+  ### fill section
+  def fill_request(self,_ob,_channel):
+    if len(_ob.get_children())==1:
+      _ob.get_children()[0].destroy()
+    _ob.add(Gtk.Label("Not implemented"))
+  
   ### select section  ###
   def goback_none(self,*args):
     self.update()
@@ -493,9 +515,12 @@ class scnGUI(object):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
+    channelfold=self.builder.get_object("dropinchannelcontext2")
+    if len(channelfold.get_children())>=1:
+      channelfold.remove(channelfold.get_children()[0])
     channelf=self.builder.get_object("dropinchannelcontext1")
     if len(channelf.get_children())>=1:
-      channelf.get_children()[0].destroy()
+      channelf.remove(channelf.get_children()[0])
     channelf.add(self.genchannelcontext(temp[0][temp[1]][1]))
     channelf.show_all()
   ### server section ###
@@ -669,7 +694,15 @@ class scnGUI(object):
       self.statusbar.push(self.messageid,str(e))
     dialog.destroy()
 
-
+  
+  def update_message(self,*args):
+    temp=self.builder.get_object("domainmessage")
+    bounds=temp.get_bounds()
+    self.linkback.main.c_update_message(self.cur_server,self.cur_domain,temp.get_text(bounds[0],bounds[1],True))
+  def reset_message(self,*args):
+    temp=self.builder.get_object("domainmessage")
+    temp.set_text(self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain))
+    
   def delete_channel_intern(self,_delete_channel):
     returnstate=False
     dialog = scnDeletionDialog(self.win,self.cur_server,self.cur_domain,_delete_channel)
