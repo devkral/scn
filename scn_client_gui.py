@@ -270,10 +270,11 @@ class scnGUI(object):
     return True
 
   def buildNonegui(self):
-    
     if self.updateserverlist()==False:
-      pass
-      #self.parent.state_widget.set_text("Error loading servers")
+      self.statusbar.push(self.messageid,"Error loading servers")
+    
+    self.builder.get_object("levelshowl").set_text("")
+    
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
@@ -294,6 +295,9 @@ class scnGUI(object):
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildNonegui()
       return
+
+    self.builder.get_object("levelshowl").set_text("Server Level")
+    
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
@@ -326,6 +330,7 @@ class scnGUI(object):
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildservergui()
       return
+    self.builder.get_object("levelshowl").set_text("Domain Level")
 
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
@@ -352,15 +357,21 @@ class scnGUI(object):
       domainmessage.set_text(tempmes)
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
       self.builder.get_object("domainmessagecontrols").hide()
+      self.builder.get_object("addchannelb").hide()
+      self.builder.get_object("delchannelb").hide()
     else:
       domainmessagebuffer.set_editable(True)
       self.builder.get_object("domainmessagecontrols").show_all()
+      self.builder.get_object("addchannelb").show()
+      self.builder.get_object("delchannelb").show()
       
   #channel
   def buildchannelgui(self):
     if self.cur_server is None or self.cur_domain is None or self.cur_channel is None:
       self.builddomaingui()
       return
+    self.builder.get_object("levelshowl").set_text("Channel Level")
+    
     self.updatenodelist()
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
     
