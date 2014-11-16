@@ -270,7 +270,8 @@ class scnGUI(object):
       self.statusbar.push(self.messageid,"Error loading servers")
     
     self.builder.get_object("levelshowl").set_text("")
-    
+
+    #reconnect signals
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
@@ -293,7 +294,8 @@ class scnGUI(object):
       return
 
     self.builder.get_object("levelshowl").set_text("Server Level")
-    
+
+    #reconnect signals
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
@@ -308,17 +310,21 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
-    servermessage=self.builder.get_object("servermessage")
-    servermessagebuffer=self.builder.get_object("servermessagev2")
+    servermessagebuffer=self.builder.get_object("servermessage")
+    servermessage=self.builder.get_object("servermessagev2")
     tempmes=self.linkback.main.c_get_server_message(self.cur_server)
-    servermessagebuffer.set_editable(False)
+    servermessage.set_editable(False)
     if tempmes is None:
-      servermessage.set_text("")
+      servermessagebuffer.set_text("")
     else:
-      servermessage.set_text(tempmes)
-    #if
-    #servermessagebuffer.set_editable(True)
+      servermessagebuffer.set_text(tempmes)
       
+    #hide controls if client is not server admin      
+    if self.linkback.main.scn_servers.get_channel(self.cur_server,"admin","admin") is None:
+      self.builder.get_object("servermessagecontrols").hide()
+    else:
+      servermessage.set_editable(True)
+      self.builder.get_object("servermessagecontrols").show()
     
 
   def builddomaingui(self):
@@ -327,7 +333,8 @@ class scnGUI(object):
       self.buildservergui()
       return
     self.builder.get_object("levelshowl").set_text("Domain Level")
-
+    
+    #reconnect signals
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
@@ -343,23 +350,33 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
-    domainmessage=self.builder.get_object("domainmessage")
-    domainmessagebuffer=self.builder.get_object("domainmessagev2")
-    domainmessagebuffer.set_editable(False)
+
+
+    domainmessagel=self.builder.get_object("domainmessagel")    
+    if self.cur_domain=="admin":
+      domainmessagel.set_text("Servermessage")
+    else:
+      domainmessagel.set_text("Domainmessage")
+
+    domainmessagebuffer=self.builder.get_object("domainmessage")
+    domainmessage=self.builder.get_object("domainmessagev2")
+    domainmessage.set_editable(False)       
     tempmes=self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain)
     if tempmes is None:
-      domainmessage.set_text("")
+      domainmessagebuffer.set_text("")
     else:
-      domainmessage.set_text(tempmes)
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
+      domainmessagebuffer.set_text(tempmes)
+    
+    #hide controls if client has no admin rights
+    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is not None:
+      domainmessage.set_editable(True)
+      self.builder.get_object("domainmessagecontrols").show()
+      self.builder.get_object("addchannelb").show()
+      self.builder.get_object("delchannelb").show()
+    else:
       self.builder.get_object("domainmessagecontrols").hide()
       self.builder.get_object("addchannelb").hide()
       self.builder.get_object("delchannelb").hide()
-    else:
-      domainmessagebuffer.set_editable(True)
-      self.builder.get_object("domainmessagecontrols").show_all()
-      self.builder.get_object("addchannelb").show()
-      self.builder.get_object("delchannelb").show()
       
   #channel
   def buildchannelgui(self):
@@ -370,7 +387,8 @@ class scnGUI(object):
     
     self.updatenodelist()
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
-    
+
+    #disconnect signals and set handler_id to 0
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
@@ -385,10 +403,14 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
+
+    #hide renew secret if no secret is saved
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is None:
       self.builder.get_object("renewsecret").hide()
     else:
       self.builder.get_object("renewsecret").show()
+      
+    #hide admin options for non-admins
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
       self.builder.get_object("addnodeb1").hide()
       self.builder.get_object("delnodeb1").hide()
@@ -497,30 +519,37 @@ class scnGUI(object):
       tempmessage=self.linkback.main.c_get_server_message(temp[0][temp[1]][1])
     except Exception:
       return
-    guimessage=self.builder.get_object("servermessage")
-    guimessagebuffer=self.builder.get_object("servermessagev1")
-    guimessagebuffer.set_editable(False)
+    guimessage=self.builder.get_object("servermessagev1")
+    messagebuffer=self.builder.get_object("servermessage")
+    guimessage.set_editable(False)
     if tempmessage is None:
-      guimessage.set_text("")
+      messagebuffer.set_text("")
     else:
-      guimessage.set_text(tempmessage)
+      messagebuffer.set_text(tempmessage)
 
   def select_context_domain(self,*args):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    try:
-      tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,temp[0][temp[1]][1])
+    tdomain=temp[0][temp[1]][1]
     
-    except Exception:
-      return
-    guimessage=self.builder.get_object("domainmessage")
-    domainmessagebuffer=self.builder.get_object("domainmessagev2")
-    domainmessagebuffer.set_editable(False)
-    if tempmessage is None:
-      guimessage.set_text("")
+    messageframe=self.builder.get_object("domainmessagef")
+    messagebuffer=self.builder.get_object("domainmessage")
+    domainmessageview=self.builder.get_object("domainmessagev2")
+    domainmessageview.set_editable(False)
+    
+    if tdomain=="admin":
+      messageframe.hide()
     else:
-      guimessage.set_text(tempmessage)
+      messageframe.show()
+      try:
+        tempmessage=self.linkback.main.c_get_domain_message(self.cur_server,tdomain)
+      except Exception:
+        return
+      if tempmessage is None:
+        messagebuffer.set_text("")
+      else:
+        messagebuffer.set_text(tempmessage)
 
   def select_context_channel(self,*args):
     temp=self.navbox.get_selection().get_selected()
@@ -710,9 +739,19 @@ class scnGUI(object):
     temp=self.builder.get_object("domainmessage")
     bounds=temp.get_bounds()
     self.linkback.main.c_update_message(self.cur_server,self.cur_domain,temp.get_text(bounds[0],bounds[1],True))
+
+  def update_server_message(self,*args):
+    temp=self.builder.get_object("servermessage")
+    bounds=temp.get_bounds()
+    self.linkback.main.c_update_message(self.cur_server,"admin",temp.get_text(bounds[0],bounds[1],True))
+    
   def reset_message(self,*args):
     temp=self.builder.get_object("domainmessage")
     temp.set_text(self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain))
+
+  def reset_server_message(self,*args):
+    temp=self.builder.get_object("servermessage")
+    temp.set_text(self.linkback.main.c_get_domain_message(self.cur_server,"admin"))
     
   def delete_channel_intern(self,_delete_channel):
     returnstate=False
