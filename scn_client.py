@@ -225,7 +225,7 @@ class scn_servs_sql(object):
       PRIMARY KEY(servername,url,certname),
       FOREIGN KEY(certname) REFERENCES scn_certs(certname) ON UPDATE CASCADE ON DELETE CASCADE  );''')
       
-      con.execute('''CREATE TABLE if not exists scn_certs(certname TEXT, cert BLOB,PRIMARY KEY(certname), UNIQUE(cert)  );''')
+      con.execute('''CREATE TABLE if not exists scn_certs(name TEXT, cert BLOB,PRIMARY KEY(name), UNIQUE(cert)  );''')
 
       con.commit()
     except Exception as u:
@@ -234,9 +234,10 @@ class scn_servs_sql(object):
     con.close()
 
   def add_server(self,_servername,_url,_cert,_certname=None):
-    
-    if _certname is None:
-      _certname=self.get_cert_name(_cert)
+    #ignore cert name if cert is already in db
+    tcertname=self.get_cert_name(_cert)
+    if tcertname is not None:
+      _certname=tcertname
     if _certname is None:
       _certname=_servername
 
@@ -248,8 +249,10 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''INSERT OR IGNORE into scn_certs(certname,cert) values (?,?)''',(_certname,_cert))
+      if tcertname is None:
+        cur.execute('''INSERT into scn_certs(name,cert) values (?,?);''',(_certname,_cert))
       cur.execute('''INSERT into scn_urls(servername,url,certname) values(?,?,?);''',(_servername,_url,_certname))
+      
       con.commit()
     except sqlite3.IntegrityError:
       printdebug("exists already")
@@ -262,7 +265,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_server(self,_servername,_url,_cert): #,_certname_new=None
+  def update_server(self,_servername,_url,_cert):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -272,13 +275,12 @@ class scn_servs_sql(object):
       #con.beginn()
       cur = con.cursor()
       cur.execute('''
-      UPDATE scn_urls(url) values(?)
+      UPDATE scn_urls SET url=?
       WHERE servername=?;''',(_url,_servername))
-
       
       cur.execute('''
-      UPDATE scn_certs(cert) values(?)
-      WHERE certname=(SELECT certname FROM scn_urls WHERE servername=?) ;''',(_cert,_servername))
+      UPDATE scn_certs SET cert=?
+      WHERE name=(SELECT certname FROM scn_urls WHERE servername=?) ;''',(_cert,_servername))
 #      if _certname_new is not None:
 #        cur.execute('''
 #        UPDATE scn_certs(certname) values(?)
@@ -323,7 +325,8 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''UPDATE scn_certs SET certname=? WHERE certname=?;''',(_certname_new,_certname))
+      cur.execute('''UPDATE scn_certs SET name=? WHERE name=?;''',(_certname_new,_certname))
+      cur.execute('''UPDATE scn_urls SET certname=? WHERE certname=?;''',(_certname_new,_certname)) #why does the constraint not work?
       con.commit();
     except Exception as u:
       printdebug(u)
@@ -451,7 +454,7 @@ class scn_servs_sql(object):
       cur.execute('''SELECT c.url,b.cert,a.secret, a.pending
       FROM scn_serves as a,scn_certs as b,scn_urls as c
       WHERE c.servername=? AND a.domain=? AND a.channel=?
-      AND a.servername=c.servername AND b.certname=c.certname;''',(_servername,_domain,_channelname))
+      AND a.servername=c.servername AND b.name=c.certname;''',(_servername,_domain,_channelname))
       tempfetch=cur.fetchone()
     except Exception as u:
       printerror(u)
@@ -531,16 +534,11 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''SELECT cert
       FROM scn_certs
-      WHERE certname=?''',(_certname,))
+      WHERE name=?''',(_certname,))
       tempfetch=cur.fetchone()
     except Exception as u:
       printerror(u)
-    
-    #strip tupel
-    if tempfetch is not None:
-      tempfetch=tempfetch[0]
-    con.close()
-    
+        
     #strip tupel
     if tempfetch is not None:
       tempfetch=tempfetch[0]
@@ -555,7 +553,7 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT certname
+      cur.execute('''SELECT name
       FROM scn_certs
       WHERE cert=?''',(_cert,))
       tempfetch=cur.fetchone()
@@ -578,9 +576,9 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT a.url,b.cert,b.certname
+      cur.execute('''SELECT a.url,b.cert,b.name
       FROM scn_urls as a, scn_certs as b
-      WHERE a.servername=? AND a.certname=b.certname''',(_servername,))
+      WHERE a.servername=? AND a.certname=b.name''',(_servername,))
       tempfetch=cur.fetchone()
     except Exception as u:
       printerror(u)

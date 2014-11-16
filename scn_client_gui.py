@@ -42,7 +42,48 @@ class scnDeletionDialog(Gtk.Dialog):
     box.add(label)
     self.show_all()
 
+class scnServerAddDialog(Gtk.Dialog):
+  servername=None
+  certname=None
+  certchange=None
+  url=None
+  def __init__(self, _parent, _title):
+    self.parent=_parent
+    self.servername=Gtk.Entry()
+    self.servername.set_hexpand(True)
+    self.servername.set_text("")
+    self.certname=Gtk.Entry()
+    self.certname.set_hexpand(True)
+    self.certname.set_placeholder_text("(optional)")
+    self.url=Gtk.Entry()
+    self.url.set_hexpand(True)
+    
+    Gtk.Dialog.__init__(self, _title, self.parent,
+                        Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
+    self.set_default_size(150, 100)
+    
+    self.add_button("Cancel", Gtk.ResponseType.CANCEL)
+    self.add_button("OK", Gtk.ResponseType.OK)
+    box = self.get_content_area()
+    cont=Gtk.Grid()
+    box.add(cont)
 
+    tsname=Gtk.Label("Servername: ")
+    tsname.set_halign(Gtk.Align.END)
+    cont.attach(tsname,0,0,1,1)
+    cont.attach(self.servername,1,0,1,1)
+    tcn=Gtk.Label("Name Server Cert extra: ")
+    tcn.set_halign(Gtk.Align.END)
+    cont.attach(tcn,0,1,1,1)
+    cont.attach(self.certname,1,1,1,1)
+    turl=Gtk.Label("Url: ")
+    turl.set_halign(Gtk.Align.END)
+    cont.attach(turl,0,2,1,1)
+    cont.attach(self.url,1,2,1,1)
+
+    self.show_all()
+
+    
 class scnServerEditDialog(Gtk.Dialog):
   servername=None
   certname=None
@@ -56,6 +97,7 @@ class scnServerEditDialog(Gtk.Dialog):
     self.certname=Gtk.Entry()
     self.certname.set_hexpand(True)
     if _serverinfo is None:
+      self.certname.set_placeholder_text("(optional)")
       self.certname.set_text(_servername)
     else:
       self.certname.set_text(_serverinfo[2])
@@ -602,7 +644,7 @@ class scnGUI(object):
 
 
   def add_server(self,*args):
-    dialog = scnServerEditDialog(self.win,"Add new server","")
+    dialog = scnServerAddDialog(self.win,"Add new server")
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         tempcertname=dialog.certname.get_text()
@@ -633,7 +675,7 @@ class scnGUI(object):
     returnstate=False
     temp=self.linkback.main.scn_servers.get_server(_server)
     if temp is None:
-      self.statusbar.push(self.messageid,"Does not exist")
+      self.statusbar.push(self.messageid,"\""+_server +"\" does not exist")
       return
     #todo: show cert
     dialog = scnServerEditDialog(self.win,"Edit server",_server,temp)
@@ -642,13 +684,18 @@ class scnGUI(object):
         tempcertname=dialog.certname.get_text()
         if check_invalid_s(tempcertname)==False or check_invalid_s(dialog.servername.get_text())==False:
           printerror("Invalid characters")
+          dialog.destroy()
           return False
         if tempcertname!="" and tempcertname!=temp[2]:
           if dialog.certchange.get_active()==False:
-            if self.linkback.main.scn_servers.update_cert_name(_server,tempcertname)==False:
+            if self.linkback.main.scn_servers.update_cert_name(temp[2],tempcertname)==False:
+              dialog.destroy()
+              self.statusbar.push(self.messageid,"Certificate renaming failed")
               return False
           else:
             if self.linkback.main.scn_servers.change_cert(_server,tempcertname)==False:
+              self.statusbar.push(self.messageid,"Changing certificate failed")
+              dialog.destroy()
               return False
         if dialog.servername!=_server:
           self.linkback.main.scn_servers.update_server_name(_server,dialog.servername.get_text())
@@ -658,7 +705,7 @@ class scnGUI(object):
           self.statusbar.push(self.messageid,"Success")
           #returnel=Gtk.Label("Success")
       else:
-          self.statusbar.push(self.messageid,"Aborted")
+        self.statusbar.push(self.messageid,"Aborted")
     except Exception as e:
       self.statusbar.push(self.messageid,str(e))
     dialog.destroy()
@@ -673,9 +720,9 @@ class scnGUI(object):
           self.statusbar.push(self.messageid,"Success")
           #returnel=Gtk.Label("Success")
         else:
-          self.statusbar.push(self.messageid,"Error2")
+          self.statusbar.push(self.messageid,"Error")
       else:
-        self.statusbar.push(self.messageid,"Error")
+        self.statusbar.push(self.messageid,"Aborted")
     except Exception as e:
       self.statusbar.push(self.messageid,str(e))
     dialog.destroy()

@@ -508,12 +508,12 @@ class scn_base_server(scn_base_base):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
       return
-    if _socket.is_end()==False:
-      _socket.send("error"+sepc+"command not terminated"+sepm)
-      return
     _message=str(_socket.receive_bytes(0,max_message_length),"utf-8")
     if check_invalid_s(_message)==False:
       _socket.send("error"+sepc+"invalid chars"+sepm)
+      return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
       return
     ob=self.scn_domains.get(_domain)
     #here some checks

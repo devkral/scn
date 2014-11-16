@@ -604,6 +604,8 @@ Request:</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="margin_left">3</property>
+                <property name="hexpand">True</property>
+                <property name="vexpand">True</property>
                 <property name="border_width">2</property>
                 <child>
                   <object class="GtkGrid" id="grid3">
@@ -721,14 +723,18 @@ Request:</property>
                     <property name="hadjustment">navboxbar</property>
                     <property name="vadjustment">maxlength</property>
                     <property name="shadow_type">in</property>
-                    <property name="min_content_width">100</property>
+                    <property name="min_content_width">120</property>
                     <child>
                       <object class="GtkTreeView" id="navbox">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="vexpand">True</property>
+                        <property name="hscroll_policy">natural</property>
+                        <property name="vscroll_policy">natural</property>
                         <property name="model">navcontent</property>
+                        <property name="reorderable">True</property>
                         <property name="rules_hint">True</property>
+                        <property name="hover_expand">True</property>
                         <child internal-child="selection">
                           <object class="GtkTreeSelection" id="navboxselection"/>
                         </child>
