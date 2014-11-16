@@ -205,7 +205,9 @@ class scn_domain_sql(object):
     except Exception as e:
       printerror(e)
       return None
-    return message[0]
+    if message is not None:
+      message=message[0]
+    return message
 
   def get_channel(self,_channelname,_nodeid=None):
     ob=None
@@ -245,10 +247,12 @@ class scn_domain_sql(object):
       cur = self.dbcon.cursor()
       cur.execute('''SELECT hashed_pub_cert
       FROM scn_node WHERE scn_domain=? AND channelname=? AND hashed_pub_cert=?''',(self.domain,_channelname,_secret_hash))
-
       ob=cur.fetchone()
     except Exception as e:
       printerror(e)
+    #strip tupel
+    if ob is not None:
+      ob=ob[0]
     return ob #hashed_pub_cert
 
   
@@ -431,7 +435,7 @@ class scn_domain_list_sqlite(object):
       cur = con.cursor()
       cur.execute('''INSERT into scn_node
       (scn_domain,channelname,nodeid,nodename,hashed_secret,hashed_pub_cert)
-      values(?,'admin',0, 'init',?,?)''', (_domain,_secrethash,_certhash))
+      values(?,'admin',0, ?,?,?)''', (_domain,'domainadmin',_secrethash,_certhash))
       cur.execute('''INSERT into scn_domain(name,message) values(?,'')''', (_domain,))
       con.commit()
     except Exception as e:
@@ -439,7 +443,6 @@ class scn_domain_list_sqlite(object):
       printerror(e)
     return self.get(_domain)
 
-#secret should be machine generated
 
 
 class scn_server(scn_base_server):

@@ -269,14 +269,22 @@ class scn_socket(object):
       self.send("success"+sepm)
     else:
       printdebug(str(min_size)+","+str(max_size)+" ("+str(_request_size)+")")
-      self.send("error"+sepc+"size"+sepm)
+      self.send("error"+sepc+"wrong size"+sepm)
       raise(scnNoByteseq("size"))
     scn_format2=struct.Struct(">"+str(_request_size)+"s")
     temp=self._socket.recv(_request_size)
-    temp=scn_format2.unpack(temp[0:_request_size])[0]
-    if temp[-1]==sepm:
+    temp=bytes(scn_format2.unpack(temp[0:_request_size])[0])
+    #[-1:] because of strange python behaviour.
+    #it converts [:1] to int
+    if temp[-1:]==bytes(sepm,"utf8"):
       self.is_end_state=True
+    elif temp[-1:]==bytes(sepc,"utf8"):
+      self.is_end_state=False
+    else:
+      self.send("error"+sepc+"wrong termination"+sepm)
+      raise(scnNoByteseq("termination"))
     return temp[0:-1]
+  
   def send(self,_string):
     temp=bytes(_string,"utf-8")
     tmp_scn_format=struct.Struct(">"+str(len(temp))+"s")
@@ -453,10 +461,13 @@ class scn_base_server(scn_base_base):
       return
     try:
       _certhash=str(_socket.receive_bytes(hash_hex_size),"utf8")
+      print(_socket.is_end())
     except scnReceiveError as e:
       _socket.send("error"+sepc+"certhash"+sepc+str(e)+sepm)
       return
-    #TODO: check if is_end
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
     if check_invalid_name(_domain)==False or \
        check_hash(_secrethash)==False or \
        check_hash(_certhash)==False:
@@ -476,9 +487,12 @@ class scn_base_server(scn_base_base):
   #@scn_setup
   def s_delete_domain(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
-    #TODO: check if is_end
     if _domain is None:
       return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
+    
     if self.scn_domains.del_domain(_domain)==True:
       self.scn_store.del_domain(_domain)
       self.domain_list_cond.set()
@@ -493,6 +507,9 @@ class scn_base_server(scn_base_base):
   def s_update_message(self,_socket):
     _domain,_secret=self._s_admin_auth(_socket)
     if _domain is None:
+      return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
       return
     _message=str(_socket.receive_bytes(0,max_message_length),"utf-8")
     if check_invalid_s(_message)==False:
@@ -522,6 +539,10 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
+    
     _domainob=self.scn_domains.get(_domain)
     if is_update==False and (_domainob.get_channel(_channel) is not None):
       _socket.send("error"+sepc+"channel exists"+sepm)
@@ -586,6 +607,9 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
     temp=""
     for elem in self.scn_domains.get(_domain).get_channel(_channel):
       temp+=sepc+str(elem[0])+sepu+str(elem[2])
@@ -604,6 +628,9 @@ class scn_base_server(scn_base_base):
       return
     if _channel=="admin":
       _socket.send("error"+sepc+"can't delete admin"+sepm)
+      return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
       return
     
     if self.scn_domains.get(_domain).delete_channel(_channel)==True:
@@ -663,6 +690,9 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"addr"+sepc+str(e)+sepm)
       return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
 
     if _addr_type=="ip": #_addr=port
       _address=["ip",_socket.socket.getpeername()[0]+sepu+_addr]
@@ -685,8 +715,10 @@ class scn_base_server(scn_base_base):
     if _channel in self.special_channels:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return
-    #check if end
-      
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
+    
     if self.scn_store.del_server(_domain,_channel,hashlib.sha256(_channelsecret).hexdigest())==True:
       _socket.send("success"+sepm)
     else:
@@ -699,7 +731,9 @@ class scn_base_server(scn_base_base):
     _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
     if _domain is None:
       return
-    #check if end
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
     if self.scn_domains.get(_domain).delete_secret(_channel,_channelsecret)==False or \
     self.scn_store.del_server(_domain,_channel,hashlib.sha256(_channelsecret).hexdigest())==False:
       _socket.send("error"+sepm)
@@ -744,6 +778,9 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+str(e)+sepm)
       return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
     if self.scn_domains.get(_domain) is None:
       _socket.send("success"+sepc+"false"+sepm)
     else:
@@ -761,6 +798,9 @@ class scn_base_server(scn_base_base):
       _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
+      return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
       return
 
     if self.scn_domains.length(_domain)==0:
@@ -788,6 +828,9 @@ class scn_base_server(scn_base_base):
       _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
+      return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
       return
 
     if _domain=="admin" or _domain=="special":
@@ -818,6 +861,9 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
     tempdomain=self.scn_domains.get(_domain)
     if tempdomain is None:
       _socket.send("error"+sepc+"domain"+sepm)
@@ -834,6 +880,9 @@ class scn_base_server(scn_base_base):
   # list domains
   #@scn_setup
   def s_list_domains(self,_socket):
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
     #domainnames must be refreshed by a seperate thread because too much traffic elsewise
     #self.domain_list_cache begins with a sepc
     if self.domain_list_cache is not None:
@@ -849,6 +898,10 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
       return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
+    
     if self.scn_domains.get(_domain) is None:
       _socket.send("error"+sepc+"not exists"+sepm)
     else:
@@ -865,6 +918,9 @@ class scn_base_server(scn_base_base):
       _channel=_socket.receive_one(1,max_name_length)
     except scnReceiveError as e:
       _socket.send("error"+sepc+"special channel"+sepc+str(e)+sepm)
+      return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
       return
 
     if _channel not in self.special_channels_unauth:
@@ -898,8 +954,11 @@ class scn_base_client(scn_base_base):
 
   #@scn_setup
   def c_update_channel(self,_servername,_domain,_channel,_secrethashstring):
-    _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    if temp is None:
+      printerror("Error: no admin permission")
+      return False
+    _socket=scn_socket(self.connect_to(_servername))
     _socket.send("update_channel"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
     _socket.send(_channel+sepc)
@@ -915,15 +974,15 @@ class scn_base_client(scn_base_base):
 
   #@scn_setup
   def c_add_channel(self,_servername,_domain,_channel,_secrethashstring=None):
-    _socket=scn_socket(self.connect_to(_servername))
     if _secrethashstring is None:
       _secret=os.urandom(secret_size)
       temphash=hashlib.sha256(bytes(_domain,"utf8"))
       temphash.update(self.pub_cert)
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     if temp is None:
-      printerror("Error: no admin rights")
+      printerror("Error: no admin permission")
       return False
+    _socket=scn_socket(self.connect_to(_servername))
     _socket.send("add_channel"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
     _socket.send(_channel+sepc)
@@ -943,8 +1002,11 @@ class scn_base_client(scn_base_base):
   
   #@scn_setup
   def c_get_channel_secrethash(self,_servername,_domain,_channel):
-    _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    if temp is None:
+      printerror("Error: no admin permission")
+      return False
+    _socket=scn_socket(self.connect_to(_servername))
     _socket.send("get_channel_secrethash"+sepc+_domain)
     _socket.send_bytes(temp[2])
     _socket.send(_channel+sepm)
@@ -980,17 +1042,17 @@ class scn_base_client(scn_base_base):
   #@scn_setup
   def c_delete_domain(self,_servername,_domain):
     if _domain=="admin":
-      printerror("can't delete specialdomain admin")
+      printerror("Undeleteable specialdomain admin")
+      return False
+
+    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    if temp is None:
+      printerror("No admin permission")
       return False
     
     if self.c_check_domain(_servername,_domain)==False:
       self.scn_servers.del_domain(_servername,_domain)
       return True
-    
-    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
-    if temp is None:
-      printerror("No admin permission")
-      return False
 
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("delete_domain"+sepc+_domain+sepc)
@@ -1003,8 +1065,11 @@ class scn_base_client(scn_base_base):
 
   #@scn_setup
   def c_update_message(self,_servername,_domain,_message):
-    _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    if temp is None:
+      printerror("No admin permission")
+      return False
+    _socket=scn_socket(self.connect_to(_servername))
     _socket.send("update_message"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
     _socket.send_bytes(bytes(_message,"utf-8"),True)
@@ -1015,11 +1080,14 @@ class scn_base_client(scn_base_base):
   #@scn_setup
   def c_delete_channel(self,_servername,_domain,_channel):
     if _channel=="admin":
-      printerror("can't delete specialchannel admin")
+      printerror("Undeleteable specialchannel admin")
       return False
     
-    _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
+    if temp is None:
+      printerror("No admin permission")
+      return False
+    _socket=scn_socket(self.connect_to(_servername))
     _socket.send("delete_channel"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
     _socket.send(_channel+sepm)
@@ -1029,8 +1097,12 @@ class scn_base_client(scn_base_base):
   
   #@scn_setup
   def c_unserve_channel(self,_servername,_domain,_channel):
-    _socket=scn_socket(self.connect_to(_servername))
     temp=self.scn_servers.get_channel(_servername,_domain,_channel)
+    if temp is None:
+      printerror("Can't unserve without a secret")
+      return False
+    
+    _socket=scn_socket(self.connect_to(_servername))
     _socket.send("unserve"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)
@@ -1043,6 +1115,9 @@ class scn_base_client(scn_base_base):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
     temp=self.scn_servers.get_channel(_servername,_domain,_channel)
+    if temp is None:
+      printerror("Can't update secret without a secret")
+      return False
     _socket.send("update_secret"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[2])
     if scn_check_return(_socket)==False:

@@ -332,7 +332,11 @@ class scnGUI(object):
       self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 0, 0, 1))
       self.buildservergui()
       return
-    self.builder.get_object("levelshowl").set_text("Domain Level")
+
+    if self.cur_domain=="admin":
+      self.builder.get_object("levelshowl").set_text("Server Service Level")
+    else:
+      self.builder.get_object("levelshowl").set_text("Domain Level")
     
     #reconnect signals
     if self.box_select_handler_id!=None:
@@ -404,11 +408,11 @@ class scnGUI(object):
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
 
-    #hide renew secret if no secret is saved
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is None:
-      self.builder.get_object("renewsecret").hide()
-    else:
+    #hide renew secret if no secret is available
+    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is not None:
       self.builder.get_object("renewsecret").show()
+    else:
+      self.builder.get_object("renewsecret").hide()
       
     #hide admin options for non-admins
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
@@ -733,25 +737,6 @@ class scnGUI(object):
     except Exception as e:
       self.statusbar.push(self.messageid,str(e))
     dialog.destroy()
-
-  
-  def update_message(self,*args):
-    temp=self.builder.get_object("domainmessage")
-    bounds=temp.get_bounds()
-    self.linkback.main.c_update_message(self.cur_server,self.cur_domain,temp.get_text(bounds[0],bounds[1],True))
-
-  def update_server_message(self,*args):
-    temp=self.builder.get_object("servermessage")
-    bounds=temp.get_bounds()
-    self.linkback.main.c_update_message(self.cur_server,"admin",temp.get_text(bounds[0],bounds[1],True))
-    
-  def reset_message(self,*args):
-    temp=self.builder.get_object("domainmessage")
-    temp.set_text(self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain))
-
-  def reset_server_message(self,*args):
-    temp=self.builder.get_object("servermessage")
-    temp.set_text(self.linkback.main.c_get_domain_message(self.cur_server,"admin"))
     
   def delete_channel_intern(self,_delete_channel):
     returnstate=False
@@ -782,7 +767,29 @@ class scnGUI(object):
       self.update(self.cur_channel)
       self.updatechannellist()
 
+
+
+  
+  def update_message(self,*args):
+    temp=self.builder.get_object("domainmessage")
+    bounds=temp.get_bounds()
+    self.linkback.main.c_update_message(self.cur_server,self.cur_domain,temp.get_text(bounds[0],bounds[1],True))
+
+  def update_server_message(self,*args):
+    temp=self.builder.get_object("servermessage")
+    bounds=temp.get_bounds()
+    self.linkback.main.c_update_message(self.cur_server,"admin",temp.get_text(bounds[0],bounds[1],True))
     
+  def reset_message(self,*args):
+    temp=self.builder.get_object("domainmessage")
+    temp.set_text(self.linkback.main.c_get_domain_message(self.cur_server,self.cur_domain))
+
+  def reset_server_message(self,*args):
+    temp=self.builder.get_object("servermessage")
+    temp.set_text(self.linkback.main.c_get_domain_message(self.cur_server,"admin"))
+
+  def renew_secret(self,*args):
+    self.linkback.main.c_update_secret(self.cur_server,self.cur_domain,self.cur_channel)
 
 run=True
 

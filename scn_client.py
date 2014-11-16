@@ -439,7 +439,7 @@ class scn_servs_sql(object):
     return temp #channelname erurl,cert,secret,pending state
 
   def get_channel(self,_servername,_domain,_channelname):
-    temp=None
+    tempfetch=None
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -452,11 +452,11 @@ class scn_servs_sql(object):
       FROM scn_serves as a,scn_certs as b,scn_urls as c
       WHERE c.servername=? AND a.domain=? AND a.channel=?
       AND a.servername=c.servername AND b.certname=c.certname;''',(_servername,_domain,_channelname))
-      temp=cur.fetchone()
+      tempfetch=cur.fetchone()
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #serverurl,cert,secret,pending state
+    return tempfetch #serverurl,cert,secret,pending state
   
   def del_channel(self,_servername,_domain,_channelname):
     try:
@@ -520,7 +520,7 @@ class scn_servs_sql(object):
     con.close()
     return True
   def get_cert(self,_certname):
-    temp=None
+    tempfetch=None
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -532,13 +532,21 @@ class scn_servs_sql(object):
       cur.execute('''SELECT cert
       FROM scn_certs
       WHERE certname=?''',(_certname,))
-      temp=cur.fetchone()
+      tempfetch=cur.fetchone()
     except Exception as u:
       printerror(u)
+    
+    #strip tupel
+    if tempfetch is not None:
+      tempfetch=tempfetch[0]
     con.close()
-    return temp #cert or None
+    
+    #strip tupel
+    if tempfetch is not None:
+      tempfetch=tempfetch[0]
+    return tempfetch #cert or None
   def get_cert_name(self,_cert):
-    temp=None
+    tempfetch=None
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -550,15 +558,18 @@ class scn_servs_sql(object):
       cur.execute('''SELECT certname
       FROM scn_certs
       WHERE cert=?''',(_cert,))
-      temp=cur.fetchone()[0]
+      tempfetch=cur.fetchone()
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #cert or None
+    #strip tupel
+    if tempfetch is not None:
+      tempfetch=tempfetch[0]
+    return tempfetch #cert or None
 
 
   def get_server(self,_servername):
-    temp=None
+    tempfetch=None
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -570,11 +581,11 @@ class scn_servs_sql(object):
       cur.execute('''SELECT a.url,b.cert,b.certname
       FROM scn_urls as a, scn_certs as b
       WHERE a.servername=? AND a.certname=b.certname''',(_servername,))
-      temp=cur.fetchone()
+      tempfetch=cur.fetchone()
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #serverurl,cert or None
+    return tempfetch #serverurl,cert or None
 
   def get_by_url(self,_url):
     temp=None
@@ -668,6 +679,7 @@ class scn_client(scn_base_client):
     tempdata=self.scn_servers.get_server(_server)
     if tempdata == None:
       raise (scnConnectException("connect_to: servername doesn't exist"))
+    #split ip address and port 
     tempconnectdata=tempdata[0].split(sepu)
     if len(tempconnectdata)==1:
       tempconnectdata+=[scn_server_port,]
