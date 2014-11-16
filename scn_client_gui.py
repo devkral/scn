@@ -89,23 +89,18 @@ class scnServerEditDialog(Gtk.Dialog):
   certname=None
   certchange=None
   url=None
-  def __init__(self, _parent, _title, _servername,_serverinfo=None):
+  def __init__(self, _parent, _title, _servername,_serverinfo):
     self.parent=_parent
     self.servername=Gtk.Entry()
     self.servername.set_hexpand(True)
     self.servername.set_text(_servername)
     self.certname=Gtk.Entry()
     self.certname.set_hexpand(True)
-    if _serverinfo is None:
-      self.certname.set_placeholder_text("(optional)")
-      self.certname.set_text(_servername)
-    else:
-      self.certname.set_text(_serverinfo[2])
+    self.certname.set_text(_serverinfo[2])
     self.certchange=Gtk.CheckButton(label="Change to cert")
     self.url=Gtk.Entry()
     self.url.set_hexpand(True)
-    if _serverinfo is not None:
-      self.url.set_text(_serverinfo[0])
+    self.url.set_text(_serverinfo[0])
     
     Gtk.Dialog.__init__(self, _title, self.parent,
                         Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
@@ -125,8 +120,7 @@ class scnServerEditDialog(Gtk.Dialog):
     tcn.set_halign(Gtk.Align.END)
     cont.attach(tcn,0,1,1,1)
     cont.attach(self.certname,1,1,1,1)
-    if _serverinfo is not None:
-      cont.attach(self.certchange,2,1,1,1)
+    cont.attach(self.certchange,2,1,1,1)
     turl=Gtk.Label("Url: ")
     turl.set_halign(Gtk.Align.END)
     cont.attach(turl,0,2,1,1)
