@@ -916,8 +916,6 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"domain_list_cache empty"+sepm)
     
 
-
-
   # list channels
   #@scn_setup
   def s_list_channels(self,_socket):
@@ -931,13 +929,6 @@ class scn_base_server(scn_base_base):
       return
       
     temp=""
-    #domainnames must be refreshed by a seperate thread because too much traffic elsewise
-    #self.domain_list_cache begins with a sepc
-    if self.domain_list_cache is not None:
-      temp=self.domain_list_cache
-    else:
-      _socket.send("error"+sepc+"domain_list_cache empty"+sepm)
-
     tempdomain=self.scn_domains.get(_domain)
     if tempdomain is None:
       _socket.send("error"+sepc+"domain not exist"+sepm)
@@ -949,8 +940,6 @@ class scn_base_server(scn_base_base):
     for elem in tempcont:
       temp+=sepc+elem[0] #name
     _socket.send("success"+temp+sepm) # list with domain names
-
-
 
     
   # get message of domain, in case of "admin" server message
