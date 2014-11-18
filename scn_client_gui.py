@@ -413,10 +413,12 @@ class scnGUI(object):
       self.builder.get_object("domainmessagecontrols").show()
       self.builder.get_object("addchannelb").show()
       self.builder.get_object("delchannelb").show()
+      self.builder.get_object("pinchannelorderb").show()
     else:
       self.builder.get_object("domainmessagecontrols").hide()
       self.builder.get_object("addchannelb").hide()
       self.builder.get_object("delchannelb").hide()
+      self.builder.get_object("pinchannelorderb").hide()
       
   #channel
   def buildchannelgui(self):
