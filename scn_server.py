@@ -57,14 +57,19 @@ class scn_ip_store(object):
       return sqlite3.connect(self.db_pers)
       #return None
 
-  def get(self,_domain,_channel):
+  def get(self,_domain,_channel,_nodeid=None):
     nodelist=None
     con=self.det_con(_channel)
     try:
       cur = con.cursor()
-      cur.execute('''SELECT addr_type,addr,hashed_pub_cert
-      FROM addr_store
-      WHERE domain=? AND channel=? ORDER BY clientid''',(_domain,_channel))
+      if _nodeid is None:
+        cur.execute('''SELECT addr_type,addr,hashed_pub_cert
+        FROM addr_store
+        WHERE domain=? AND channel=? ORDER BY clientid''',(_domain,_channel))
+      else:
+        cur.execute('''SELECT addr_type,addr,hashed_pub_cert
+        FROM addr_store
+        WHERE domain=? AND channel=? AND clientid=?''',(_domain,_channel,_nodeid))
       nodelist=cur.fetchall()
     except Exception as e:
       printerror(e)
@@ -219,7 +224,8 @@ class scn_domain_sql(object):
         ORDER BY nodeid''',(self.domain,_channelname))
       else:
         cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret
-        FROM scn_node WHERE scn_domain=? AND channelname=? AND nodeid=?''',(self.domain,_channelname,_nodeid))
+        FROM scn_node WHERE scn_domain=? AND channelname=? AND nodeid=?
+        ORDER BY nodeid''',(self.domain,_channelname,_nodeid))
 
       ob=cur.fetchall()
     except Exception as e:
@@ -235,7 +241,8 @@ class scn_domain_sql(object):
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT channelname
-      FROM scn_node WHERE scn_domain=?;''',(self.domain,))
+      FROM scn_node WHERE scn_domain=?
+      ORDER BY channelname;''',(self.domain,))
       ob=cur.fetchall()
     except Exception as e:
       printerror(e)
@@ -246,7 +253,8 @@ class scn_domain_sql(object):
     try:
       cur = self.dbcon.cursor()
       cur.execute('''SELECT hashed_pub_cert
-      FROM scn_node WHERE scn_domain=? AND channelname=? AND hashed_pub_cert=?''',(self.domain,_channelname,_secret_hash))
+      FROM scn_node
+      WHERE scn_domain=? AND channelname=? AND hashed_pub_cert=?''',(self.domain,_channelname,_secret_hash))
       ob=cur.fetchone()
     except Exception as e:
       printerror(e)
@@ -379,7 +387,9 @@ class scn_domain_list_sqlite(object):
     ob=None
     try:
       cur = con.cursor()
-      cur.execute('SELECT name FROM scn_domain')
+      cur.execute('''
+      SELECT name FROM scn_domain
+      ORDER BY name''')
       ob=cur.fetchall()
     except Exception as e:
       printerror(e)
@@ -394,7 +404,8 @@ class scn_domain_list_sqlite(object):
     length=0
     try:
       cur = con.cursor()
-      cur.execute(' SELECT DISTINCT channelname FROM scn_node WHERE scn_domain=?', (_domain,))
+      cur.execute(''' SELECT DISTINCT channelname
+      FROM scn_node WHERE scn_domain=?''', (_domain,))
       length=cur.rowcount
     except Exception as e:
       printerror(e)
@@ -594,12 +605,12 @@ class scn_sock_server(socketserver.TCPServer):
     if request is None:
       return
     try:
-      #explicitly shutdown.  socket.close() merely releases
-      #the socket and waits for GC to perform the actual close.
-      request.shutdown()
-      request.sock_shutdown(socket.SHUT_RDWR)
+      # explicitly shutdown.  socket.close() merely releases
+      # the socket and waits for GC to perform the actual close.
+      request.shutdown() # shutdown of sslsocketwrapper
+      request.sock_shutdown(socket.SHUT_RDWR) # hard shutdown of underlying socket
     except (OSError):
-      pass #some platforms may raise ENOTCONN here
+      pass # some platforms may raise ENOTCONN here
     except Exception as e:
       printerror("Exception while shutdown")
       printerror(e)

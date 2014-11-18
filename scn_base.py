@@ -461,7 +461,6 @@ class scn_base_server(scn_base_base):
       return
     try:
       _certhash=str(_socket.receive_bytes(hash_hex_size),"utf8")
-      print(_socket.is_end())
     except scnReceiveError as e:
       _socket.send("error"+sepc+"certhash"+sepc+str(e)+sepm)
       return
@@ -539,16 +538,13 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
-    if _socket.is_end()==False:
-      _socket.send("error"+sepc+"command not terminated"+sepm)
-      return
     
     _domainob=self.scn_domains.get(_domain)
     if is_update==False and (_domainob.get_channel(_channel) is not None):
-      _socket.send("error"+sepc+"channel exists"+sepm)
+      _socket.send("error"+sepc+"channel exist"+sepm)
       return
     elif is_update==True and (_domainob.get_channel(_channel) is None):
-      _socket.send("error"+sepc+"channel not exists"+sepm)
+      _socket.send("error"+sepc+"channel not exist"+sepm)
       return
 
     _socket.send("success"+sepm)
@@ -560,9 +556,14 @@ class scn_base_server(scn_base_base):
 
       _socket.send("error"+sepc+"limit channels"+sepm)
       return
+    
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
+    
     temphashes=_secrethashstring.split(sepc)
     if len(temphashes)>max_channel_nodes:
-      _socket.send("error"+sepc+"limit"+sepm)
+      _socket.send("error"+sepc+"limit nodes"+sepm)
       return
     self.scn_store.del_channel(_domain,_channel)
     temp2=[]
@@ -627,7 +628,7 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
     if _channel=="admin":
-      _socket.send("error"+sepc+"can't delete admin"+sepm)
+      _socket.send("error"+sepc+"try delete admin"+sepm)
       return
     if _socket.is_end()==False:
       _socket.send("error"+sepc+"command not terminated"+sepm)
@@ -800,20 +801,27 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
     if _socket.is_end()==False:
-      _socket.send("error"+sepc+"command not terminated"+sepm)
-      return
+      try:
+        _nodeid=_socket.receive_one(1,max_name_length)
+      except scnReceiveError as e:
+        _socket.send("error"+sepc+"nodeid"+sepc+str(e)+sepm)
+        return
+      if _socket.is_end()==False:
+        _socket.send("error"+sepc+"command not terminated"+sepm)
+        return
+    else:
+      _nodeid=None
 
     if self.scn_domains.length(_domain)==0:
-      _socket.send("error"+sepc+"domain not exists"+sepm)
+      _socket.send("error"+sepc+"domain not exist"+sepm)
       return
-    elif self.scn_domains.get(_domain).get_channel( _channel) is None:
-      _socket.send("error"+sepc+"channel not exist"+sepm)
+    templ=self.scn_domains.get(_domain).get_channel( _channel,_nodeid)
+    if templ is None:
+      _socket.send("error"+sepc+"channel or nodeid not exist"+sepm)
       return
     temp=""
-    if self.scn_domains.get(_domain).get_channel(_channel) is not None:
-
-      for elem in self.scn_domains.get(_domain).get_channel(_channel):
-        temp+=sepc+elem[1]+sepu+elem[3] #name,hashed_pubcert
+    for elem in templ:
+      temp+=sepc+elem[1]+sepu+elem[3] #name,hashed_pubcert
     _socket.send("success"+temp+sepm)
 
   # get addresses and certs of nodes in a channel
@@ -829,27 +837,35 @@ class scn_base_server(scn_base_base):
     except scnReceiveError as e:
       _socket.send("error"+sepc+"channel"+sepc+str(e)+sepm)
       return
+    
     if _socket.is_end()==False:
-      _socket.send("error"+sepc+"command not terminated"+sepm)
-      return
+      try:
+        _nodeid=_socket.receive_one(1,max_name_length)
+      except scnReceiveError as e:
+        _socket.send("error"+sepc+"nodeid"+sepc+str(e)+sepm)
+        return
+      if _socket.is_end()==False:
+        _socket.send("error"+sepc+"command not terminated"+sepm)
+        return
+    else:
+      _nodeid=None
 
     if _domain=="admin" or _domain=="special":
       _socket.send("error"+sepc+"special"+sepm)
       return
     elif self.scn_domains.length(_domain)==0:
-      _socket.send("error"+sepc+"domain not exists"+sepm)
+      _socket.send("error"+sepc+"domain not exist"+sepm)
       return
     elif self.scn_domains.get(_domain).get_channel( _channel) is None:
       _socket.send("error"+sepc+"channel not exist"+sepm)
       return
-    elif self.scn_store.get(_domain,_channel) is None:
-      _socket.send("error"+sepc+"channel has no active nodes"+sepm)
+    templ=self.scn_store.get(_domain,_channel,_nodeid)
+    if templ is None:
+      _socket.send("error"+sepc+"channel or nodeid not active"+sepm)
       return
-
     temp=""
-    if self.scn_store.get(_domain,_channel) is not None:
-      for elem in self.scn_store.get(_domain,_channel):
-        temp+=sepc+elem[0]+sepu+elem[1]+sepu+elem[2] #addrtype, addr, _certhash
+    for elem in templ:
+      temp+=sepc+elem[1]+sepu+elem[2]+sepu+elem[3] #addrtype, addr, _certhash
     _socket.send("success"+temp+sepm)
 
 
@@ -866,11 +882,11 @@ class scn_base_server(scn_base_base):
       return
     tempdomain=self.scn_domains.get(_domain)
     if tempdomain is None:
-      _socket.send("error"+sepc+"domain"+sepm)
+      _socket.send("error"+sepc+"domain not exist"+sepm)
       return
     tempcont=tempdomain.list_channels()
     if tempcont is None:
-      _socket.send("error"+sepc+"channel"+sepm)
+      _socket.send("error"+sepc+"channel not exist"+sepm)
       return
     temp=""
     for elem in tempcont:
@@ -903,7 +919,7 @@ class scn_base_server(scn_base_base):
       return
     
     if self.scn_domains.get(_domain) is None:
-      _socket.send("error"+sepc+"not exists"+sepm)
+      _socket.send("error"+sepc+"domain not exist"+sepm)
     else:
       temp=self.scn_domains.get(_domain).get_message()
       _socket.send("success"+sepc)
@@ -956,7 +972,7 @@ class scn_base_client(scn_base_base):
   def c_update_channel(self,_servername,_domain,_channel,_secrethashstring):
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     if temp is None:
-      printerror("Error: no admin permission")
+      printerror("no admin permission")
       return False
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("update_channel"+sepc+_domain+sepc)
@@ -980,7 +996,7 @@ class scn_base_client(scn_base_base):
       temphash.update(self.pub_cert)
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     if temp is None:
-      printerror("Error: no admin permission")
+      printerror("no admin permission")
       return False
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("add_channel"+sepc+_domain+sepc)
@@ -1137,9 +1153,13 @@ class scn_base_client(scn_base_base):
 
   
   #@scn_setup
-  def c_get_channel_nodes(self,_servername,_domain,_channel):
+  def c_get_channel_nodes(self,_servername,_domain,_channel,_nodeid=None):
+    if _nodeid==None or type(_nodeid).__name__!='int':
+      _nodeid=""
+    else:
+      _nodeid=sepc+str(_nodeid)
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("get_channel_nodes"+sepc+_domain+sepc+_channel+sepm)
+    _socket.send("get_channel_nodes"+sepc+_domain+sepc+_channel+_nodeid+sepm)
     _node_list=[]
     if scn_check_return(_socket) == True:
       #TODO: get max_node information from server
@@ -1158,9 +1178,14 @@ class scn_base_client(scn_base_base):
     return _node_list
 
   #@scn_setup
-  def c_get_channel_addr(self,_servername,_domain,_channel):
+  def c_get_channel_addr(self,_servername,_domain,_channel,_nodeid=None):
+    if _nodeid==None or type(_nodeid).__name__!='int':
+      _nodeid=""
+    else:
+      _nodeid=sepc+str(_nodeid)
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("get_channel_addr"+sepc+_domain+sepc+_channel+sepm)
+    _socket.send("get_channel_addr"+sepc+_domain+sepc+_channel+_nodeid+sepm)
+    
     _node_list=[]
     if scn_check_return(_socket) == True:
       #TODO: get max_node  information from server

@@ -291,14 +291,14 @@ class scnGUI(object):
   def updatenodelist(self, *args):
     self.navbox.show()
     self.navcontent.clear()
-
-    
     temp2=self.linkback.main.c_get_channel_nodes(self.cur_server,self.cur_domain,self.cur_channel)
     if temp2 is None:
       return False
     self.listelems.set_title("Users")
+    count=0;
     for elem in temp2:
-      self.navcontent.append(("",elem[0]))
+      self.navcontent.append((str(count),elem[0]))
+      count+=1
     return True
 
   def buildNonegui(self):
@@ -432,7 +432,8 @@ class scnGUI(object):
     if self.box_select_handler_id!=None:
       self.navbox.disconnect(self.box_select_handler_id)
       self.box_select_handler_id=None
-
+    self.box_select_handler_id=self.navbox.connect("cursor-changed",self.fill_node_data)
+    
     if self.box_activate_handler_id!=None:
       self.navbox.disconnect(self.box_activate_handler_id)
       self.box_activate_handler_id=None
@@ -511,7 +512,32 @@ class scnGUI(object):
     if len(_ob.get_children())==1:
       _ob.get_children()[0].destroy()
     _ob.add(Gtk.Label("Not implemented"))
-  
+
+
+  def fill_node_data(self,*args):
+    tempnodeid=self.navbox.get_selection().get_selected()
+    if tempnodeid[1] is None:
+      return
+    else:
+      try:
+        tempnodeid=int(tempnodeid[0][tempnodeid[1]][1])
+      except Exception:
+        return
+    
+    tempnodel=self.linkback.main.c_get_channel_addr(self.cur_server,self.cur_domain,self.cur_channel,tempnodeid)
+    addrtype=self.builder.get_object("addrtypelabel")
+    addr=self.builder.get_object("addrlabel")
+    nodehash=self.builder.get_object("nodecerthashlabel")
+    print(tempnodel)
+    if tempnodel is None:
+      addrtype.set_text("N/A")
+      addr.set_text("N/A")
+      nodehash.set_text("N/A")
+    else:
+      addrtype.set_text(tempnodel[0][0])
+      addr.set_text(tempnodel[0][1])
+      nodehash.set_text(tempnodel[0][1])
+    
   ### select section  ###
   def goback_none(self,*args):
     self.update()
