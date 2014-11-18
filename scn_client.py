@@ -583,7 +583,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printerror(u)
     con.close()
-    return tempfetch #serverurl,cert or None
+    return tempfetch #serverurl,cert,name or None
 
   def get_by_url(self,_url):
     temp=None
@@ -600,7 +600,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printerror(u)
     con.close()
-    return temp 
+    return temp #serverurls
 
   def list_servers(self):
     temp=None
@@ -611,7 +611,8 @@ class scn_servs_sql(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''SELECT servername,url,certname FROM scn_urls''')
+      cur.execute('''SELECT servername,url,certname FROM scn_urls
+      ORDER BY servername ASC''')
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
@@ -631,11 +632,13 @@ class scn_servs_sql(object):
       cur = con.cursor()
       if _channelname==None:
         cur.execute('''SELECT servername,domain,channel,pending
-        FROM scn_serves''')
+        FROM scn_serves
+        ORDER BY servername,domain ASC''')
       else:
         cur.execute('''SELECT servername,domain,channel,pending
         FROM scn_serves
-        WHERE channel=?''')
+        WHERE channel=?
+        ORDER BY servername,domain ASC''')
 
       temp=cur.fetchall()
     except Exception as u:

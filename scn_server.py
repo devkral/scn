@@ -65,7 +65,8 @@ class scn_ip_store(object):
       if _nodeid is None:
         cur.execute('''SELECT addr_type,addr,hashed_pub_cert
         FROM addr_store
-        WHERE domain=? AND channel=? ORDER BY clientid''',(_domain,_channel))
+        WHERE domain=? AND channel=?
+        ORDER BY clientid ASC''',(_domain,_channel))
       else:
         cur.execute('''SELECT addr_type,addr,hashed_pub_cert
         FROM addr_store
@@ -77,7 +78,6 @@ class scn_ip_store(object):
       return None
     con.close()
     return nodelist
-
 
   def update(self,_domain,_channel,_nodeid,_pub_cert_hash,_addr_type,_addr):
     con=self.det_con(_channel)
@@ -221,11 +221,10 @@ class scn_domain_sql(object):
       if _nodeid is None:
         cur.execute('''SELECT nodeid,nodename,hashed_secret,hashed_pub_cert
         FROM scn_node WHERE scn_domain=? AND channelname=?
-        ORDER BY nodeid''',(self.domain,_channelname))
+        ORDER BY nodeid ASC;''',(self.domain,_channelname))
       else:
         cur.execute('''SELECT nodeid,nodename,hashed_pub_cert,hashed_secret
-        FROM scn_node WHERE scn_domain=? AND channelname=? AND nodeid=?
-        ORDER BY nodeid''',(self.domain,_channelname,_nodeid))
+        FROM scn_node WHERE scn_domain=? AND channelname=? AND nodeid=?;''',(self.domain,_channelname,_nodeid))
 
       ob=cur.fetchall()
     except Exception as e:
@@ -242,11 +241,29 @@ class scn_domain_sql(object):
       cur = self.dbcon.cursor()
       cur.execute('''SELECT channelname
       FROM scn_node WHERE scn_domain=?
-      ORDER BY channelname;''',(self.domain,))
+      ORDER BY channelname ASC;''',(self.domain,))
       ob=cur.fetchall()
     except Exception as e:
       printerror(e)
     return ob #channelname
+  
+  
+  def length(self, _channel):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as e:
+      printerror(e)
+      return 0
+    length=0
+    try:
+      cur = con.cursor()
+      cur.execute(''' SELECT nodeid
+      FROM scn_node WHERE scn_domain=? AND channelname=? ''', (self.domain,_channel))
+      length=len(cur.fetchall())
+    except Exception as e:
+      printerror(e)
+      length=0
+    return length
 
   def get_cert(self,_channelname,_secret_hash):
     ob=None
@@ -389,7 +406,7 @@ class scn_domain_list_sqlite(object):
       cur = con.cursor()
       cur.execute('''
       SELECT name FROM scn_domain
-      ORDER BY name''')
+      ORDER BY name ASC''')
       ob=cur.fetchall()
     except Exception as e:
       printerror(e)
@@ -478,6 +495,8 @@ class scn_server(scn_base_server):
            "check_domain": scn_base_server.s_check_domain,
            "list_domains": scn_base_server.s_list_domains,
            "list_channels": scn_base_server.s_list_channels,
+           "length_domain": scn_base_server.s_length_domain,
+           "length_channel": scn_base_server.s_length_channel,
            "get_cert":scn_base_base.s_get_cert,
            "info":scn_base_base.s_info,
            "pong":scn_base_base.pong}

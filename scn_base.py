@@ -787,6 +787,38 @@ class scn_base_server(scn_base_base):
     else:
       _socket.send("success"+sepc+"true"+sepm)
 
+  # returns amount of channels within a domain
+  def s_length_domain(self,_socket):
+    try:
+      _domain=_socket.receive_one(min_used_name,max_used_name)
+    except scnReceiveError as e:
+      _socket.send("error"+str(e)+sepm)
+      return
+    if _socket.is_end()==False:
+        _socket.send("error"+sepc+"command not terminated"+sepm)
+        return
+    tlength=self.scn_domains.length(_domain)
+    _socket.send("success"+sepc+str(tlength)+sepm)
+
+  # returns amount of nodes within a channel
+  def s_length_channel(self,_socket):
+    try:
+      _domain=_socket.receive_one(min_used_name,max_used_name)
+    except scnReceiveError as e:
+      _socket.send("error"+str(e)+sepm)
+      return
+    try:
+      _channel=_socket.receive_one(min_used_name,max_used_name)
+    except scnReceiveError as e:
+      _socket.send("error"+str(e)+sepm)
+      return
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
+      
+    tlength=self.scn_domains.get(_domain).length(_channel)
+    _socket.send("success"+sepc+str(tlength)+sepm)
+    
   # get nodenames and certs of nodes in a channel
   #@scn_setup
   def s_get_channel_nodes(self,_socket):
@@ -869,7 +901,24 @@ class scn_base_server(scn_base_base):
     _socket.send("success"+temp+sepm)
 
 
-  # list channels of a domain
+  # list domains
+  #@scn_setup
+  def s_list_domains(self,_socket):
+    if _socket.is_end()==False:
+      _socket.send("error"+sepc+"command not terminated"+sepm)
+      return
+      
+    #domainnames must be refreshed by a seperate thread because too much traffic elsewise
+    #self.domain_list_cache begins with a sepc
+    if self.domain_list_cache is not None:
+      _socket.send("success"+self.domain_list_cache+sepm)
+    else:
+      _socket.send("error"+sepc+"domain_list_cache empty"+sepm)
+    
+
+
+
+  # list channels
   #@scn_setup
   def s_list_channels(self,_socket):
     try:
@@ -880,6 +929,15 @@ class scn_base_server(scn_base_base):
     if _socket.is_end()==False:
       _socket.send("error"+sepc+"command not terminated"+sepm)
       return
+      
+    temp=""
+    #domainnames must be refreshed by a seperate thread because too much traffic elsewise
+    #self.domain_list_cache begins with a sepc
+    if self.domain_list_cache is not None:
+      temp=self.domain_list_cache
+    else:
+      _socket.send("error"+sepc+"domain_list_cache empty"+sepm)
+
     tempdomain=self.scn_domains.get(_domain)
     if tempdomain is None:
       _socket.send("error"+sepc+"domain not exist"+sepm)
@@ -888,24 +946,13 @@ class scn_base_server(scn_base_base):
     if tempcont is None:
       _socket.send("error"+sepc+"channel not exist"+sepm)
       return
-    temp=""
     for elem in tempcont:
       temp+=sepc+elem[0] #name
-    _socket.send("success"+temp+sepm)
+    _socket.send("success"+temp+sepm) # list with domain names
 
-  # list domains
-  #@scn_setup
-  def s_list_domains(self,_socket):
-    if _socket.is_end()==False:
-      _socket.send("error"+sepc+"command not terminated"+sepm)
-      return
-    #domainnames must be refreshed by a seperate thread because too much traffic elsewise
-    #self.domain_list_cache begins with a sepc
-    if self.domain_list_cache is not None:
-      _socket.send("success"+self.domain_list_cache+sepm)
-    else:
-      _socket.send("error"+sepc+"domain_list_cache empty"+sepm)
 
+
+    
   # get message of domain, in case of "admin" server message
   #@scn_setup
   def s_get_domain_message(self,_socket):
@@ -1202,38 +1249,70 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _node_list
 
-  #@scn_setup
-  def c_list_domains(self,_servername):
-    _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("list_domains"+sepm)
-    _domain_list=[]
-    if scn_check_return(_socket) == True:
-      if _socket.is_end()==False: #security against malformed requests
-        for protcount in range(0,protcount_max):
-          _domain_list += [_socket.receive_one(),]
-          if _socket.is_end()==True:
-            break
-    else:
-      _domain_list = None
-    _socket.close()
-    return _domain_list
-
+  # list channels
   #@scn_setup
   def c_list_channels(self,_servername,_domain):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("list_channels"+sepc+_domain+sepm)
-    _node_list=[]
+    _tlist=[]
     if scn_check_return(_socket) == True:
       if _socket.is_end()==False: #security against malformed requests
-        for protcount in range(0,protcount_max):
-          _node_list += [_socket.receive_one(),]
+        if _domain is None:
+          for protcount in range(0,protcount_max):
+            _tlist += [_socket.receive_one(),]
+            if _socket.is_end()==True:
+              break
+        else:
+          for protcount in range(0,protcount_max):
+            _tlist += [_socket.receive_one(),]
+            if _socket.is_end()==True:
+              break
+      else:
+        _tlist = None
+    _socket.close()
+    return _tlist
+
+  # list domains 
+  #@scn_setup
+  def c_list_domains(self,_servername):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.send("list_domains"+sepm)
+    _tlist=[]
+    if scn_check_return(_socket) == True:
+      if _socket.is_end()==False: #security against malformed requests
+        for protcount in range(0,protcount_max*10): #could be much bigger
+          _tlist += [_socket.receive_one(),]
           if _socket.is_end()==True:
             break
-    else:
-      _node_list = None
+      else:
+        _tlist = None
     _socket.close()
-    return _node_list
+    return _tlist
+
   
+  
+  # return count of channels with no channel arg,
+  # elsewise the count of nodes
+  #@scn_setup
+  def c_length_domain(self,_servername,_domain):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.send("length_domain"+sepc+_domain+sepm)
+    if scn_check_return(_socket) == True:
+      return int(_socket.receive_one())
+    else:
+      return None
+  
+  # return count of channels with no channel arg,
+  # elsewise the count of nodes
+  #@scn_setup
+  def c_length_channel(self,_servername,_domain,_channel):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.send("length_channel"+sepc+_domain+sepc+_channel+sepm)
+    if scn_check_return(_socket) == True:
+      return int(_socket.receive_one())
+    else:
+      return None
+    
   #@scn_setup
   def c_get_domain_message(self,_servername,_domain):
     _socket = scn_socket(self.connect_to(_servername))
