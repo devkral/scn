@@ -488,6 +488,7 @@ class scn_server(scn_base_server):
            "get_channel_nodes": scn_base_server.s_get_channel_nodes,
            "serve": scn_base_server.s_serve_channel,
            "unserve": scn_base_server.s_unserve_channel,
+           "del_serve": scn_base_server.s_del_serve,
            "update_secret": scn_base_server.s_update_secret,
            #"use_special_channel_auth": scn_base_server.s_use_special_channel_auth,
            "use_special_channel_unauth":scn_base_server.s_use_special_channel_unauth,

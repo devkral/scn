@@ -5,9 +5,10 @@ import threading
 import signal
 import sys
 import time
+import hashlib
 
 from scn_client import client_master,scn_client,scn_server_client,scn_sock_client
-from scn_base import check_invalid_s,printerror
+from scn_base import check_invalid_s,printerror,sepc,sepu,scn_gen_ncert
 
 from gi.repository import Gtk,Gdk
 
@@ -184,11 +185,13 @@ class scnGUI(object):
   messagecount=0
   messageid=1
   win=None
+  clip=None
   
   def __init__(self,_linkback,_uipath):
     self.linkback=_linkback
     self.builder=Gtk.Builder()
     self.builder.add_from_file(_uipath)
+    self.clip=Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     #_uipath);
     #win=self.builder.get_object("mainwindow")
     #win.
@@ -368,7 +371,6 @@ class scnGUI(object):
     else:
       servermessage.set_editable(True)
       self.builder.get_object("servermessagecontrols").show()
-
     
 
   def builddomaingui(self):
@@ -464,11 +466,15 @@ class scnGUI(object):
       
     #hide admin options for non-admins
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
-      self.builder.get_object("addnodeb1").hide()
+      self.builder.get_object("pinchannelorderb").hide()
       self.builder.get_object("delnodeb1").hide()
     else:
-      self.builder.get_object("addnodeb1").show()
+      self.builder.get_object("pinchannelorderb").show()
       self.builder.get_object("delnodeb1").show()
+    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is None:
+      self.builder.get_object("deleteself").hide()
+    else:
+      self.builder.get_object("deleteself").show()
     
     channelfold=self.builder.get_object("dropinchannelcontext1")
     if len(channelfold.get_children())>=1:
@@ -487,7 +493,7 @@ class scnGUI(object):
       self.builder.get_object("channel2").set_text("Admin")
       if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
         noperm=self.builder.get_object("nopermissionchannel")
-        self.fill_request(self.builder.get_object("genrequestdropin1"),_channel)
+        #self.gen_req(self.builder.get_object("genrequestdropin1"),_channel)
         return noperm
       tcha=self.builder.get_object("adminchannel")
       return tcha
@@ -498,7 +504,7 @@ class scnGUI(object):
          self.scn_servers.get_channel(self.cur_server,self.cur_domain,"special") is None and \
          self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
         noperm=self.builder.get_object("nopermissionchannel")
-        #self.fill_request(self.builder.get_object("genrequestdropin1"))
+        #self.gen_req(self.builder.get_object("genrequestdropin1"))
         return noperm
       tcha=self.builder.get_object("specialchannel")
       return tcha
@@ -518,11 +524,51 @@ class scnGUI(object):
       tcha=self.builder.get_object("genericchannel")
       return tcha
 
+    
+  def gen_req(self,_dropinob,_channel,isbutton=True):
+    if len(_dropinob.get_children())==1:
+        _dropinob.remove(_dropinob.get_children()[0])
+    if isbutton==True:
+      _dropinob.add(self.builder.get_object("genrequestb"))
+    else:
+      tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
+      if tempnode is None:
+        self.linkback.main.c_create_serve(self.cur_server,self.cur_domain,_channel)
+        tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
+      if tempnode[3]==True:
+        _dropinob.add(self.builder.get_object("genericchannelreqdropel"))
+        self.builder.get_object("usreqname").set_text(self.linkback.main.name)
+        self.fill_req_result()
+      else:
+        _dropinob.add(self.builder.get_object("alreadyreqdropel"))
+
+  def switch_req1(self,*args):
+    if self.cur_channel is None:
+      temp=self.navbox.get_selection().get_selected()
+      if temp is None:
+        return
+      self.gen_req(self.builder.get_object("genrequestdropin1"),temp[0][temp[1]][1],False)
+    else:
+      self.gen_req(self.builder.get_object("genrequestdropin2"),self.cur_channel,False)
   ### fill section
-  def fill_request(self,_ob,_channel):
-    if len(_ob.get_children())==1:
-      _ob.get_children()[0].destroy()
-    _ob.add(Gtk.Label("Not implemented"))
+
+  def fill_req_result(self,*args):
+    tempname=self.builder.get_object("usreqname").get_text()
+    if self.cur_channel is None:
+      temp=self.navbox.get_selection().get_selected()
+      if temp[1] is None:
+        return
+      tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,temp[0][temp[1]][1])
+    else:
+      tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel)
+    if tempnode is None:
+      return
+    domaincert=scn_gen_ncert(self.cur_domain,self.linkback.main.pub_cert)
+    hashed_secret=hashlib.sha256(tempnode[2]).hexdigest()
+    self.builder.get_object("usreqresult").set_text(tempname+","+str(hashed_secret)+","+domaincert)
+
+  
+  
 
 
   def fill_node_data(self,*args):
@@ -868,6 +914,80 @@ class scnGUI(object):
   def renew_secret(self,*args):
     self.linkback.main.c_update_secret(self.cur_server,self.cur_domain,self.cur_channel)
 
+  def pin_nodes(self,*args):
+    sorting_permutation=[] # first applied lesson of Info3
+    for nodeiter in self.navcontent:
+      if self.navcontent.iter_has_child(nodeiter):
+        sorting_permutation += [self.navcontent[nodeiter][0],]
+    tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,self.cur_channel)
+    if tsecretlistin is None:
+      return
+    tsecretlistout=""
+    for spelem in sorting_permutation:
+      tsecretlistout+=tsecretlistin[spelem][0]+sepu+tsecretlistin[spelem][1]+sepu+tsecretlistin[spelem][2]+sepc
+    
+    self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,self.cur_channel,tsecretlistout[:-1])
+
+  def delete_node(self,*args):
+    temp=self.navbox.get_selection().get_selected()
+    if temp[1] is None:
+      return
+    searchedposition=temp[0][temp[1]][1]
+    tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,self.cur_channel)
+    if tsecretlistin is None:
+      return
+    tsecretlistout=""
+    count=0
+    for elem in tsecretlistin:
+      if count!=searchedposition:
+        tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
+      count+=1
+    self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,self.cur_channel,tsecretlistout[:-1])
+
+  def delete_self(self,*args):
+    if self.linkback.main.c_del_serve(self.cur_server,self.cur_domain,self.cur_channel)==False:
+      self.statusbar.push(self.messageid,"Error deleting self")
+      #TODO: ask for force
+    else:
+      self.statusbar.push(self.messageid,"Success")
+      
+    
+  def load_request(self,*args):
+    temp=self.builder.get_object("reqaduser").get_text()
+    self.builder.get_object("reqaduser").set_text("")
+    reqadnamein,reqadshashin,reqadphashin=temp.split(",")
+    self.builder.get_object("reqadname").set_text(reqadnamein)
+    self.builder.get_object("reqadphash").set_text(reqadphashin) # hash public
+    self.builder.get_object("reqadshash").set_text(reqadshashin) # hash secret
+    self.builder.get_object("reqadnodeposition").set_value(0)
+  
+  def confirm_request(self,*args): #reqadname,reqadhash,reqadnodeposition
+    aname=self.builder.get_object("reqadname").get_text()
+    bhash=self.builder.get_object("reqadphash").get_text() # hash public
+    chash=self.builder.get_object("reqadshash").get_text() # hash secret
+    dpos=self.builder.get_object("reqadnodeposition").get_value_as_int()
+
+    tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,self.cur_channel)
+    if tsecretlistin is None:
+      return
+    tsecretlistout=""
+    count=0
+    for elem in tsecretlistin:
+      if count!=dpos:
+        tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
+      else:
+        tsecretlistout+=aname+sepu+bhash+chash+sepc
+        tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
+    if dpos>=len(tsecretlistin):
+      tsecretlistout+=aname+sepu+bhash+sepu+chash+sepc
+    self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,self.cur_channel,tsecretlistout[:-1])
+
+  def select_all_clipboard(self,*args):
+    t=self.builder.get_object("usreqresult")
+    t.select_region(0,len(t.get_text()))
+    
+    self.clip.set_text(t.get_text(), -1)
+      
 run=True
 
 def signal_handler(*args):

@@ -5,7 +5,8 @@
   <object class="GtkGrid" id="adminchannel">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="column_spacing">2</property>
+    <property name="row_spacing">1</property>
+    <property name="column_spacing">4</property>
     <child>
       <object class="GtkLabel" id="requests">
         <property name="visible">True</property>
@@ -19,7 +20,7 @@ Request:</property>
       </packing>
     </child>
     <child>
-      <object class="GtkEntry" id="requestconfirmentry">
+      <object class="GtkEntry" id="reqaduser">
         <property name="visible">True</property>
         <property name="can_focus">True</property>
       </object>
@@ -29,11 +30,12 @@ Request:</property>
       </packing>
     </child>
     <child>
-      <object class="GtkButton" id="confirmreqest">
+      <object class="GtkButton" id="loadreqbutton">
         <property name="label" translatable="yes">Load</property>
         <property name="visible">True</property>
         <property name="can_focus">True</property>
         <property name="receives_default">True</property>
+        <signal name="clicked" handler="load_request" swapped="no"/>
       </object>
       <packing>
         <property name="left_attach">2</property>
@@ -79,6 +81,75 @@ hash</property>
       </object>
       <packing>
         <property name="left_attach">0</property>
+        <property name="top_attach">4</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkEntry" id="reqadname">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkEntry" id="reqadphash">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSpinButton" id="reqadnodeposition">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="input_purpose">number</property>
+        <property name="numeric">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">4</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkButton" id="confirmbutton">
+        <property name="label" translatable="yes">Confirm</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+        <signal name="clicked" handler="confirm_request" swapped="no"/>
+      </object>
+      <packing>
+        <property name="left_attach">2</property>
+        <property name="top_attach">4</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkLabel" id="label17">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">end</property>
+        <property name="label" translatable="yes">Secret
+hash</property>
+        <property name="justify">right</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">3</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkEntry" id="reqadshash">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
         <property name="top_attach">3</property>
       </packing>
     </child>
@@ -91,15 +162,12 @@ hash</property>
     <child>
       <placeholder/>
     </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
+  </object>
+  <object class="GtkLabel" id="alreadyreqdropel">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="label" translatable="yes">Already
+confirmed</property>
   </object>
   <object class="GtkGrid" id="channelcontext">
     <property name="visible">True</property>
@@ -194,6 +262,7 @@ hash</property>
             <property name="receives_default">True</property>
             <property name="tooltip_text" translatable="yes">Delete Node</property>
             <property name="halign">center</property>
+            <signal name="clicked" handler="delete_node" swapped="no"/>
             <child>
               <object class="GtkImage" id="image22">
                 <property name="visible">True</property>
@@ -234,6 +303,7 @@ hash</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
             <property name="tooltip_text" translatable="yes">Pin Node Order</property>
+            <signal name="clicked" handler="pin_nodes" swapped="no"/>
             <child>
               <object class="GtkImage" id="image21">
                 <property name="visible">True</property>
@@ -248,20 +318,19 @@ hash</property>
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="addnodeb1">
+          <object class="GtkButton" id="deleteself">
             <property name="visible">True</property>
-            <property name="sensitive">False</property>
             <property name="can_focus">True</property>
             <property name="can_default">True</property>
-            <property name="receives_default">False</property>
-            <property name="tooltip_text" translatable="yes">Use request instead</property>
+            <property name="receives_default">True</property>
+            <property name="tooltip_text" translatable="yes">Delete own node from channel</property>
             <property name="halign">center</property>
-            <property name="focus_on_click">False</property>
+            <signal name="clicked" handler="delete_self" swapped="no"/>
             <child>
               <object class="GtkImage" id="image23">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="icon_name">list-add</property>
+                <property name="icon_name">edit-delete</property>
               </object>
             </child>
           </object>
@@ -301,6 +370,7 @@ family </property>
           <object class="GtkLabel" id="addrtypelabel">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="track_visited_links">False</property>
           </object>
           <packing>
             <property name="left_attach">1</property>
@@ -312,7 +382,9 @@ family </property>
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="halign">end</property>
-            <property name="label" translatable="yes">Certhash</property>
+            <property name="label" translatable="yes">Certificate
+hash</property>
+            <property name="justify">right</property>
           </object>
           <packing>
             <property name="left_attach">0</property>
@@ -674,6 +746,7 @@ Request</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
+            <signal name="clicked" handler="switch_req1" swapped="no"/>
           </object>
         </child>
       </object>
@@ -725,6 +798,68 @@ Request</property>
             <property name="top_attach">1</property>
           </packing>
         </child>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+  </object>
+  <object class="GtkGrid" id="genericchannelreqdropel">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="row_spacing">1</property>
+    <property name="column_spacing">3</property>
+    <child>
+      <object class="GtkLabel" id="label16">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">end</property>
+        <property name="label" translatable="yes">Name</property>
+        <property name="justify">right</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkLabel" id="label18">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">end</property>
+        <property name="label" translatable="yes">Result</property>
+        <property name="justify">right</property>
+        <property name="track_visited_links">False</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkEntry" id="usreqname">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <signal name="changed" handler="fill_req_result" swapped="no"/>
+      </object>
+      <packing>
+        <property name="left_attach">1</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkEntry" id="usreqresult">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+        <property name="hexpand">True</property>
+        <property name="editable">False</property>
+        <property name="primary_icon_activatable">False</property>
+        <property name="primary_icon_sensitive">False</property>
+        <signal name="can-activate-accel" handler="select_all_clipboard" swapped="no"/>
+        <signal name="focus" handler="select_all_clipboard" swapped="no"/>
+        <signal name="populate-popup" handler="select_all_clipboard" swapped="no"/>
       </object>
       <packing>
         <property name="left_attach">1</property>

@@ -49,8 +49,15 @@ _check_invalid_chars_user=re.compile("[ "+sepm+sepc+sepu+"]")
 def check_invalid_s(stin):
   if stin is None or stin=="":
     return False
-  if _check_invalid_chars_base.search(stin) is not None or \
-     _check_invalid_chars_user.search(stin) is not None:
+  if _check_invalid_chars_base.search(stin) is not None:
+    return False
+  return True
+
+_check_invalid_chars_message=re.compile("[\0\x1A\x7F]")
+def check_invalid_message(stin):
+  if stin is None or stin=="":
+    return False
+  if _check_invalid_chars_message.search(stin) is not None:
     return False
   return True
 
@@ -132,14 +139,20 @@ def printerror(inp):
       pprint.pprint(inp,stream=sys.stderr)
 
 #not domain saved with cert but domain on server
-def scn_verify_cert(_domain,pub_cert,_certhash):
+def scn_verify_ncert(_domain,pub_cert,_certhash):
   temphash=hashlib.sha256(bytes(_domain,"utf8"))
   temphash.update(pub_cert)
   if temphash.hexdigest()==_certhash:
     return True
   else:
     return False
-
+  
+#not domain saved with cert but domain on server
+def scn_gen_ncert(_domain,pub_cert):
+  temphash=hashlib.sha256(bytes(_domain,"utf8"))
+  temphash.update(pub_cert)
+  return temphash.hexdigest()
+  
 def scn_check_return(_socket):
   temp=_socket.receive_one()
   if temp=="success":
@@ -378,7 +391,6 @@ class scn_base_base(object):
   priv_cert=None
   pub_cert=b"\0"
   
-  
   def s_info(self,_socket):
     _socket.send("success"+sepc+self.name+sepc+str(self.version)+sepc+str(secret_size)+sepm)
 
@@ -511,7 +523,7 @@ class scn_base_server(scn_base_base):
     if _domain is None:
       return
     _message=str(_socket.receive_bytes(0,max_message_length),"utf-8")
-    if check_invalid_s(_message)==False:
+    if check_invalid_message(_message)==False:
       _socket.send("error"+sepc+"invalid chars"+sepm)
       return
     if _socket.is_end()==False:
@@ -616,7 +628,7 @@ class scn_base_server(scn_base_base):
       return
     temp=""
     for elem in self.scn_domains.get(_domain).get_channel(_channel):
-      temp+=sepc+str(elem[0])+sepu+str(elem[2])
+      temp+=sepc+str(elem[1])+sepu+str(elem[2])+sepu+str(elem[3])
     _socket.send("success"+temp+sepm)
 
   #delete a channel 
@@ -856,8 +868,9 @@ class scn_base_server(scn_base_base):
       return
     temp=""
     for elem in templ:
-      temp+=sepc+elem[1]+sepu+elem[3] #name,hashed_pubcert
-    _socket.send("success"+temp+sepm)
+      #nodeid,nodename,hashed_secret,hashed_pub_cert
+      temp+=sepc+elem[1]+sepu+elem[3] # name,hashed_pubcert 
+    _socket.send("success"+temp+sepm) 
 
   # get addresses and certs of nodes in a channel
   #@scn_setup
@@ -900,7 +913,7 @@ class scn_base_server(scn_base_base):
       return
     temp=""
     for elem in templ:
-      temp+=sepc+elem[1]+sepu+elem[2]+sepu+elem[3] #addrtype, addr, _certhash
+      temp+=sepc+elem[1]+sepu+elem[2]+sepu+elem[3] # addrtype, addr, certhash
     _socket.send("success"+temp+sepm)
 
 
@@ -1020,7 +1033,7 @@ class scn_base_client(scn_base_base):
     if scn_check_return(_socket)==False:
       _socket.close()
       return False
-    _socket.send_bytes(_secrethashstring,True)
+    _socket.send_bytes(bytes(_secrethashstring,"utf8"),True)
     if scn_check_return(_socket)==False:
       _socket.close()
       return False
@@ -1062,15 +1075,17 @@ class scn_base_client(scn_base_base):
       printerror("Error: no admin permission")
       return False
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("get_channel_secrethash"+sepc+_domain)
+    _socket.send("get_channel_secrethash"+sepc+_domain+sepc)
     _socket.send_bytes(temp[2])
     _socket.send(_channel+sepm)
     _node_list=[]
     if scn_check_return(_socket)==True:
       for protcount in range(0,protcount_max):
-        temp = _socket.receive_one.split(sepu)
+        if _socket.is_end()==True:
+          break
+        temp = _socket.receive_one(2*hash_hex_size, 2*hash_hex_size+max_name_length).split(sepu)
         if len(temp) == 1:
-          temp=(temp[0],"")
+          temp=("",temp[0])
         _node_list += [temp,]
 
     else:
@@ -1214,7 +1229,7 @@ class scn_base_client(scn_base_base):
     else:
       _node_list = None
     _socket.close()
-    return _node_list
+    return _node_list # nodeid,nodename,hashed_secret,hashed_pub_cert
 
   #@scn_setup
   def c_get_channel_addr(self,_servername,_domain,_channel,_nodeid=None):
@@ -1239,7 +1254,7 @@ class scn_base_client(scn_base_base):
     else:
       _node_list = None
     _socket.close()
-    return _node_list
+    return _node_list # 
 
   # list channels
   #@scn_setup
@@ -1368,13 +1383,20 @@ class scn_base_client(scn_base_base):
 
   #@scn_setup
   def c_del_serve(self,_servername,_domain,_channel,force=False):
-    _socket=scn_socket(self.connect_to(_servername))
+    if _channel=="admin":
+      printerror("revoking node rights as admin")
+      return False
     temp=self.scn_servers.get_channel(_servername,_domain,_channel)
+    if temp is None:
+      printerror("not node of channel")
+      return False
+    _socket=scn_socket(self.connect_to(_servername))  
     _socket.send("del_serve"+sepc+_domain+sepc+_channel+sepc)
-    _socket.send_bytes(temp[3],True)
+    _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)
+    _socket.close()
     if _server_response==False:
-      printerror("Error: deleting on server failed")
+      printerror("deleting on server failed")
       if force==False:
         return False
     if self.scn_servers.del_channel(_servername,_domain,_channel)==False:

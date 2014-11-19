@@ -16,7 +16,7 @@ import os
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
-from scn_base import scn_base_client,scn_base_base, scn_socket, printdebug, printerror, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_cert
+from scn_base import scn_base_client,scn_base_base, scn_socket, printdebug, printerror, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_ncert
 #,scn_check_return
 from scn_config import client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max,scn_host
 
@@ -762,7 +762,7 @@ class scn_client(scn_base_client):
         tempcomsock2.send("get_cert")
         if scn_check_return(tempcomsock2)==True:
           _cert=tempcomsock2.receive_bytes(0,max_cert_size)
-          if scn_verify_cert(_domain,_cert,elem[2])==True:
+          if scn_verify_ncert(_domain,_cert,elem[2])==True:
             break
     if tempsocket == None:
       return None
