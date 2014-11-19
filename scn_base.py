@@ -13,6 +13,8 @@ import os
 import os.path
 import hashlib
 import threading
+import random
+ra=random.SystemRandom()
 
 from subprocess import Popen,PIPE
 
@@ -202,7 +204,7 @@ class scn_socket(object):
       for protcount in range(0,protcount_max):
         temp1=self._socket.recv(buffersize)
         tmp_scn_format=struct.Struct(">"+str(len(temp1))+"s")
-        #cleanup invalid signs
+        #cleanup invalid chars
         temp=tmp_scn_format.unpack(temp1)[0].decode("utf-8").replace("\n","").replace("\0","")
         #if nothing is left continue cleaning up
         if temp!="":
@@ -272,10 +274,10 @@ class scn_socket(object):
       self.send("error"+sepc+"wrong size"+sepm)
       raise(scnNoByteseq("size"))
     scn_format2=struct.Struct(">"+str(_request_size)+"s")
-    temp=self._socket.recv(_request_size)
+    temp=self._socket.recv(_request_size+buffersize-(_request_size%buffersize)) #load also padding
     temp=bytes(scn_format2.unpack(temp[0:_request_size])[0])
     #[-1:] because of strange python behaviour.
-    #it converts [:1] to int
+    #it converts [-1] to int
     if temp[-1:]==bytes(sepm,"utf8"):
       self.is_end_state=True
     elif temp[-1:]==bytes(sepc,"utf8"):
@@ -287,7 +289,7 @@ class scn_socket(object):
   
   def send(self,_string):
     temp=bytes(_string,"utf-8")
-    tmp_scn_format=struct.Struct(">"+str(len(temp))+"s")
+    tmp_scn_format=struct.Struct(">"+str(len(temp))+"s"+str(ra.randint(0,buffersize-(len(temp)%(buffersize+1))))+"x") # zero padding if buffersize is filled, not an additional packet
     temp=tmp_scn_format.pack(temp)
     self._socket.sendall(temp)
 
@@ -296,14 +298,15 @@ class scn_socket(object):
       _byteseq+=bytes(sepm,"utf8")
     else:
       _byteseq+=bytes(sepc,"utf8")
-    tmp_scn_format=struct.Struct(">"+str(len(_byteseq))+"s")
-    _byteseq=tmp_scn_format.pack(_byteseq)
-    len_byte_seq=len(_byteseq)
+    len_byte_seq=len(_byteseq) # is same as packed except with padding
+    tmp_scn_format=struct.Struct(">"+str(len_byte_seq)+"s"+str(ra.randint(0,buffersize-(len_byte_seq%(buffersize+1))))+"x") # zero padding if buffersize is filled, not an additional packet
+    _byteseqpack=tmp_scn_format.pack(_byteseq)
+    
     try:
       self.send("bytes"+sepc+str(len_byte_seq)+sepc)
       is_accepting=self.receive_one()
       if is_accepting=="success":
-        self._socket.sendall(tmp_scn_format.pack(_byteseq))
+        self._socket.sendall(_byteseqpack)
       else:
         reject_reason=is_accepting
         for protcount in range(0,protcount_max):

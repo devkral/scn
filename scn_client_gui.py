@@ -261,6 +261,8 @@ class scnGUI(object):
     self.navcontent.clear()
     for elem in temp2:
       self.navcontent.append(("",elem[0]))
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
+    return True 
 
   def updatedomainlist(self, *args):
     temp_remote=self.linkback.main.c_list_domains(self.cur_server)
@@ -276,6 +278,7 @@ class scnGUI(object):
         self.navcontent.append(("local:",elem[0]))
     for elem in temp_remote:
       self.navcontent.append(("",elem))
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     return True
 
   def updatechannellist(self, *args):
@@ -287,6 +290,8 @@ class scnGUI(object):
     self.navcontent.clear()
     for elem in temp2:
       self.navcontent.append(("",elem))
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
+    return True
       
   def updatenodelist(self, *args):
     self.navbox.show()
@@ -299,6 +304,7 @@ class scnGUI(object):
     for elem in temp2:
       self.navcontent.append((str(count),elem[0]))
       count+=1
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     return True
 
   def buildNonegui(self):
@@ -323,7 +329,6 @@ class scnGUI(object):
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
   
-    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
 
   def buildservergui(self):
     if self.updatedomainlist()==False:
@@ -364,7 +369,6 @@ class scnGUI(object):
       servermessage.set_editable(True)
       self.builder.get_object("servermessagecontrols").show()
 
-    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     
 
   def builddomaingui(self):
@@ -424,7 +428,6 @@ class scnGUI(object):
       self.builder.get_object("delchannelb").hide()
       self.builder.get_object("pinchannelorderb").hide()
     
-    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
       
   #channel
   def buildchannelgui(self):
@@ -474,7 +477,6 @@ class scnGUI(object):
     if len(channelf.get_children())>=1:
       channelf.remove(channelf.get_children()[0])
     channelf.add(self.genchannelcontext(self.cur_channel))
-    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     self.fill_node_data()
     #self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_channel)
     #self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_channel)  
