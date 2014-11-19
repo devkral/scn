@@ -322,6 +322,8 @@ class scnGUI(object):
     if len(cdin.get_children())==1:
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
+  
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
 
   def buildservergui(self):
     if self.updatedomainlist()==False:
@@ -361,6 +363,8 @@ class scnGUI(object):
     else:
       servermessage.set_editable(True)
       self.builder.get_object("servermessagecontrols").show()
+
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     
 
   def builddomaingui(self):
@@ -419,6 +423,8 @@ class scnGUI(object):
       self.builder.get_object("addchannelb").hide()
       self.builder.get_object("delchannelb").hide()
       self.builder.get_object("pinchannelorderb").hide()
+    
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
       
   #channel
   def buildchannelgui(self):
@@ -468,7 +474,8 @@ class scnGUI(object):
     if len(channelf.get_children())>=1:
       channelf.remove(channelf.get_children()[0])
     channelf.add(self.genchannelcontext(self.cur_channel))
-    
+    self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
+    self.fill_node_data()
     #self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_channel)
     #self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_channel)  
 
@@ -522,7 +529,7 @@ class scnGUI(object):
       return
     else:
       try:
-        tempnodeid=int(tempnodeid[0][tempnodeid[1]][1])
+        tempnodeid=int(tempnodeid[0][tempnodeid[1]][0])
       except Exception:
         return
     
@@ -530,8 +537,7 @@ class scnGUI(object):
     addrtype=self.builder.get_object("addrtypelabel")
     addr=self.builder.get_object("addrlabel")
     nodehash=self.builder.get_object("nodecerthashlabel")
-    print(tempnodel)
-    if tempnodel is None:
+    if bool(tempnodel)==False:
       addrtype.set_text("N/A")
       addr.set_text("N/A")
       nodehash.set_text("N/A")
