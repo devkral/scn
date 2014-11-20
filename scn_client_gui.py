@@ -535,6 +535,7 @@ class scnGUI(object):
       if tempnode is None:
         self.linkback.main.c_create_serve(self.cur_server,self.cur_domain,_channel)
         tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
+        print(tempnode)
       if tempnode[3]==True:
         _dropinob.add(self.builder.get_object("genericchannelreqdropel"))
         self.builder.get_object("usreqname").set_text(self.linkback.main.name)
