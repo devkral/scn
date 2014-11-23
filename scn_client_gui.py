@@ -73,7 +73,7 @@ class scnServerAddDialog(Gtk.Dialog):
     tsname.set_halign(Gtk.Align.END)
     cont.attach(tsname,0,0,1,1)
     cont.attach(self.servername,1,0,1,1)
-    tcn=Gtk.Label("Name Server Cert extra: ")
+    tcn=Gtk.Label("Server Certificate name \nDefault: Servername: ")
     tcn.set_halign(Gtk.Align.END)
     cont.attach(tcn,0,1,1,1)
     cont.attach(self.certname,1,1,1,1)
@@ -186,6 +186,8 @@ class scnGUI(object):
   messageid=1
   win=None
   clip=None
+  _cache_request_channel=None
+  _cache_request_hashes=None
   
   def __init__(self,_linkback,_uipath):
     self.linkback=_linkback
@@ -226,6 +228,17 @@ class scnGUI(object):
     t=threading.Thread(target=self.pushint)
     t.daemon = True
     t.start()
+
+  def get_cur_channel(self):
+    if self.cur_channel is not None:
+      return self.cur_channel
+    elif self.cur_server is not None and self.cur_domain is not None:
+      temp=self.navbox.get_selection().get_selected()
+      if temp[1] is None:
+        return None
+      return temp[0][temp[1]][1]
+    else:
+      return None  
       
   def update(self,_server=None,_domain=None,_channel=None):
     if _server=="":
@@ -423,12 +436,10 @@ class scnGUI(object):
       self.builder.get_object("domainmessagecontrols").show()
       self.builder.get_object("addchannelb").show()
       self.builder.get_object("delchannelb").show()
-      self.builder.get_object("pinchannelorderb").show()
     else:
       self.builder.get_object("domainmessagecontrols").hide()
       self.builder.get_object("addchannelb").hide()
       self.builder.get_object("delchannelb").hide()
-      self.builder.get_object("pinchannelorderb").hide()
     
       
   #channel
@@ -482,96 +493,90 @@ class scnGUI(object):
     channelf=self.builder.get_object("dropinchannelcontext2")
     if len(channelf.get_children())>=1:
       channelf.remove(channelf.get_children()[0])
-    channelf.add(self.genchannelcontext(self.cur_channel))
+    channelf.add(self.genchannelcontext())
     self.fill_node_data()
     #self.box_select_handler_id=self.navbox.connect("cursor-changed",self.select_context_channel)
     #self.box_activate_handler_id=self.navbox.connect("row-activated",self.select_channel)  
 
-  def genchannelcontext(self,_channel):
+  def genchannelcontext(self):
+    _channel=self.get_cur_channel()
+    if _channel is None:
+      return Gtk.Label("")
+    self.update_request_field(_channel)
+    returnchan=self.builder.get_object("genericchannel")
     if _channel=="admin":
       self.builder.get_object("channel1").set_text("Admin")
       self.builder.get_object("channel2").set_text("Admin")
-      if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
-        noperm=self.builder.get_object("nopermissionchannel")
-        #self.gen_req(self.builder.get_object("genrequestdropin1"),_channel)
-        return noperm
-      tcha=self.builder.get_object("adminchannel")
-      return tcha
-    elif _channel=="special":# or         _channel in self.linkback.main.special_channels
+      if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is not None:
+        returnchan=self.builder.get_object("adminchannel")
+      else:
+        pass
+    elif _channel=="special":# or _channel in self.linkback.main.special_channels
       self.builder.get_object("channel1").set_text("Special")
       self.builder.get_object("channel2").set_text("Special")
-      if self.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel) is None and \
-         self.scn_servers.get_channel(self.cur_server,self.cur_domain,"special") is None and \
+      if self.scn_servers.get_channel(self.cur_server,self.cur_domain,"special") is None and \
          self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
-        noperm=self.builder.get_object("nopermissionchannel")
+        #noperm=self.builder.get_object("nopermissionchannel")
         #self.gen_req(self.builder.get_object("genrequestdropin1"))
-        return noperm
+        #return noperm
+        pass
       tcha=self.builder.get_object("specialchannel")
       return tcha
     elif _channel=="main":
       self.builder.get_object("channel1").set_text("Main")
       self.builder.get_object("channel2").set_text("Main")
-      tcha=self.builder.get_object("genericchannel")
-      return tcha
     elif _channel=="notify":
       self.builder.get_object("channel1").set_text("Notify")
       self.builder.get_object("channel2").set_text("Notify")
-      tcha=self.builder.get_object("genericchannel")
-      return tcha
     else:
       self.builder.get_object("channel1").set_text("__"+_channel)
       self.builder.get_object("channel2").set_text("__"+_channel)
-      tcha=self.builder.get_object("genericchannel")
-      return tcha
+    return returnchan
+
+      
+  def add_req(self,*args):
+    _channel=self.get_cur_channel()
+    if _channel is None:
+      return
+    tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
+    #protection against double add if some gui runs wild
+    if tempnode is None:
+      self.linkback.main.c_create_serve(self.cur_server,self.cur_domain,_channel)
+
+
+  def update_request_field(self,_channel):
+    _dropinob=self.builder.get_object("genrequestdropin1")
+    #cleanup
+    if len(_dropinob.get_children())==1:
+      _dropinob.remove(_dropinob.get_children()[0])
+    tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
+    if tempnode is None:
+      _dropinob.add(self.builder.get_object("genrequestb"))
+      self._cache_request_channel=None
+      self._cache_request_hashes=None
+    elif tempnode[3]==False:
+      _dropinob.add(self.builder.get_object("requestdropelem"))
+      self._cache_request_channel=None
+      self._cache_request_hashes=None
+    else:
+      #TODO: ease for admins
+      #tempnodeadmin=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+      self.builder.get_object("usreqname").set_text(self.linkback.main.name)
+      domaincerthash=scn_gen_ncert(self.cur_domain,self.linkback.main.pub_cert)
+      hashed_secret=hashlib.sha256(tempnode[2]).hexdigest()
+      self._cache_request_channel=_channel
+      self._cache_request_hashes=str(hashed_secret)+","+domaincerthash
+      self.fill_req_result()
+      
+  def fill_req_result(self,*args):
+    if self._cache_request_channel is None or self._cache_request_hashes is None:
+      return
+    
+    tempname=self.builder.get_object("usreqname").get_text()
+    self.builder.get_object("usreqresult").set_text(self._cache_request_channel+","+tempname+","+self._cache_request_hashes)
+
 
     
-  def gen_req(self,_dropinob,_channel,isbutton=True):
-    if len(_dropinob.get_children())==1:
-        _dropinob.remove(_dropinob.get_children()[0])
-    if isbutton==True:
-      _dropinob.add(self.builder.get_object("genrequestb"))
-    else:
-      tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
-      if tempnode is None:
-        self.linkback.main.c_create_serve(self.cur_server,self.cur_domain,_channel)
-        tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
-        print(tempnode)
-      if tempnode[3]==True:
-        _dropinob.add(self.builder.get_object("genericchannelreqdropel"))
-        self.builder.get_object("usreqname").set_text(self.linkback.main.name)
-        self.fill_req_result()
-      else:
-        _dropinob.add(self.builder.get_object("alreadyreqdropel"))
-
-  def switch_req1(self,*args):
-    if self.cur_channel is None:
-      temp=self.navbox.get_selection().get_selected()
-      if temp is None:
-        return
-      self.gen_req(self.builder.get_object("genrequestdropin1"),temp[0][temp[1]][1],False)
-    else:
-      self.gen_req(self.builder.get_object("genrequestdropin2"),self.cur_channel,False)
-  ### fill section
-
-  def fill_req_result(self,*args):
-    tempname=self.builder.get_object("usreqname").get_text()
-    if self.cur_channel is None:
-      temp=self.navbox.get_selection().get_selected()
-      if temp[1] is None:
-        return
-      tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,temp[0][temp[1]][1])
-    else:
-      tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel)
-    if tempnode is None:
-      return
-    domaincert=scn_gen_ncert(self.cur_domain,self.linkback.main.pub_cert)
-    hashed_secret=hashlib.sha256(tempnode[2]).hexdigest()
-    self.builder.get_object("usreqresult").set_text(tempname+","+str(hashed_secret)+","+domaincert)
-
-  
-  
-
-
   def fill_node_data(self,*args):
     tempnodeid=self.navbox.get_selection().get_selected()
     if tempnodeid[1] is None:
@@ -675,16 +680,13 @@ class scnGUI(object):
         messagebuffer.set_text(tempmessage)
 
   def select_context_channel(self,*args):
-    temp=self.navbox.get_selection().get_selected()
-    if temp[1] is None:
-      return
     channelfold=self.builder.get_object("dropinchannelcontext2")
     if len(channelfold.get_children())>=1:
       channelfold.remove(channelfold.get_children()[0])
     channelf=self.builder.get_object("dropinchannelcontext1")
     if len(channelf.get_children())>=1:
       channelf.remove(channelf.get_children()[0])
-    channelf.add(self.genchannelcontext(temp[0][temp[1]][1]))
+    channelf.add(self.genchannelcontext())
     channelf.show_all()
   ### server section ###
 

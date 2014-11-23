@@ -217,7 +217,7 @@ class scn_servs_sql(object):
     try:
       con.execute('''CREATE TABLE if not exists
       scn_serves(servername TEXT, domain TEXT, channel TEXT,
-      secret BLOB, pending INTEGER,PRIMARY KEY(servername,domain,channel),
+      secret BLOB, pending BOOLEAN,PRIMARY KEY(servername,domain,channel),
       FOREIGN KEY(servername) REFERENCES scn_urls(servername) ON UPDATE CASCADE ON DELETE CASCADE);''')
 
 
@@ -355,7 +355,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_channel(self,_servername,_domain,_channel,_secret,_pendingstate=True):
+  def add_serve(self,_servername,_domain,_channel,_secret,_pendingstate=True):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -364,7 +364,7 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''INSERT OR REPLACE into scn_serves(
+      cur.execute('''INSERT into scn_serves(
       servername,
       domain,
       channel,
@@ -378,11 +378,29 @@ class scn_servs_sql(object):
     con.close()
     return True
 
+  def update_serve(self,_servername,_domain,_channel,_secret):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''UPDATE scn_serves SET secret=?
+      WHERE
+      servername=? AND
+      domain=? AND
+      channel=?;''',(_secret,_servername,_domain,_channel))
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      printerror(u)
+      return False
+    con.close()
+    return True
+  
   def update_channel_pendingstate(self,_servername,_domain,_channel,_pendingstate=False):
-    if _pendingstate==False:
-      _pendingstate=0
-    else:
-      _pendingstate=1
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -393,7 +411,7 @@ class scn_servs_sql(object):
       cur = con.cursor()
       cur.execute('''UPDATE scn_serves SET pending=? WHERE
       servername=? AND domain=? AND channel=?;
-      ''',(_servername,_domain,_channel,_pendingstate))
+      ''',(_pendingstate,_servername,_domain,_channel))
       con.commit();
     except Exception as u:
       con.rollback()
@@ -439,7 +457,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #channelname erurl,cert,secret,pending state
+    return temp #channelname
 
   def get_channel(self,_servername,_domain,_channelname):
     tempfetch=None

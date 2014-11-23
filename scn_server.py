@@ -323,6 +323,9 @@ class scn_domain_sql(object):
       cur.execute('''SELECT scn_domain FROM scn_node WHERE scn_domain=? AND channelname=? AND hashed_secret=?;''',(self.domain,_channelname,hashlib.sha256(_secret).hexdigest()))
       if cur.fetchone() is not None:
         state=True
+      cur.execute('''SELECT hashed_secret,hashed_pub_cert FROM scn_node WHERE scn_domain=? AND channelname=?;''',(self.domain,_channelname))
+      print(cur.fetchall())
+      print(hashlib.sha256(_secret).hexdigest())
     except Exception as e:
       printerror(e)
       state=False
