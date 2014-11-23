@@ -895,9 +895,13 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
-    temp_context.use_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM,self.linkback.main.priv_cert))
-    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,self.linkback.main.pub_cert))
-    self.socket = SSL.Connection(temp_context,socket.socket(self.address_family, self.socket_type))
+    temp_context.use_privatekey(
+      crypto.load_privatekey(crypto.FILETYPE_PEM,
+                             self.linkback.main.priv_cert))
+    temp_context.use_certificate(crypto.load_certificate(
+      crypto.FILETYPE_PEM,self.linkback.main.pub_cert))
+    self.socket = SSL.Connection(temp_context,
+                                 socket.socket(self.address_family, self.socket_type))
     self.host=self.socket.getsockname()
     #self.socket.set_accept_state()
     self.server_bind()
@@ -908,13 +912,13 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
 #
 
 
-"""  app.run(host='localhost', port=8080, debug=True)
+#  app.run(host='localhost', port=8080, debug=True)
 
-  client_interact_thread = threading.Thread(target=run(host='localhost', port=8080))
-  client_interact_thread = True
-  client_interact_thread.start()
-  
-  t.debug()"""
+#  client_interact_thread = threading.Thread(target=run(host='localhost', port=8080))
+#  client_interact_thread = True
+#  client_interact_thread.start()
+#  
+#  t.debug()"""
 
 
 def signal_handler(_signal, frame):
@@ -926,7 +930,7 @@ if __name__ == "__main__":
   handler=scn_server_client
   handler.linkback=cm
   cm.receiver = scn_sock_client((scn_host, 0),handler, cm)
-  #port 0 selects random port
+  # port 0 selects random port
   signal.signal(signal.SIGINT, signal_handler)
   client_thread = threading.Thread(target=cm.receiver.serve_forever)
   client_thread.daemon = True
