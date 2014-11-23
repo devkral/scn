@@ -464,15 +464,16 @@ class scn_base_server(scn_base_base):
   #register domain and become admin
   #@scn_setup
   def s_register_domain(self,_socket):
+    
     try:
       _domain=_socket.receive_one(min_name_length,max_name_length)
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"name"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"name"+sepm)
       return
     try:
       _secrethash=str(_socket.receive_bytes(hash_hex_size),"utf8")
     except scnReceiveError as e:
-      _socket.send("error"+sepc+"secrethash"+sepc+str(e)+sepm)
+      _socket.send("error"+sepc+"secrethash"+sepm)
       return
     try:
       _certhash=str(_socket.receive_bytes(hash_hex_size),"utf8")
@@ -564,7 +565,7 @@ class scn_base_server(scn_base_base):
 
     _socket.send("success"+sepm)
 
-    #64 is the size of sha256 in hex, format sepc hash sepu domain sepc ...
+    #64 is the size of sha256 in hex, format sepc name sepu secrethash sepu certhash sepc ...
     _secrethashstring=str(_socket.receive_bytes(0, hash_hex_size*max_name_length*max_user_channels+2*max_user_channels), "utf8")
 
     if _domainob.get_channel(_channel) is None and \
@@ -583,7 +584,6 @@ class scn_base_server(scn_base_base):
     self.scn_store.del_channel(_domain,_channel)
     temp2=[]
     for count in range(0,len(temphashes)):
-      print(temphashes)
       _hash_name_split=temphashes[count].split(sepu)
       if len(_hash_name_split)==3 and \
          check_invalid_name(_hash_name_split[0])==True and \
@@ -663,17 +663,17 @@ class scn_base_server(scn_base_base):
     #_domain, _channel,_secret):
     try:
       _domain=_socket.receive_one(min_used_name,max_used_name)
-    except scnReceiveError as e:
+    except scnReceiveError:
       _socket.send("error"+sepc+"name"+sepm)
       return [None,None,None]
     try:
       _channel=_socket.receive_one(1,max_name_length)
-    except scnReceiveError as e:
+    except scnReceiveError:
       _socket.send("error"+sepc+"channel"+sepm)
       return [None,None,None]
     try:
       _secret=_socket.receive_bytes(0,secret_size)
-    except scnReceiveError as e:
+    except scnReceiveError:
       _socket.send("error"+sepc+"secret"+sepm)
       return [None,None,None]
     if check_invalid_name(_domain)==False or check_invalid_name(_channel)==False:
@@ -772,11 +772,13 @@ class scn_base_server(scn_base_base):
     _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
     if _domain is None:
       return
+    print("s2")
     try:
-      _newsecret_hash=str(_socket.receive_bytes(hash_hex_size), "utf8")
+      _newsecret_hash=str(_socket.receive_bytes(2*hash_hex_size+max_name_length), "utf8")
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secrethash"+sepc+str(e)+sepm)
       return
+    print("sksk")
     _newcert_hash=None
     if _socket.is_end()==False:
       try:
@@ -1076,7 +1078,6 @@ class scn_base_client(scn_base_base):
     if scn_check_return(_socket)==False:
       _socket.close()
       return False
-    print(hashlib.sha256(_secret).hexdigest())
     self.scn_servers.add_serve(_servername,_domain,_channel,_secret,False)
     #add to local serves
     _socket.close()
@@ -1113,10 +1114,8 @@ class scn_base_client(scn_base_base):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
     _socket.send("register_domain"+sepc+_domain+sepc)
-    _socket.send_bytes(bytes(hashlib.sha256(_secret).hexdigest(),"utf8"))
-    temphash=hashlib.sha256(bytes(_domain,"utf8"))
-    temphash.update(self.pub_cert)
-    _socket.send_bytes(bytes(temphash.hexdigest(),"utf8"),True)
+    _socket.send_bytes(hashlib.sha256(_secret).hexdigest())
+    _socket.send_bytes(scn_gen_ncert(_domain,self.pub_cert),True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:

@@ -280,7 +280,8 @@ class scn_domain_sql(object):
       ob=ob[0]
     return ob #hashed_pub_cert
 
-  
+
+  # name,secret,cert
   #"admin" is admin
   def update_channel(self,_channelname,_secrethashlist):
   #max_channel_nodes checked in body
@@ -292,7 +293,7 @@ class scn_domain_sql(object):
       for c in range(0,max(a,b)):
         if c<=a:
           cur.execute('''INSERT OR REPLACE into
-          scn_node(scn_domain,channelname, nodeid, nodename, hashed_pub_cert, hashed_secret)
+          scn_node(scn_domain,channelname, nodeid, nodename, hashed_secret, hashed_pub_cert)
           values(?,?,?,?,?,?);''',
           (self.domain,_channelname,c,_secrethashlist[c][0],_secrethashlist[c][1],_secrethashlist[c][2]))
         elif c<b:
@@ -324,8 +325,6 @@ class scn_domain_sql(object):
       if cur.fetchone() is not None:
         state=True
       cur.execute('''SELECT hashed_secret,hashed_pub_cert FROM scn_node WHERE scn_domain=? AND channelname=?;''',(self.domain,_channelname))
-      print(cur.fetchall())
-      print(hashlib.sha256(_secret).hexdigest())
     except Exception as e:
       printerror(e)
       state=False
@@ -454,6 +453,7 @@ class scn_domain_list_sqlite(object):
     con.close()
     return state
 
+  # secret,cert
   def create_domain(self,_domain,_secrethash,_certhash):
     if self.get(_domain) is not None:
       return None
