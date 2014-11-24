@@ -281,19 +281,25 @@ class scnGUI(object):
     return True 
 
   def updatedomainlist(self, *args):
-    temp_remote=self.linkback.main.c_list_domains(self.cur_server)
-    if temp_remote is None:
+    _tremote_domains=self.linkback.main.c_list_domains(self.cur_server)
+    if _tremote_domains is None:
       return False
-    temp_local=self.linkback.main.scn_servers.list_domains(self.cur_server)
+    # more validation would be better
+    _tadmin_domains=self.linkback.main.scn_servers.list_domains(self.cur_server,"admin")
+    _tlocal_domains=self.linkback.main.scn_servers.list_domains(self.cur_server)
     self.navbox.show()
     self.listelems.set_title("Domain")
     self.navcontent.clear()
 
-    for elem in temp_local:
-      if elem[0] not in temp_remote:
-        self.navcontent.append(("local:",elem[0]))
-    for elem in temp_remote:
-      self.navcontent.append(("",elem))
+    for elem in _tremote_domains+_tlocal_domains:
+      prefix=""
+      if elem in _tadmin_domains:
+        prefix+="a"
+      elif elem in _tlocal_domains:
+        prefix+="n"
+      if elem not in _tremote_domains:
+        prefix+="l"
+      self.navcontent.append((prefix,elem))
     self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     return True
 

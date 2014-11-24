@@ -151,7 +151,7 @@ def scn_verify_ncert(_domain,pub_cert,_certhash):
 def scn_gen_ncert(_domain,pub_cert):
   temphash=hashlib.sha256(bytes(_domain,"utf8"))
   temphash.update(pub_cert)
-  return temphash.hexdigest()
+  return temphash.hexdigest() #str
   
 def scn_check_return(_socket):
   temp=_socket.receive_one()
@@ -1114,12 +1114,12 @@ class scn_base_client(scn_base_base):
     _socket=scn_socket(self.connect_to(_servername))
     _secret=os.urandom(secret_size)
     _socket.send("register_domain"+sepc+_domain+sepc)
-    _socket.send_bytes(hashlib.sha256(_secret).hexdigest())
-    _socket.send_bytes(scn_gen_ncert(_domain,self.pub_cert),True)
+    _socket.send_bytes(bytes(hashlib.sha256(_secret).hexdigest(),"utf8"))
+    _socket.send_bytes(bytes(scn_gen_ncert(_domain,self.pub_cert),"utf8"),True)
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
-      return self.scn_servers.update_channel(_servername,_domain,"admin",_secret,False)
+      return self.scn_servers.add_serve(_servername,_domain,"admin",_secret,False)
     return False
 
   #@scn_setup
@@ -1207,9 +1207,9 @@ class scn_base_client(scn_base_base):
       _socket.close()
       return False
     if _pub_cert is None:
-      _socket.send_bytes(hashlib.sha256(_secret).hexdigest(),True)
+      _socket.send_bytes(bytes(hashlib.sha256(_secret).hexdigest(),"utf8"),True)
     else:
-      _socket.send_bytes(hashlib.sha256(_secret).hexdigest())
+      _socket.send_bytes(bytes(hashlib.sha256(_secret).hexdigest(),"utf8"))
       _socket.send_bytes(bytes(scn_gen_ncert(_domain,_pub_cert),"utf8"),True)
     _server_response=scn_check_return(_socket)
     _socket.close()

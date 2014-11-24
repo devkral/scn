@@ -420,7 +420,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def list_domains(self,_servername):
+  def list_domains(self,_servername,_channel=None):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -430,14 +430,22 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT domain
-      FROM scn_serves
-      WHERE servername=?;''',(_servername,))
+      if _channel is None:
+        cur.execute('''SELECT domain
+        FROM scn_serves
+        WHERE servername=?;''',(_servername,))
+      else:
+        cur.execute('''SELECT domain
+        FROM scn_serves
+        WHERE servername=? AND channel=?;''',(_servername,_channel))
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)
     con.close()
-    return temp #domain
+    tempnew=[]
+    for elem in temp:
+      tempnew+=[elem[0],]
+    return tempnew #domain
 
   
   def list_channels(self,_servername,_domain):
