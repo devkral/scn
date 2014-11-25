@@ -285,21 +285,27 @@ class scnGUI(object):
     if _tremote_domains is None:
       return False
     # more validation would be better
-    _tadmin_domains=self.linkback.main.scn_servers.list_domains(self.cur_server,"admin")
+    _tadmin_domains=self.linkback.main.scn_servers.list_domains(self.cur_server,"admin",False)
     _tlocal_domains=self.linkback.main.scn_servers.list_domains(self.cur_server)
     self.navbox.show()
     self.listelems.set_title("Domain")
     self.navcontent.clear()
-
+    len_remote=len(_tremote_domains)
+    count=0
     for elem in _tremote_domains+_tlocal_domains:
       prefix=""
       if elem in _tadmin_domains:
         prefix+="a"
       elif elem in _tlocal_domains:
-        prefix+="n"
-      if elem not in _tremote_domains:
-        prefix+="l"
+        prefix+="s"
+      if count>=len_remote:
+        if elem not in _tremote_domains:
+          prefix+="l"
+        else:
+          count+=1
+          continue
       self.navcontent.append((prefix,elem))
+      count+=1
     self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     return True
 
@@ -420,6 +426,13 @@ class scnGUI(object):
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
 
+    channelfold=self.builder.get_object("dropinchannelcontext2")
+    if len(channelfold.get_children())>=1:
+      channelfold.remove(channelfold.get_children()[0])
+    channelf=self.builder.get_object("dropinchannelcontext1")
+    if len(channelf.get_children())>=1:
+      channelf.remove(channelf.get_children()[0])
+    channelf.add(self.genchannelcontext())
 
     domainmessagel=self.builder.get_object("domainmessagel")    
     if self.cur_domain=="admin":
@@ -513,7 +526,8 @@ class scnGUI(object):
     if _channel=="admin":
       self.builder.get_object("channel1").set_text("Admin")
       self.builder.get_object("channel2").set_text("Admin")
-      if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is not None:
+      atemp=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+      if atemp is not None and bool(atemp[3])==False:
         returnchan=self.builder.get_object("adminchannel")
       else:
         pass
@@ -544,11 +558,12 @@ class scnGUI(object):
     _channel=self.get_cur_channel()
     if _channel is None:
       return
-    tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
+    tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server, 
+    self.cur_domain, _channel)
     #protection against double add if some gui runs wild
     if tempnode is None:
       self.linkback.main.c_create_serve(self.cur_server,self.cur_domain,_channel)
-
+    self.update_request_field(_channel)
 
   def update_request_field(self,_channel):
     _dropinob=self.builder.get_object("genrequestdropin1")
@@ -560,11 +575,12 @@ class scnGUI(object):
       _dropinob.add(self.builder.get_object("genrequestb"))
       self._cache_request_channel=None
       self._cache_request_hashes=None
-    elif tempnode[3]==False:
+    elif bool(tempnode[3])==False:
       _dropinob.add(self.builder.get_object("requestdropelem"))
       self._cache_request_channel=None
       self._cache_request_hashes=None
     else:
+      _dropinob.add(self.builder.get_object("requestdropelem"))
       #TODO: ease for admins
       #tempnodeadmin=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
       self.builder.get_object("usreqname").set_text(self.linkback.main.name)
@@ -964,8 +980,9 @@ class scnGUI(object):
   def load_request(self,*args):
     temp=self.builder.get_object("reqaduser").get_text()
     self.builder.get_object("reqaduser").set_text("")
-    reqadnamein,reqadshashin,reqadphashin=temp.split(",")
+    reqadnamein,reqadchannel,reqadshashin,reqadphashin=temp.split(",")
     self.builder.get_object("reqadname").set_text(reqadnamein)
+    self.builder.get_object("reqadchannel").set_text(reqadchannel)
     self.builder.get_object("reqadphash").set_text(reqadphashin) # hash public
     self.builder.get_object("reqadshash").set_text(reqadshashin) # hash secret
     self.builder.get_object("reqadnodeposition").set_value(0)

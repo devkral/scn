@@ -420,7 +420,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def list_domains(self,_servername,_channel=None):
+  def list_domains(self,_servername,_channel=None,_pending=None):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -434,10 +434,15 @@ class scn_servs_sql(object):
         cur.execute('''SELECT domain
         FROM scn_serves
         WHERE servername=?;''',(_servername,))
-      else:
+      elif _pending is None:
         cur.execute('''SELECT domain
         FROM scn_serves
         WHERE servername=? AND channel=?;''',(_servername,_channel))
+      else:
+        cur.execute('''SELECT domain
+        FROM scn_serves
+        WHERE servername=? AND channel=? AND pending=?;''',(_servername,_channel,_pending))
+      
       temp=cur.fetchall()
     except Exception as u:
       printerror(u)

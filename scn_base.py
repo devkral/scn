@@ -68,8 +68,9 @@ def check_invalid_name(stin):
     return False
   if _check_invalid_name.search(stin) is not None or \
      _check_invalid_chars_base.search(stin) is not None or \
-     _check_invalid_chars_user.search(stin) is not None or \
-     stin.strip(" ").rstrip(" ") =="admin":
+     _check_invalid_chars_user.search(stin) is not None:
+     # or \
+     #stin.strip(" ").rstrip(" ") =="admin"
     return False
   return True
 
@@ -483,6 +484,9 @@ class scn_base_server(scn_base_base):
     if _socket.is_end()==False:
       _socket.send("error"+sepc+"command not terminated"+sepm)
       return
+    if stin.strip(" ").rstrip(" ") =="admin":
+      _socket.send("error"+sepc+"admin"+sepm)
+      return
     if check_invalid_name(_domain)==False or \
        check_hash(_secrethash)==False or \
        check_hash(_certhash)==False:
@@ -556,10 +560,13 @@ class scn_base_server(scn_base_base):
       return
     
     _domainob=self.scn_domains.get(_domain)
-    if is_update==False and (_domainob.get_channel(_channel) is not None):
+    if is_update==False and _domainob.get_channel(_channel) is not None:
       _socket.send("error"+sepc+"channel exist"+sepm)
       return
-    elif is_update==True and (_domainob.get_channel(_channel) is None):
+    elif is_update==False and _channel=="admin":
+      _socket.send("error"+sepc+"adminchannel"+sepm)
+      return
+    elif is_update==True and _domainob.get_channel(_channel) is None:
       _socket.send("error"+sepc+"channel not exist"+sepm)
       return
 
@@ -676,7 +683,11 @@ class scn_base_server(scn_base_base):
     except scnReceiveError:
       _socket.send("error"+sepc+"secret"+sepm)
       return [None,None,None]
-    if check_invalid_name(_domain)==False or check_invalid_name(_channel)==False:
+    if check_invalid_name(_domain)==False:
+      _socket.send("error"+sepc+"invalid domain characters"+sepm)
+      return [None,None,None]
+    if check_invalid_name(_channel)==False:
+      _socket.send("error"+sepc+"invalid channel characters"+sepm)
       return [None,None,None]
     
     temp=self.scn_domains.get(_domain)
@@ -772,13 +783,11 @@ class scn_base_server(scn_base_base):
     _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
     if _domain is None:
       return
-    print("s2")
     try:
       _newsecret_hash=str(_socket.receive_bytes(2*hash_hex_size+max_name_length), "utf8")
     except scnReceiveError as e:
       _socket.send("error"+sepc+"secrethash"+sepc+str(e)+sepm)
       return
-    print("sksk")
     _newcert_hash=None
     if _socket.is_end()==False:
       try:
