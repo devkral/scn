@@ -447,6 +447,7 @@ class scn_base_server(scn_base_base):
     if self.scn_domains.get(_domain).verify_secret("admin",_secret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)
       return [None,None]
+    _socket.send("success"+sepm)
     return [_domain,_secret]
 
   # refresh cached domain name list, needed for a huge amount of domains
@@ -698,6 +699,7 @@ class scn_base_server(scn_base_base):
     if temp.verify_secret(_channel,_secret)==False:
       _socket.send("error"+sepc+"auth failed"+sepm)      
       return [None,None,None]
+    _socket.send("success"+sepm)
     return [_domain,_channel,_secret]
 
   ##exposed
@@ -1042,17 +1044,32 @@ class scn_base_client(scn_base_base):
   wrap_list={}
 
   #@scn_setup
-  def _c_auth_channel(self,_socket,_domain,_channel):
-    pass
+  #_write_channel=False for admin auth
+  #return None if false else get_channel info
+  def _c_channel_auth(self,_socket, _servername, _domain, _channel, _write_channel=True):
+    _tchannelauth=self.scn_servers.get_channel(_servername,_domain,_channel)
+    if _tchannelauth is None:
+      return None
+    chwrite=_domain+sepc
+    if _write_channel==True:
+      chwrite+=_channel+sepc
+    _socket.send(chwrite)
+    _socket.send_bytes(_tchannelauth[2])
+    if scn_check_return(_socket)==False:
+      return None
+    return _socket,_tchannelauth
+  
+  def _c_admin_auth(self,_socket,_servername,_domain):
+    return self._c_channel_auth(_socket,_servername,_domain,"admin",False)
+    
+    
 #pub
   def c_update_channel(self,_servername,_domain,_channel,_secrethashstring):
-    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
-    if temp is None:
-      printerror("no admin permission")
-      return False
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("update_channel"+sepc+_domain+sepc)
-    _socket.send_bytes(temp[2])
+    _socket.send("update_channel"+sepc)
+    temp=self._c_admin_auth(_socket,_servername,_domain)
+    if temp is None:
+      return False
     _socket.send(_channel+sepc)
     if scn_check_return(_socket)==False:
       _socket.close()
@@ -1070,13 +1087,11 @@ class scn_base_client(scn_base_base):
       _secret=os.urandom(secret_size)
       temphash=hashlib.sha256(bytes(_domain,"utf8"))
       temphash.update(self.pub_cert)
-    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
-    if temp is None:
-      printerror("no admin permission")
-      return False
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("add_channel"+sepc+_domain+sepc)
-    _socket.send_bytes(temp[2])
+    _socket.send("add_channel"+sepc)
+    temp=self._c_admin_auth(_socket,_servername,_domain)
+    if temp is None:
+      return False
     _socket.send(_channel+sepc)
     if scn_check_return(_socket)==False:
       _socket.close()
@@ -1095,13 +1110,11 @@ class scn_base_client(scn_base_base):
   
   #@scn_setup
   def c_get_channel_secrethash(self,_servername,_domain,_channel):
-    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
-    if temp is None:
-      printerror("Error: no admin permission")
-      return False
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("get_channel_secrethash"+sepc+_domain+sepc)
-    _socket.send_bytes(temp[2])
+    _socket.send("get_channel_secrethash"+sepc)
+    temp=self._c_admin_auth(_socket,_servername,_domain)
+    if temp is None:
+      return False
     _socket.send(_channel+sepm)
     _node_list=[]
     if scn_check_return(_socket)==True:
@@ -1138,33 +1151,30 @@ class scn_base_client(scn_base_base):
       printerror("Undeleteable specialdomain admin")
       return False
 
-    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
-    if temp is None:
-      printerror("No admin permission")
-      return False
     
     if self.c_check_domain(_servername,_domain)==False:
       self.scn_servers.del_domain(_servername,_domain)
       return True
 
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("delete_domain"+sepc+_domain+sepc)
-    _socket.send_bytes(temp[2],True)
-    _server_response=scn_check_return(_socket)
-    if _server_response==True:
-      self.scn_servers.del_domain(_servername,_domain)
+    _socket.send("delete_domain"+sepc)
+    temp=self._c_admin_auth(_socket,_domain)
+    if temp is None:
+      return False
+    if scn_check_return(_socket)==False:
+      _socket.close()
+      return False
+    self.scn_servers.del_domain(_servername,_domain)
     _socket.close()
-    return _server_response
-
+    return True
+    
   #@scn_setup
   def c_update_message(self,_servername,_domain,_message):
-    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
-    if temp is None:
-      printerror("No admin permission")
-      return False
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("update_message"+sepc+_domain+sepc)
-    _socket.send_bytes(temp[2])
+    _socket.send("update_message"+sepc)
+    temp=self._c_admin_auth(_socket,_servername,_domain)
+    if temp is None:
+      return False
     _socket.send_bytes(bytes(_message,"utf-8"),True)
     _server_response=scn_check_return(_socket)
     _socket.close()
@@ -1176,13 +1186,11 @@ class scn_base_client(scn_base_base):
       printerror("Undeleteable specialchannel admin")
       return False
     
-    temp=self.scn_servers.get_channel(_servername,_domain,"admin")
-    if temp is None:
-      printerror("No admin permission")
-      return False
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("delete_channel"+sepc+_domain+sepc)
-    _socket.send_bytes(temp[2])
+    _socket.send("delete_channel"+sepc)
+    temp=self._c_admin_auth(_socket,_servername,_domain)
+    if temp is None:
+      return False
     _socket.send(_channel+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
@@ -1190,17 +1198,16 @@ class scn_base_client(scn_base_base):
   
   #@scn_setup
   def c_unserve_channel(self,_servername,_domain,_channel):
-    temp=self.scn_servers.get_channel(_servername,_domain,_channel)
-    if temp is None:
-      printerror("Can't unserve without a secret")
-      return False
-    
     _socket=scn_socket(self.connect_to(_servername))
-    _socket.send("unserve"+sepc+_domain+sepc+_channel+sepc)
-    _socket.send_bytes(temp[2],True)
-    _server_response=scn_check_return(_socket)
+    _socket.send("unserve"+sepc)
+    temp=self._c_channel_auth(_socket,_servername,_domain,_channel)
+    if temp is None:
+      return False
+    if scn_check_return(_socket)==False:
+      _socket.close()
+      return False
     _socket.close()
-    return _server_response
+    return True
     #temp=self.scn_servers.get_(_servername,_domain,_channelname)
 
   #@scn_setup
@@ -1211,11 +1218,10 @@ class scn_base_client(scn_base_base):
     if temp is None:
       printerror("Can't update secret without an old secret")
       return False
-    _socket.send("update_secret"+sepc+_domain+sepc+_channel+sepc)
-    _socket.send_bytes(temp[2])
-    #if scn_check_return(_socket)==False:
-    #  _socket.close()
-    #  return False
+    _socket.send("update_secret"+sepc)
+    temp=self._c_channel_auth(_socket,_servername,_domain,_channel)
+    if temp is None:
+      return False
     if _pub_cert is None:
       _socket.send_bytes(bytes(hashlib.sha256(_secret).hexdigest(),"utf8"),True)
     else:
@@ -1427,13 +1433,14 @@ class scn_base_client(scn_base_base):
 
   def c_serve_channel(self,_servername,_domain,_channel,_addr_type,_addr):
     _socket=scn_socket(self.connect_to(_servername))
-    tempchannel=self.scn_servers.get_channel(_servername,_domain,_channel)
-    _socket.send("serve"+sepc+_domain+sepc+_channel+sepc)
-    _socket.send_bytes(tempchannel[2])
+    _socket.send("serve"+sepc)
+    temp=self._c_channel_auth(_socket,_servername,_domain,_channel)
+    if temp is None:
+      return False
     _socket.send(_addr_type+sepc+_addr+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
-    if _server_response == True and tempchannel[4] == 1:
+    if _server_response == True and bool(tempchannel[3]) == True:
       return self.scn_servers.update_channel_pendingstate(_servername,_domain,_channel,False)
     else:
       return _server_response
