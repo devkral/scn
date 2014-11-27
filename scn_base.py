@@ -784,22 +784,20 @@ class scn_base_server(scn_base_base):
     if _domain is None:
       return
     try:
-      _newsecret_hash=str(_socket.receive_bytes(2*hash_hex_size+max_name_length), "utf8")
-    except scnReceiveError as e:
-      _socket.send("error"+sepc+"secrethash"+sepc+str(e)+sepm)
+      _newsecret_hash=str(_socket.receive_bytes(hash_hex_size), "utf8")
+    except scnReceiveError:
+      _socket.send("error"+sepc+"secrethash"+sepm)
       return
     _newcert_hash=None
     if _socket.is_end()==False:
       try:
         _newcert_hash=str(_socket.receive_bytes(hash_hex_size), "utf8")
       except scnReceiveError as e:
-        _socket.send("error"+sepc+"certhash"+sepc+str(e)+sepm)
+        _socket.send("error"+sepc+"certhash"+sepm)
         return
       if _socket.is_end()==False:
         _socket.send("error"+sepc+"command not terminated"+sepm)
         return
-
-
     if self.scn_domains.get(_domain).update_secret(_channel,_channelsecret,_newsecret_hash,_newcert_hash)==True:
       _socket.send("success"+sepm)
     else:
@@ -1044,6 +1042,9 @@ class scn_base_client(scn_base_base):
   wrap_list={}
 
   #@scn_setup
+  def _c_auth_channel(self,_socket,_domain,_channel):
+    pass
+#pub
   def c_update_channel(self,_servername,_domain,_channel,_secrethashstring):
     temp=self.scn_servers.get_channel(_servername,_domain,"admin")
     if temp is None:
@@ -1117,7 +1118,7 @@ class scn_base_client(scn_base_base):
     _socket.close()
     return _node_list
 
-#pub
+
   #@scn_setup
   def c_register_domain(self,_servername,_domain):
     _socket=scn_socket(self.connect_to(_servername))
@@ -1212,9 +1213,9 @@ class scn_base_client(scn_base_base):
       return False
     _socket.send("update_secret"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[2])
-    if scn_check_return(_socket)==False:
-      _socket.close()
-      return False
+    #if scn_check_return(_socket)==False:
+    #  _socket.close()
+    #  return False
     if _pub_cert is None:
       _socket.send_bytes(bytes(hashlib.sha256(_secret).hexdigest(),"utf8"),True)
     else:

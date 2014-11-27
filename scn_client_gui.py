@@ -576,14 +576,16 @@ class scnGUI(object):
       self._cache_request_channel=None
       self._cache_request_hashes=None
     elif bool(tempnode[3])==False:
-      _dropinob.add(self.builder.get_object("requestdropelem"))
+      _dropinob.add(self.builder.get_object("alreadyreqdropel"))
       self._cache_request_channel=None
       self._cache_request_hashes=None
     else:
       _dropinob.add(self.builder.get_object("requestdropelem"))
       #TODO: ease for admins
       #tempnodeadmin=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
-      self.builder.get_object("usreqname").set_text(self.linkback.main.name)
+      namefield=self.builder.get_object("usreqname")
+      if namefield.get_text().strip()=="":
+        namefield.set_text(self.linkback.main.name)
       domaincerthash=scn_gen_ncert(self.cur_domain,self.linkback.main.pub_cert)
       hashed_secret=hashlib.sha256(tempnode[2]).hexdigest()
       self._cache_request_channel=_channel
@@ -593,7 +595,6 @@ class scnGUI(object):
   def fill_req_result(self,*args):
     if self._cache_request_channel is None or self._cache_request_hashes is None:
       return
-    
     tempname=self.builder.get_object("usreqname").get_text()
     self.builder.get_object("usreqresult").set_text(self._cache_request_channel+","+tempname+","+self._cache_request_hashes)
 
