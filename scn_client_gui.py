@@ -497,9 +497,11 @@ class scnGUI(object):
     #hide admin options for non-admins
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
       self.builder.get_object("pinchannelorderb").hide()
+      self.builder.get_object("addnodeb").hide()
       self.builder.get_object("delnodeb1").hide()
     else:
       self.builder.get_object("pinchannelorderb").show()
+      self.builder.get_object("addnodeb").show()
       self.builder.get_object("delnodeb1").show()
     if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is None:
       self.builder.get_object("deleteself").hide()
@@ -660,6 +662,9 @@ class scnGUI(object):
     self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
     self.update(self.cur_server,self.cur_domain,temp[0][temp[1]][1])
     
+  def select_chadmin(self,*args):
+    self.navbar.override_background_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.7, 1, 0.7, 1))
+    self.update(self.cur_server,self.cur_domain,"admin")
   ### message section ###
 
   def select_context_server(self,*args):
@@ -943,8 +948,8 @@ class scnGUI(object):
   def pin_nodes(self,*args):
     sorting_permutation=[] # first applied lesson of Info3
     for nodeiter in self.navcontent:
-      if self.navcontent.iter_has_child(nodeiter):
-        sorting_permutation += [self.navcontent[nodeiter][0],]
+      #if self.navcontent.iter_has_child(nodeiter):
+      sorting_permutation += [int(nodeiter[0]),]
     tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,self.cur_channel)
     if tsecretlistin is None:
       return
