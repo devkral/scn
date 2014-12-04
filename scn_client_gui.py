@@ -26,13 +26,15 @@ icons=Gtk.IconTheme.get_default()
 #a subwindow with actions
 
 class scnDeletionDialog(Gtk.Dialog):
-  def __init__(self, _parent, _server,_domain=None,_channel=None):
+  def __init__(self, _parent, _server,_domain=None,_channel=None, _node=None):
     Gtk.Dialog.__init__(self, "Confirm Deletion", _parent,
                         Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
     self.set_default_size(150, 100)
     self.add_button("Cancel", Gtk.ResponseType.CANCEL)
     self.add_button("OK", Gtk.ResponseType.OK)
-    if _domain is not None and _channel is not None:
+    if _domain is not None and _channel is not None and _node is not None:
+      label=Gtk.Label("Shall node \""+_node+"\" in "+_channel+"/"+_server+"/"+_domain+" be deleted?")
+    elif _domain is not None and _channel is not None:
       label=Gtk.Label("Shall channel \""+_channel+"\" of "+_server+"/"+_domain+" be deleted?")
     elif _domain is not None and _channel is None:
       label=Gtk.Label("Shall domain \""+_domain+"\" on "+_server+" be deleted?")
@@ -42,6 +44,20 @@ class scnDeletionDialog(Gtk.Dialog):
     box = self.get_content_area()
     box.add(label)
     self.show_all()
+
+class scnSelfDeletionDialog(Gtk.Dialog):
+  def __init__(self, _parent, _server,_domain,_channel):
+    Gtk.Dialog.__init__(self, "Confirm Deletion", _parent,
+                        Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
+    self.set_default_size(150, 100)
+    self.add_button("Cancel", Gtk.ResponseType.CANCEL)
+    self.add_button("OK", Gtk.ResponseType.OK)
+    label=Gtk.Label("Shall your serve in "+_channel+"/"+_server+"/"+_domain+" be deleted?")
+    
+    box = self.get_content_area()
+    box.add(label)
+    self.show_all()
+
 
 class scnServerAddDialog(Gtk.Dialog):
   servername=None
@@ -963,25 +979,46 @@ class scnGUI(object):
     temp=self.navbox.get_selection().get_selected()
     if temp[1] is None:
       return
-    searchedposition=temp[0][temp[1]][1]
+    searchedposition=int(temp[0][temp[1]][0])
+    nname=temp[0][temp[1]][1]
     tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,self.cur_channel)
     if tsecretlistin is None:
+      self.statusbar.push(self.messageid,"Error, getting secret list")
       return
     tsecretlistout=""
     count=0
-    for elem in tsecretlistin:
-      if count!=searchedposition:
-        tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
-      count+=1
-    self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,self.cur_channel,tsecretlistout[:-1])
+    dialog = scnDeletionDialog(self.win,self.cur_server,self.cur_domain,self.cur_channel,nname)
+    try:
+      if dialog.run()==Gtk.ResponseType.OK:
+        #returnel=Gtk.Label("Success")  
+        for elem in tsecretlistin:
+          if count!=searchedposition:
+            tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
+            count+=1
+        self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,self.cur_channel,tsecretlistout[:-1])
+      else:
+        self.statusbar.push(self.messageid,"Error, something happened")
+    except Exception as e:
+      self.statusbar.push(self.messageid,str(e))
+    dialog.destroy()
+    
 
   def delete_self(self,*args):
-    if self.linkback.main.c_del_serve(self.cur_server,self.cur_domain,self.cur_channel)==False:
-      self.statusbar.push(self.messageid,"Error deleting self")
-      #TODO: ask for force
-    else:
-      self.statusbar.push(self.messageid,"Success")
-      
+    dialog = scnSelfDeletionDialog(self.win,self.cur_server,self.cur_domain,self.cur_channel)
+    try:
+      if dialog.run()==Gtk.ResponseType.OK:
+        if self.linkback.main.c_del_serve(self.cur_server,self.cur_domain,self.cur_channel)==False:
+          self.statusbar.push(self.messageid,"Error deleting self")
+          #TODO: ask for force
+        else:
+          self.statusbar.push(self.messageid,"Success")
+          self.updatenodelist()
+      else:
+        self.statusbar.push(self.messageid,"Error, something happened")
+    except Exception as e:
+      self.statusbar.push(self.messageid,str(e))
+    dialog.destroy()
+    
     
   def load_request(self,*args):
     temp=self.builder.get_object("reqaduser").get_text()

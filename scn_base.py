@@ -773,7 +773,7 @@ class scn_base_server(scn_base_base):
       _socket.send("error"+sepc+"command not terminated"+sepm)
       return
     if self.scn_domains.get(_domain).delete_secret(_channel,_channelsecret)==False or \
-    self.scn_store.del_server(_domain,_channel,hashlib.sha256(_channelsecret).hexdigest())==False:
+    self.scn_store.del_node(_domain,_channel,hashlib.sha256(_channelsecret).hexdigest())==False:
       _socket.send("error"+sepm)
       return
     else:
