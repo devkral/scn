@@ -606,7 +606,7 @@ class scn_base_server(scn_base_base):
         _socket.send("error"+sepc+"invalid hash or name"+sepm)
         return
     
-    if self.scn_domains.get(_domain).update_channel(_channel,temp2)==True:
+    if self.scn_domains.get(_domain).update_channel_secret(_channel,temp2)==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -1434,14 +1434,14 @@ class scn_base_client(scn_base_base):
   def c_serve_channel(self,_servername,_domain,_channel,_addr_type,_addr):
     _socket=scn_socket(self.connect_to(_servername))
     _socket.send("serve"+sepc)
-    temp=self._c_channel_auth(_socket,_servername,_domain,_channel)
-    if temp is None:
+    tempchannel=self._c_channel_auth(_socket,_servername,_domain,_channel)
+    if tempchannel is None:
       return False
     _socket.send(_addr_type+sepc+_addr+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response == True and bool(tempchannel[3]) == True:
-      return self.scn_servers.update_channel_pendingstate(_servername,_domain,_channel,False)
+      return self.scn_servers.update_serve_pendingstate(_servername,_domain,_channel,False)
     else:
       return _server_response
 

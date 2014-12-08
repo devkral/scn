@@ -545,7 +545,7 @@ class scnGUI(object):
       self.builder.get_object("channel1").set_text("Admin")
       self.builder.get_object("channel2").set_text("Admin")
       atemp=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
-      if atemp is not None and bool(atemp[3])==False:
+      if atemp is not None and bool(atemp[4])==False:
         returnchan=self.builder.get_object("adminchannel")
       else:
         pass
@@ -593,7 +593,7 @@ class scnGUI(object):
       _dropinob.add(self.builder.get_object("genrequestb"))
       self._cache_request_channel=None
       self._cache_request_hashes=None
-    elif bool(tempnode[3])==False:
+    elif bool(tempnode[4])==False:
       _dropinob.add(self.builder.get_object("alreadyreqdropel"))
       self._cache_request_channel=None
       self._cache_request_hashes=None

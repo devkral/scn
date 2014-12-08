@@ -217,7 +217,7 @@ class scn_servs_sql(object):
     try:
       con.execute('''CREATE TABLE if not exists
       scn_serves(servername TEXT, domain TEXT, channel TEXT,
-      secret BLOB, pending BOOLEAN,PRIMARY KEY(servername,domain,channel),
+      secret BLOB, type TEXT, pending BOOLEAN, active BOOLEAN,PRIMARY KEY(servername,domain,channel),
       FOREIGN KEY(servername) REFERENCES scn_urls(servername) ON UPDATE CASCADE ON DELETE CASCADE);''')
 
 
@@ -355,7 +355,8 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def add_serve(self,_servername,_domain,_channel,_secret,_pendingstate=True):
+  def add_serve(self,_servername,_domain,
+                _channel,_secret,_type,_pendingstate=True):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -368,8 +369,10 @@ class scn_servs_sql(object):
       servername,
       domain,
       channel,
-      secret, pending)
-      values (?,?,?,?,?)''',(_servername,_domain,_channel,_secret,_pendingstate))
+      secret,
+      type,
+      pending,active)
+      values (?,?,?,?,?,?,True)''',(_servername,_domain,_channel,_secret,_type,_pendingstate))
       con.commit();
     except Exception as u:
       con.rollback()
@@ -378,7 +381,7 @@ class scn_servs_sql(object):
     con.close()
     return True
 
-  def update_serve(self,_servername,_domain,_channel,_secret):
+  def update_serve_secret(self,_servername,_domain,_channel,_secret):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -399,8 +402,30 @@ class scn_servs_sql(object):
       return False
     con.close()
     return True
+    
+  def update_serve_type(self,_servername,_domain,_channel,_type):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''UPDATE scn_serves SET type=?
+      WHERE
+      servername=? AND
+      domain=? AND
+      channel=?;''',(_type,_servername,_domain,_channel))
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      printerror(u)
+      return False
+    con.close()
+    return True
   
-  def update_channel_pendingstate(self,_servername,_domain,_channel,_pendingstate=False):
+  def update_serve_pendingstate(self,_servername,_domain,_channel,_pendingstate=False):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -412,6 +437,26 @@ class scn_servs_sql(object):
       cur.execute('''UPDATE scn_serves SET pending=? WHERE
       servername=? AND domain=? AND channel=?;
       ''',(_pendingstate,_servername,_domain,_channel))
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      printerror(u)
+      return False
+    con.close()
+    return True
+  
+  def pause_serve(self,_servername,_domain,_channel,_active=False):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      printerror(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''UPDATE scn_serves SET active=? WHERE
+      servername=? AND domain=? AND channel=?;
+      ''',(_active,_servername,_domain,_channel))
       con.commit();
     except Exception as u:
       con.rollback()
@@ -482,7 +527,7 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT c.url,b.cert,a.secret, a.pending
+      cur.execute('''SELECT c.url,b.cert,a.secret, a.type, a.pending, a.active
       FROM scn_serves as a,scn_certs as b,scn_urls as c
       WHERE c.servername=? AND a.domain=? AND a.channel=?
       AND a.servername=c.servername AND b.name=c.certname;''',(_servername,_domain,_channelname))
@@ -490,7 +535,7 @@ class scn_servs_sql(object):
     except Exception as u:
       printerror(u)
     con.close()
-    return tempfetch #serverurl,cert,secret,pending state
+    return tempfetch #serverurl,cert,secret,type,pending state,active
   
   def del_channel(self,_servername,_domain,_channelname):
     try:
@@ -711,15 +756,18 @@ class scn_client(scn_base_client):
     tempdata=self.scn_servers.get_server(_server)
     if tempdata == None:
       raise (scnConnectException("connect_to: servername doesn't exist"))
+    self.connect_to_url(*tempdata[:2])
+      
+  def connect_to_url(self,_url,_cert):
     #split ip address and port 
-    tempconnectdata=tempdata[0].split(sepu)
+    tempconnectdata=_url.split(sepu)
     if len(tempconnectdata)==1:
       tempconnectdata+=[scn_server_port,]
     
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
     temp_context.set_cipher_list("HIGH")
-    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,tempdata[1]))
+    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,_cert))
     for count in range(0,3):
       tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       #don't use settimeout, pyopenssl error
@@ -799,7 +847,16 @@ class scn_client(scn_base_client):
       return None
     return [tempsocket, method, _cert]
 
+  def update_serves(self):
+    if temp[5]==False:
+      return
   
+  def update_single_serve(self,_inob): #_inob= serverurl,cert,secret,type,pending state,active
+    if bool(_inob[4])==False or bool(_inob[5])==False:
+      return
+    #c_serve_channel(_inob)
+    
+      
 
   def call_command(self,_servername,_command):
     _socket=self.connect_to(_servername)
@@ -810,7 +867,6 @@ class scn_client(scn_base_client):
     _socket.close()
     print(_server_response)
     return True
-    
 
   def c_serve_channel_ip(self,_servername,_domain,_channel):
     return self.c_serve_channel(self,_servername,_domain,_channel,"ip",self.linkback.receiver.host[1])
