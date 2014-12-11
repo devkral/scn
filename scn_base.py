@@ -1237,7 +1237,7 @@ class scn_base_client(scn_base_base):
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==True:
-      self.scn_servers.update_serve(_servername,_domain,_channel,_secret)
+      self.scn_servers.update_serve_secret(_servername,_domain,_channel,_secret)
     return _server_response
 
   
