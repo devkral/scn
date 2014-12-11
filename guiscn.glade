@@ -193,6 +193,45 @@ hash</property>
     <property name="label" translatable="yes">Already
 confirmed</property>
   </object>
+  <object class="GtkGrid" id="channelbase">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkAlignment" id="genrequestdropin1">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="halign">end</property>
+        <property name="valign">start</property>
+        <child>
+          <object class="GtkButton" id="genrequestb">
+            <property name="label" translatable="yes">Generate
+Request</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <signal name="clicked" handler="add_req" swapped="no"/>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkAlignment" id="channeldatadropin">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <child>
+          <placeholder/>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">1</property>
+      </packing>
+    </child>
+  </object>
   <object class="GtkGrid" id="channelcontext">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -781,27 +820,6 @@ hash</property>
     <property name="hexpand">True</property>
     <property name="vexpand">True</property>
     <child>
-      <object class="GtkAlignment" id="genrequestdropin1">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <child>
-          <object class="GtkButton" id="genrequestb">
-            <property name="label" translatable="yes">Generate
-Request</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <signal name="clicked" handler="add_req" swapped="no"/>
-          </object>
-        </child>
-      </object>
-      <packing>
-        <property name="left_attach">0</property>
-        <property name="top_attach">0</property>
-        <property name="width">2</property>
-      </packing>
-    </child>
-    <child>
       <object class="GtkAlignment" id="channelspecialdropin">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
@@ -848,6 +866,9 @@ Request</property>
         <property name="left_attach">1</property>
         <property name="top_attach">1</property>
       </packing>
+    </child>
+    <child>
+      <placeholder/>
     </child>
   </object>
   <object class="GtkAdjustment" id="maxlength">

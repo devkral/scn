@@ -489,6 +489,7 @@ class scn_server(scn_base_server):
            "get_channel_secrethash": scn_base_server.s_get_channel_secrethash,
            "get_channel_addr": scn_base_server.s_get_channel_addr,
            "get_channel_nodes": scn_base_server.s_get_channel_nodes,
+           "check_perm": scn_base_server.s_check_perm,
            "serve": scn_base_server.s_serve_channel,
            "unserve": scn_base_server.s_unserve_channel,
            "del_serve": scn_base_server.s_del_serve,

@@ -485,7 +485,7 @@ class scn_base_server(scn_base_base):
     if _socket.is_end()==False:
       _socket.send("error"+sepc+"command not terminated"+sepm)
       return
-    if stin.strip(" ").rstrip(" ") =="admin":
+    if _domain.strip(" ").rstrip(" ") =="admin":
       _socket.send("error"+sepc+"admin"+sepm)
       return
     if check_invalid_name(_domain)==False or \
@@ -606,7 +606,7 @@ class scn_base_server(scn_base_base):
         _socket.send("error"+sepc+"invalid hash or name"+sepm)
         return
     
-    if self.scn_domains.get(_domain).update_channel_secret(_channel,temp2)==True:
+    if self.scn_domains.get(_domain).update_channel(_channel,temp2)==True:
       _socket.send("success"+sepm)
     else:
       _socket.send("error"+sepm)
@@ -704,6 +704,12 @@ class scn_base_server(scn_base_base):
 
   ##exposed
 
+  def s_check_perm(self,_socket):
+    _domain,_channel,_channelsecret=self._s_channel_auth(_socket)
+    if _domain is None:
+      return
+    _socket.send("success"+sepm)
+  
   # start: serving as node in a channel
   #@scn_setup
   def s_serve_channel(self,_socket):
@@ -1103,7 +1109,8 @@ class scn_base_client(scn_base_base):
     if scn_check_return(_socket)==False:
       _socket.close()
       return False
-    self.scn_servers.add_serve(_servername,_domain,_channel,_secret,False)
+    self.scn_servers.add_serve(_servername,_domain,_channel,_secret, "ip")
+    self.scn_servers.update_serve_pendingstate(_servername,_domain,_channel)
     #add to local serves
     _socket.close()
     return True
@@ -1411,19 +1418,20 @@ class scn_base_client(scn_base_base):
 
   #@scn_setup
   def c_del_serve(self,_servername,_domain,_channel,force=False):
-    if _channel=="admin":
-      printerror("revoking node rights as admin")
-      return False
     temp=self.scn_servers.get_channel(_servername,_domain,_channel)
     if temp is None:
       printerror("not node of channel")
       return False
+    if _channel=="admin" and temp[4]==False: # if is not pending
+      printerror("revoking node rights as admin")
+      return False
+    
     _socket=scn_socket(self.connect_to(_servername))  
     _socket.send("del_serve"+sepc+_domain+sepc+_channel+sepc)
     _socket.send_bytes(temp[2],True)
     _server_response=scn_check_return(_socket)
     _socket.close()
-    if _server_response==False:
+    if _server_response==False and temp[4]==False: # if is not pending
       printerror("deleting on server failed")
       if force==False:
         return False
@@ -1558,3 +1566,17 @@ class scn_base_client(scn_base_base):
     else:
       printerror("server deletion failed")
       return False
+  def c_check_perm(self,_servername,_domain,_channel):
+    _socket=scn_socket(self.connect_to(_servername))
+    _socket.send("check_perm"+sepc)
+    tempchannel=self._c_channel_auth(_socket,_servername,_domain,_channel)
+    if tempchannel is None:
+      return False
+    _socket.close()
+    return True
+  
+  def c_update_pending(self,_servername,_domain,_channel):
+    result=not self.c_check_perm(_servername,_domain,_channel)
+    self.scn_servers.update_serve_pendingstate(_servername,_domain,_channel,result)
+    return result
+    

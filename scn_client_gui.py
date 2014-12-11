@@ -302,7 +302,7 @@ class scnGUI(object):
       return False
     # more validation would be better
     _tadmin_domains=self.linkback.main.scn_servers.list_domains(self.cur_server,"admin",False)
-    _tlocal_domains=self.linkback.main.scn_servers.list_domains(self.cur_server)
+    _tlocal_domains=self.linkback.main.scn_servers.list_domains(self.cur_server,False)
     self.navbox.show()
     self.listelems.set_title("Domain")
     self.navcontent.clear()
@@ -310,16 +310,16 @@ class scnGUI(object):
     count=0
     for elem in _tremote_domains+_tlocal_domains:
       prefix=""
-      if elem in _tadmin_domains:
-        prefix+="a"
-      elif elem in _tlocal_domains:
-        prefix+="s"
-      if count>=len_remote:
+      if count>=len_remote: # if in tlocal_domains
         if elem not in _tremote_domains:
           prefix+="l"
         else:
           count+=1
           continue
+      if elem in _tadmin_domains:
+        prefix+="a"
+      elif elem in _tlocal_domains:
+        prefix+="n"
       self.navcontent.append((prefix,elem))
       count+=1
     self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
@@ -464,9 +464,17 @@ class scnGUI(object):
       domainmessagebuffer.set_text("")
     else:
       domainmessagebuffer.set_text(tempmes)
-    
+
+    tnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+    if tnode is None:
+      is_admin=False
+    else:
+      is_admin=True
+    if tnode is not None and tnode[4]==True:
+      is_admin=self.linkback.main.c_update_pending(self.cur_server,self.cur_domain,"admin")
+      
     #hide controls if client has no admin rights
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is not None:
+    if is_admin==True:
       domainmessage.set_editable(True)
       self.builder.get_object("domainmessagecontrols").show()
       self.builder.get_object("addchannelb").show()
@@ -504,14 +512,18 @@ class scnGUI(object):
       cdin.remove(cdin.get_children()[0])
     cdin.add(newob)
 
-    #hide renew secret if no secret is available
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is not None:
+    #hide renew secret if no secret is available or it isn't confirmed
+    tnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel)
+    if tnode is not None: # and tnode[4]==False:
       self.builder.get_object("renewsecret").show()
+      self.builder.get_object("deleteself").show()
     else:
       self.builder.get_object("renewsecret").hide()
+      self.builder.get_object("deleteself").hide()
       
     #hide admin options for non-admins
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin") is None:
+    tadmin=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+    if tadmin is None or tadmin[4]==True:
       self.builder.get_object("pinchannelorderb").hide()
       self.builder.get_object("addnodeb").hide()
       self.builder.get_object("delnodeb1").hide()
@@ -519,10 +531,7 @@ class scnGUI(object):
       self.builder.get_object("pinchannelorderb").show()
       self.builder.get_object("addnodeb").show()
       self.builder.get_object("delnodeb1").show()
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel) is None:
-      self.builder.get_object("deleteself").hide()
-    else:
-      self.builder.get_object("deleteself").show()
+    
     
     channelfold=self.builder.get_object("dropinchannelcontext1")
     if len(channelfold.get_children())>=1:
@@ -540,13 +549,15 @@ class scnGUI(object):
     if _channel is None:
       return Gtk.Label("")
     self.update_request_field(_channel)
-    returnchan=self.builder.get_object("genericchannel")
+    _channeldata=self.builder.get_object("channeldatadropin")
+    if len(_channeldata.get_children())>=1:
+      _channeldata.remove(_channeldata.get_children()[0])
     if _channel=="admin":
       self.builder.get_object("channel1").set_text("Admin")
       self.builder.get_object("channel2").set_text("Admin")
       atemp=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
       if atemp is not None and bool(atemp[4])==False:
-        returnchan=self.builder.get_object("adminchannel")
+        _channeldata.add(self.builder.get_object("adminchannel"))
       else:
         pass
     elif _channel=="special":# or _channel in self.linkback.main.special_channels
@@ -558,18 +569,20 @@ class scnGUI(object):
         #self.gen_req(self.builder.get_object("genrequestdropin1"))
         #return noperm
         pass
-      tcha=self.builder.get_object("specialchannel")
-      return tcha
+      _channeldata.add(self.builder.get_object("specialchannel"))
     elif _channel=="main":
       self.builder.get_object("channel1").set_text("Main")
       self.builder.get_object("channel2").set_text("Main")
+      _channeldata.add(self.builder.get_object("mainchannel"))
     elif _channel=="notify":
       self.builder.get_object("channel1").set_text("Notify")
       self.builder.get_object("channel2").set_text("Notify")
+      _channeldata.add(self.builder.get_object("notifychannel"))
     else:
       self.builder.get_object("channel1").set_text("__"+_channel)
       self.builder.get_object("channel2").set_text("__"+_channel)
-    return returnchan
+      _channeldata.add(self.builder.get_object("genericchannel"))
+    return self.builder.get_object("channelbase")
 
       
   def add_req(self,*args):
@@ -1023,7 +1036,11 @@ class scnGUI(object):
   def load_request(self,*args):
     temp=self.builder.get_object("reqaduser").get_text()
     self.builder.get_object("reqaduser").set_text("")
-    reqadnamein,reqadchannel,reqadshashin,reqadphashin=temp.split(",")
+    t=temp.split(",")
+    if len(t)!=4:
+      self.statusbar.push(self.messageid,"Error, invalid request")
+      return
+    reqadnamein,reqadchannel,reqadshashin,reqadphashin=t
     self.builder.get_object("reqadname").set_text(reqadnamein)
     self.builder.get_object("reqadchannel").set_text(reqadchannel)
     self.builder.get_object("reqadphash").set_text(reqadphashin) # hash public
@@ -1035,8 +1052,10 @@ class scnGUI(object):
     bhash=self.builder.get_object("reqadphash").get_text() # hash public
     chash=self.builder.get_object("reqadshash").get_text() # hash secret
     dpos=self.builder.get_object("reqadnodeposition").get_value_as_int()
-
-    tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,self.cur_channel)
+    ctemp=self.get_cur_channel()
+    if ctemp is None:
+      return
+    tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,ctemp)
     if tsecretlistin is None:
       return
     tsecretlistout=""
@@ -1049,7 +1068,7 @@ class scnGUI(object):
         tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
     if dpos>=len(tsecretlistin):
       tsecretlistout+=aname+sepu+bhash+sepu+chash+sepc
-    self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,self.cur_channel,tsecretlistout[:-1])
+    self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,ctemp,tsecretlistout[:-1])
 
   def select_all_clipboard(self,*args):
     t=self.builder.get_object("usreqresult")

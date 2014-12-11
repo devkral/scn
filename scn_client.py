@@ -356,7 +356,7 @@ class scn_servs_sql(object):
     return True
 
   def add_serve(self,_servername,_domain,
-                _channel,_secret,_type,_pendingstate=True):
+                _channel,_secret,_type):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -372,7 +372,7 @@ class scn_servs_sql(object):
       secret,
       type,
       pending,active)
-      values (?,?,?,?,?,?,True)''',(_servername,_domain,_channel,_secret,_type,_pendingstate))
+      values (?,?,?,?,?,1,1)''',(_servername,_domain,_channel,_secret,_type))
       con.commit();
     except Exception as u:
       con.rollback()
@@ -696,7 +696,7 @@ class scn_servs_sql(object):
     return temp # [(servername),...]
 
 
-  def list_serves(self,_channelname=None):
+  def list_serves(self):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -706,23 +706,16 @@ class scn_servs_sql(object):
     try:
       #con.beginn()
       cur = con.cursor()
-      if _channelname==None:
-        cur.execute('''SELECT servername,domain,channel,pending
-        FROM scn_serves
-        ORDER BY servername,domain ASC''')
-      else:
-        cur.execute('''SELECT servername,domain,channel,pending
-        FROM scn_serves
-        WHERE channel=?
-        ORDER BY servername,domain ASC''')
-
+      cur.execute('''SELECT servername,domain,channel,type,pending,active
+      FROM scn_serves AND active=1
+      ORDER BY servername,domain,channel ASC''')
+      
       temp=cur.fetchall()
     except Exception as u:
       printdebug(u)
       return None
     con.close()
     return temp
-
 
 
 
@@ -752,11 +745,10 @@ class scn_client(scn_base_client):
 
 #connect methods
   def connect_to(self,_server):
-    
     tempdata=self.scn_servers.get_server(_server)
     if tempdata == None:
       raise (scnConnectException("connect_to: servername doesn't exist"))
-    self.connect_to_url(*tempdata[:2])
+    return self.connect_to_url(*tempdata[:2])
       
   def connect_to_url(self,_url,_cert):
     #split ip address and port 
@@ -848,12 +840,26 @@ class scn_client(scn_base_client):
     return [tempsocket, method, _cert]
 
   def update_serves(self):
-    if temp[5]==False:
+    for serveob in self.scn_servers.list_serves(True):
+      #temp=self.scn_servers.get_channel(*serveid[:3])
+      
+      self.update_single_serve(serveob)
+
+  # _serveob= server,name,channel,type,pending state,active
+  def update_single_serve(self,_serveob):
+    if bool(_serveob[5])==False:
       return
-  
-  def update_single_serve(self,_inob): #_inob= serverurl,cert,secret,type,pending state,active
-    if bool(_inob[4])==False or bool(_inob[5])==False:
-      return
+    addr=""
+    if _serveob[3]=="ip":
+      s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      s.connect(("www.google.com",80))
+      addr=s.getsockname()[0]
+      s.close()
+    self.c_serve_channel(_serveob[0],_serveob[1],_serveob[2],_serveob[3],addr)
+    
+    if bool(_serveob[4])==True:
+      self.scn_servers.update_pendingstate(_serveob[0],_serveob[1],_serveob[2],False)
+      _serveob[4]=False
     #c_serve_channel(_inob)
     
       
