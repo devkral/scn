@@ -97,7 +97,7 @@ def signal_handler(*args):
   #app.close()
 
 if __name__ == "__main__":
-  logging.basicConfig()
+  logging.basicConfig(level=logging.DEBUG)
   cm.main=scn_client(cm,default_config_folder)
 
   handler=scn_server_client

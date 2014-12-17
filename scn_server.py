@@ -200,7 +200,7 @@ def signal_handler(signal, frame):
 #  server.shutdown()
   sys.exit(0)
 if __name__ == "__main__":
-  logging.basicConfig()
+  logging.basicConfig(level=logging.DEBUG)
   rec_pre = scn_server(default_config_folder,scn_host+"_scn")
   rec = scn_server_handler
   rec.linkback=rec_pre
