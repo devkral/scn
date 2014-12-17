@@ -607,9 +607,12 @@ class scnGUI(object):
       self._cache_request_channel=None
       self._cache_request_hashes=None
     elif bool(tempnode[4])==False:
-      _dropinob.add(self.builder.get_object("alreadyreqdropel"))
       self._cache_request_channel=None
       self._cache_request_hashes=None
+      # if special channel deactivate completely elsewise
+      # offer menu to select connect type
+      if _channel=="admin":
+        _dropinob.add(self.builder.get_object("alreadyreqdropel"))
     else:
       _dropinob.add(self.builder.get_object("requestdropelem"))
       #TODO: ease for admins

@@ -13,7 +13,9 @@ import os
 import os.path
 import hashlib
 import threading
+import multiprocessing
 import random
+import time
 ra=random.SystemRandom()
 
 from subprocess import Popen,PIPE
@@ -74,22 +76,6 @@ def check_invalid_name(stin):
     return False
   return True
 
-#time limiting function
-def ltfunc(timelimit=2):
-  def tfunc (func):
-    def tfunc1(*args,**kwargs):
-      __thread=threading.Thread(target=func,*args,**kwargs)
-      __thread.daemon=False
-      __thread.start()
-      __thread.join(timelimit)
-      if __thread.is_alive()==True:
-        __thread.exit()
-        return False
-      else:
-        return True
-    return tfunc1
-  return tfunc
-
 
 
 class scnException(Exception):
@@ -103,6 +89,41 @@ class scnNoByteseq(scnException):
   pass
 class scnReceiveError(scnException):
   pass
+
+class TimeoutError(Exception):
+  pass
+
+
+
+
+#time limiting function
+def ltfunc(timelimit=2):
+  def tfunc (func):
+    def tfunc1(*args,**kwargs):
+      # thanks to Aaron Swartz
+      class stateProcess(multiprocessing.Process):
+        def __init__(self):
+          multiprocessing.Process.__init__(self)
+          self.result = None
+          self.error = None
+          self.daemon = False
+          
+        def run(self):
+          try:
+            self.result = func(*args, **kwargs)
+          except:
+            self.error = sys.exc_info()[0]
+      __proc=stateProcess()
+      __proc.start()
+      __proc.join(timelimit)
+      if __proc.is_alive()==True:
+        __proc.terminate()
+        raise (TimeoutError)
+      if __proc.error is not None:
+        raise (__proc.error)
+      return __proc.result
+    return tfunc1
+  return tfunc
 
 def interact(inp):
   return input(inp)
@@ -268,6 +289,9 @@ class scn_socket(object):
       self._buffer+=temp2
       return self.decode_command(minlength,maxlength)
 
+  #@ltfunc(10)
+  def _receive_bytes(self,_size):
+    return self._socket.recv(_size)
   #if no max size is specified, take _minsize as min max
   def receive_bytes(self,min_size,max_size=None):
     if self.receive_one()!="bytes":
@@ -288,7 +312,15 @@ class scn_socket(object):
       self.send("error"+sepc+"wrong size"+sepm)
       raise(scnNoByteseq("size"))
     scn_format2=struct.Struct(">"+str(_request_size)+"s")
-    temp=self._socket.recv(_request_size+buffersize-(_request_size%buffersize)) #load also padding
+    temp=b""
+    remaining=_request_size+buffersize-(_request_size%buffersize) #load also padding
+    while True:
+      if remaining-buffersize>0:
+        temp+=self._receive_bytes(buffersize)
+        remaining-=buffersize
+      else:
+        temp+=self._receive_bytes(remaining)
+        break
     temp=bytes(scn_format2.unpack(temp[0:_request_size])[0])
     #[-1:] because of strange python behaviour.
     #it converts [-1] to int
@@ -300,7 +332,8 @@ class scn_socket(object):
       self.send("error"+sepc+"wrong termination"+sepm)
       raise(scnNoByteseq("termination"))
     return temp[0:-1]
-  
+
+  #@ltfunc(10)
   def send(self,_string):
     temp=bytes(_string,"utf-8")
     tmp_scn_format=struct.Struct(">"+str(len(temp))+"s"+str(ra.randint(0,buffersize-(len(temp)%(buffersize+1))))+"x") # zero padding if buffersize is filled, not an additional packet
@@ -382,9 +415,52 @@ def init_config_folder(_dir):
   else:
     os.chmod(_dir,0o700)
     
+class rwlock(object):
+  readlock=None
+  writelock=None
+  _writes_passed=0
+  def __init__(self):
+    self.readlock=threading.Semaphore(1)
+    self.writelock=threading.Event()
+    self.writelock.clear()
   
 
+  def readaccess(self,func):
+    def tfunc(*args,**kwargs):
+      try:
+        self.readlock.acquire(False)
+        self.writelock.wait()
+        func(*args,**kwargs)
+      except Exception:
+        pass
+      finally:
+        self.readlock.release()
+    return tfunc
 
+
+  def writeaccess(self,func):
+    def tfunc(*args,**kwargs):
+      time.sleep(1)
+      try:
+        self.writelock.set()
+        self.readlock.acquire(True)
+        self._writes_passed+=1
+        func(*args,**kwargs)
+      except Exception:
+        pass
+      finally:
+        self._writes_passed-=1
+        self.readlock.release()
+        if self._writes_passed==0:
+          self.writelock.clear()
+    return tfunc
+
+class config_backend(object):
+  lock=None
+  def __init__(self):
+    self.lock=rwlock()
+
+    
 
 class scn_base_base(object):
   name=""
