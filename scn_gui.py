@@ -5,6 +5,7 @@ import threading
 import signal
 import sys
 import time
+import logging
 
 from scn_client import client_master,scn_client,scn_server_client,scn_sock_client
 
@@ -96,6 +97,7 @@ def signal_handler(*args):
   #app.close()
 
 if __name__ == "__main__":
+  logging.basicConfig()
   cm.main=scn_client(cm,default_config_folder)
 
   handler=scn_server_client

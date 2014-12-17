@@ -1,9 +1,10 @@
 
 from gi.repository import Gtk,Gdk
 from gui.dialogs import scnDeletionDialog,scnServerAddDialog,scnServerEditDialog,scnNameAddDialog
-from scn_base import check_invalid_s,printerror,sepc,sepu,scn_gen_ncert
+from scn_base import check_invalid_s,sepc,sepu,scn_gen_ncert
 
 import hashlib
+import logging
 
 class servernavtab(object):
   confirm_button_id=None
@@ -596,7 +597,7 @@ class servernavtab(object):
       if dialog.run()==Gtk.ResponseType.OK:
         tempcertname=dialog.certname.get_text()
         if check_invalid_s(tempcertname)==False or check_invalid_s(dialog.servername.get_text())==False:
-          printerror("Invalid characters")
+          logging.error("Invalid characters")
           dialog.destroy()
           return False
         if tempcertname!="" and tempcertname!=temp[2]:

@@ -1,7 +1,6 @@
-#! /usr/bin/env python3
 
 import sqlite3
-
+import logging
 
 
 #scn_servs: _channelname: _server,_domain:secret
@@ -12,14 +11,13 @@ class scn_friends_sql(object):
   db_connect = None
 
   
-  def __init__(self,_db,_logger):
+  def __init__(self,_db):
     self.db_path=_db
-    self.logger=_logger
     #self.db_connect=db_connect(self)
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as e:
-      self.logger.error(e)
+      logging.error(e)
       return
     try:
       con.execute('''CREATE TABLE if not exists
@@ -31,7 +29,7 @@ class scn_friends_sql(object):
       con.commit()
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
     con.close()
 
   def get_friend(self,_friendname):
@@ -39,7 +37,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as e:
-      self.logger.error(e)
+      logging.error(e)
       return None
     try:
       cur = con.cursor()
@@ -48,7 +46,7 @@ class scn_friends_sql(object):
       WHERE  friendname=?''',(_friendname,))
       temp=cur.fetchall()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     return temp #return cert
 
@@ -58,7 +56,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       cur = con.cursor()
@@ -72,7 +70,7 @@ class scn_friends_sql(object):
         WHERE friendname=? and servername=?''',(_friendname,_servername))
       temp=cur.fetchall()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     return temp #return servernamelist
 
@@ -80,10 +78,10 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     if self.get_friend(_friendname) is None and _cert is None:
-      self.logger.error("Error: Certificate must be specified")
+      logging.error("Error: Certificate must be specified")
       return False
     try:
       cur = con.cursor()
@@ -94,7 +92,7 @@ class scn_friends_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -103,10 +101,10 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     if self.get_friend(_friendname) is None:
-      self.logger.error("Deletion of non-existent object")
+      logging.error("Deletion of non-existent object")
       return True
     try:
       #con.beginn()
@@ -116,7 +114,7 @@ class scn_friends_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -127,7 +125,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -137,7 +135,7 @@ class scn_friends_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -146,7 +144,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -156,7 +154,7 @@ class scn_friends_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -166,7 +164,7 @@ class scn_friends_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       cur = con.cursor()
@@ -175,7 +173,7 @@ class scn_friends_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -189,7 +187,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return
     try:
       con.execute('''CREATE TABLE if not exists
@@ -207,7 +205,7 @@ class scn_servs_sql(object):
       con.commit()
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
     con.close()
 
   def add_server(self,_servername,_url,_cert,_certname=None):
@@ -221,7 +219,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       cur = con.cursor()
@@ -231,11 +229,11 @@ class scn_servs_sql(object):
       
       con.commit()
     except sqlite3.IntegrityError:
-      self.logger.debug("exists already")
+      logging.debug("exists already")
       con.rollback()
       return False
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       con.rollback()
       return False
     con.close()
@@ -245,7 +243,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -263,7 +261,7 @@ class scn_servs_sql(object):
 #      WHERE certname=(SELECT certname FROM scn_urls WHERE servername=?) ;'''#,(_certname_new,_servername))
       con.commit();
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       con.rollback()
       return False
     con.close()
@@ -276,7 +274,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -284,7 +282,7 @@ class scn_servs_sql(object):
       cur.execute('''UPDATE scn_urls SET servername=? WHERE servername=?;''',(_servername_new,_servername))
       con.commit();
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       con.rollback()
       return False
     con.close()
@@ -296,7 +294,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -305,7 +303,7 @@ class scn_servs_sql(object):
       cur.execute('''UPDATE scn_urls SET certname=? WHERE certname=?;''',(_certname_new,_certname)) #why does the constraint not work?
       con.commit();
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       con.rollback()
       return False
     con.close()
@@ -317,7 +315,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -325,7 +323,7 @@ class scn_servs_sql(object):
       cur.execute('''UPDATE scn_urls SET certname=? WHERE servername=?;''',(_certname_new,_servername))
       con.commit();
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       con.rollback()
       return False
     con.close()
@@ -336,7 +334,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -352,7 +350,7 @@ class scn_servs_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -361,7 +359,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -374,7 +372,7 @@ class scn_servs_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -383,7 +381,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -396,7 +394,7 @@ class scn_servs_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -405,7 +403,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -416,7 +414,7 @@ class scn_servs_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -425,7 +423,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -436,7 +434,7 @@ class scn_servs_sql(object):
       con.commit();
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -446,7 +444,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       #con.beginn()
@@ -466,7 +464,7 @@ class scn_servs_sql(object):
       
       temp=cur.fetchall()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     tempnew=[]
     for elem in temp:
@@ -479,7 +477,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       #con.beginn()
@@ -489,7 +487,7 @@ class scn_servs_sql(object):
       WHERE servername=? AND domain=?;''',(_servername,_domain))
       temp=cur.fetchall()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     return temp #channelname
 
@@ -498,7 +496,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       #con.beginn()
@@ -509,7 +507,7 @@ class scn_servs_sql(object):
       AND a.servername=c.servername AND b.name=c.certname;''',(_servername,_domain,_channelname))
       tempfetch=cur.fetchone()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     return tempfetch #serverurl,cert,secret,type,pending state,active
   
@@ -517,7 +515,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -528,7 +526,7 @@ class scn_servs_sql(object):
       AND channel=?''',(_servername,_domain,_channelname))
       con.commit()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -537,7 +535,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -548,7 +546,7 @@ class scn_servs_sql(object):
       con.commit()
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -558,7 +556,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return False
     try:
       #con.beginn()
@@ -570,7 +568,7 @@ class scn_servs_sql(object):
       con.commit()
     except Exception as u:
       con.rollback()
-      self.logger.error(u)
+      logging.error(u)
       return False
     con.close()
     return True
@@ -579,7 +577,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       #con.beginn()
@@ -589,7 +587,7 @@ class scn_servs_sql(object):
       WHERE name=?''',(_certname,))
       tempfetch=cur.fetchone()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
         
     #strip tupel
     if tempfetch is not None:
@@ -600,7 +598,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       #con.beginn()
@@ -610,7 +608,7 @@ class scn_servs_sql(object):
       WHERE cert=?''',(_cert,))
       tempfetch=cur.fetchone()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     #strip tupel
     if tempfetch is not None:
@@ -623,7 +621,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       #con.beginn()
@@ -633,7 +631,7 @@ class scn_servs_sql(object):
       WHERE a.servername=? AND a.certname=b.name''',(_servername,))
       tempfetch=cur.fetchone()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     return tempfetch #serverurl,cert,name or None
 
@@ -642,7 +640,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       #con.beginn()
@@ -650,7 +648,7 @@ class scn_servs_sql(object):
       cur.execute('''SELECT servername FROM scn_urls WHERE url=?''',(_url,))
       temp=cur.fetchall()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     return temp #serverurls
 
@@ -659,7 +657,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     try:
       cur = con.cursor()
@@ -667,7 +665,7 @@ class scn_servs_sql(object):
       ORDER BY servername ASC''')
       temp=cur.fetchall()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
     con.close()
     return temp # [(servername),...]
 
@@ -676,7 +674,7 @@ class scn_servs_sql(object):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     temp=None
     try:
@@ -688,7 +686,7 @@ class scn_servs_sql(object):
       
       temp=cur.fetchall()
     except Exception as u:
-      self.logger.error(u)
+      logging.error(u)
       return None
     con.close()
     return temp

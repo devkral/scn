@@ -6,6 +6,7 @@ import sys
 import socketserver
 import socket
 import threading
+import logging
 #import time
 
 from OpenSSL import SSL,crypto
@@ -59,15 +60,15 @@ class scn_server(scn_base_server):
     self.config_path=_config_path
     init_config_folder(self.config_path)
     if check_certs(self.config_path+"scn_server_cert")==False:
-      self.logger.debug("Certificate(s) not found. Generate new...")
+      logging.debug("Certificate(s) not found. Generate new...")
       generate_certs(self.config_path+"scn_server_cert")
-      self.logger.debug("Certificate generation complete")
+      logging.debug("Certificate generation complete")
     with open(self.config_path+"scn_server_cert"+".priv", 'rb') as readinprivkey:
       self.priv_cert=readinprivkey.read()
     with open(self.config_path+"scn_server_cert"+".pub", 'rb') as readinpubkey:
       self.pub_cert=readinpubkey.read()
     self.scn_domains=scn_domain_list_sqlite(self.config_path+"scn_server_domain_db")
-    self.scn_store=scn_ip_store(self.config_path+"scn_server_pers_id_db",self.logger)
+    self.scn_store=scn_ip_store(self.config_path+"scn_server_pers_id_db")
     if self.scn_domains.get("admin") is None:
       #fixme: create working acc
       self.scn_domains.create_domain("admin",0,0)
@@ -76,8 +77,7 @@ class scn_server(scn_base_server):
     self.refresh_domains_thread=threading.Thread(target=self.refresh_domain_list)
     self.refresh_domains_thread.daemon = True
     self.refresh_domains_thread.start()
-
-    self.logger.debug("Server init finished")
+    logging.debug("Server init finished")
 
 """
   def callback(self,_socket,_name,_store_name):
@@ -136,17 +136,17 @@ class scn_server_handler(socketserver.BaseRequestHandler):
         else:
           sc.send("error"+sepc+temp+sepc+" no such function"+sepm)
       except BrokenPipeError:
-        self.logger.debug("Socket closed") 
+        logging.debug("Socket closed") 
         break
       except SSL.SysCallError as e:
         if e.args[0]==104 or e.args[0]==-1:
           #"104: ECONNRESET, -1: Unexpected EOF"
-          self.logger.debug("Socket closed")
+          logging.debug("Socket closed")
         else:
-          self.logger.error(e)
+          logging.error(e)
         break
       except Exception as e:
-        self.logger.error(e)
+        logging.error(e)
         break
 
 #socketserver.ThreadingMixIn, 
@@ -180,8 +180,8 @@ class scn_sock_server(socketserver.TCPServer):
     except (OSError):
       pass # some platforms may raise ENOTCONN here
     except Exception as e:
-      self.logger.error("Exception while shutdown")
-      self.logger.error(e)
+      logging.error("Exception while shutdown")
+      logging.error(e)
     self.close_request(request)
 
   def close_request(self,request):
@@ -190,7 +190,7 @@ class scn_sock_server(socketserver.TCPServer):
     try:
       request.close()
     except Exception as e:
-      self.logger.error(e)
+      logging.error(e)
 
 server=None
 
@@ -200,6 +200,7 @@ def signal_handler(signal, frame):
 #  server.shutdown()
   sys.exit(0)
 if __name__ == "__main__":
+  logging.basicConfig()
   rec_pre = scn_server(default_config_folder,scn_host+"_scn")
   rec = scn_server_handler
   rec.linkback=rec_pre
@@ -217,4 +218,4 @@ if __name__ == "__main__":
   #rec_pre.handle_actions()  
   #server.handle_request()
   server.serve_forever()
-  #self.logger.debug("Server closed")
+  logging.debug("Server closed")

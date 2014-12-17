@@ -3,7 +3,7 @@
 import sys
 #import os
 import time
-import sqlite3
+import logging
 import socket
 import socketserver
 
@@ -16,7 +16,7 @@ import os
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
-from scn_base import scn_base_client,scn_base_base, scn_socket, printdebug, printerror, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_ncert
+from scn_base import scn_base_client,scn_base_base, scn_socket, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_ncert
 #,scn_check_return
 from scn_config import client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max,scn_host
 
@@ -28,10 +28,6 @@ class client_master(object):
   receiver=None
   main=None
 cm=client_master()
-
-
-
-
 
 
 
@@ -47,7 +43,7 @@ class scn_client(scn_base_client):
     self.config_path=_config_path
     init_config_folder(self.config_path)
     if check_certs(self.config_path+"scn_client_cert")==False:
-      printdebug("private key not found. Generate new...")
+      logging.debug("private key not found. Generate new...")
       generate_certs(self.config_path+"scn_client_cert")
     with open(self.config_path+"scn_client_cert"+".priv", 'rb') as readinprivkey:
       self.priv_cert=readinprivkey.read()
@@ -86,7 +82,7 @@ class scn_client(scn_base_client):
       except Exception as e:
         raise(e)
       #  if count<2:
-      #    printdebug(e)
+      #    logging.debug(e)
       #  else:
       #    raise(e)
     tempsocket.setblocking(True)
@@ -237,7 +233,7 @@ class scn_client(scn_base_client):
         try:
           self.call_command(self,command[1].split(sepc,1))
         except Exception as e:
-          printerror(e)
+          logging.error(e)
 
       elif command[0] in self.clientactions:
         try:
@@ -247,11 +243,11 @@ class scn_client(scn_base_client):
           else:
             serveranswer = self.clientactions[command[0]](self)
         except TypeError as e:
-          printerror(e)
+          logging.error(e)
         except BrokenPipeError:
-          printdebug("Socket closed unexpected") 
+          logging.debug("Socket closed unexpected") 
         except Exception as e:
-          printerror(e)
+          logging.error(e)
         if isinstance(serveranswer,bool)==True:
           print(serveranswer)
         elif isinstance(serveranswer,list)==True or isinstance(serveranswer,tuple)==True:
@@ -260,7 +256,7 @@ class scn_client(scn_base_client):
           print("Not recognized")
       else:
         print(command)
-        printerror("No such function client")
+        logging.error("No such function client")
         
       if client_show_incomming_commands == True and len(self._incommingbuffer) > 0:
         print(self._incommingbuffer.pop(0))
@@ -285,10 +281,10 @@ class scn_server_client(socketserver.BaseRequestHandler):
         else:
           sc.send("error"+sepc+temp+sepc+"no such function"+sepm)
       except BrokenPipeError:
-        printdebug("Socket closed") 
+        logging.debug("Socket closed") 
         break
       except Exception as e:
-        printdebug(e)
+        logging.debug(e)
         break
 
 #use here socketserver.ThreadingMixIn because no changes will be committed

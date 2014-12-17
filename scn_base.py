@@ -7,8 +7,8 @@ import socket
 import struct
 import re
 import sys
-import pprint
-import traceback
+#import pprint
+#import traceback
 import os
 import os.path
 import hashlib
@@ -16,6 +16,7 @@ import threading
 import multiprocessing
 import random
 import time
+import logging
 ra=random.SystemRandom()
 
 from subprocess import Popen,PIPE
@@ -26,8 +27,8 @@ from OpenSSL import SSL,crypto
 
 
 #import Enum from enum
-
-from scn_config import debug_mode, show_error_mode, buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_channels, max_channel_nodes, secret_size, key_size,protcount_max,hash_hex_size
+#debug_mode, show_error_mode, 
+from scn_config import buffersize, max_cert_size, max_cmd_size, min_name_length, max_name_length,max_message_length, max_user_channels, max_channel_nodes, secret_size, key_size,protcount_max,hash_hex_size
 #, scn_cache_timeout
 
 # from scn_config import scn_client_port
@@ -128,37 +129,37 @@ def ltfunc(timelimit=2):
 def interact(inp):
   return input(inp)
 
-def printdebug(inp):
-  if debug_mode==True:
-    #pprint.pprint(inp,stream=sys.stderr)
-    #print(inp,file=sys.stderr)
-    if isinstance(inp, scnException)==True:
-      print("Debug: "+type(inp).__name__,file=sys.stderr)
-      print(inp.args,file=sys.stderr)
-      #traceback.print_tb(inp.__traceback__)
-    elif isinstance(inp, Exception)==True:
-      print("Debug: "+type(inp).__name__,file=sys.stderr)
-      pprint.pprint(inp.args,stream=sys.stderr)
-      traceback.print_tb(inp.__traceback__)
-    else:
-      print("Debug: ", end="",file=sys.stderr )
-      pprint.pprint(inp,stream=sys.stderr)
+#def printdebug(inp):
+#  if debug_mode==True:
+#    #pprint.pprint(inp,stream=sys.stderr)
+#    #print(inp,file=sys.stderr)
+#    if isinstance(inp, scnException)==True:
+#      print("Debug: "+type(inp).__name__,file=sys.stderr)
+#      print(inp.args,file=sys.stderr)
+#      #traceback.print_tb(inp.__traceback__)
+#    elif isinstance(inp, Exception)==True:
+#      print("Debug: "+type(inp).__name__,file=sys.stderr)
+#      pprint.pprint(inp.args,stream=sys.stderr)
+#      traceback.print_tb(inp.__traceback__)
+#    else:
+#      print("Debug: ", end="",file=sys.stderr )
+#      pprint.pprint(inp,stream=sys.stderr)
 
-def printerror(inp):
-  if show_error_mode==True:
-    #pprint.pprint(inp,stream=sys.stderr)
-    #print(inp,file=sys.stderr)
-    if isinstance(inp, scnException)==True:
-      print("Error: "+type(inp).__name__,file=sys.stderr)
-      print(inp.args,file=sys.stderr)
-      traceback.print_tb(inp.__traceback__)
-    elif isinstance(inp, Exception)==True:
-      print("Error: "+type(inp).__name__,file=sys.stderr)
-      pprint.pprint(inp.args,stream=sys.stderr)
-      traceback.print_tb(inp.__traceback__)
-    else:
-      print("Error: ",end="",file=sys.stderr)
-      pprint.pprint(inp,stream=sys.stderr)
+#def printerror(inp):
+#  if show_error_mode==True:
+#    #pprint.pprint(inp,stream=sys.stderr)
+#    #print(inp,file=sys.stderr)
+#    if isinstance(inp, scnException)==True:
+#      print("Error: "+type(inp).__name__,file=sys.stderr)
+#      print(inp.args,file=sys.stderr)
+#      traceback.print_tb(inp.__traceback__)
+#    elif isinstance(inp, Exception)==True:
+#      print("Error: "+type(inp).__name__,file=sys.stderr)
+#      pprint.pprint(inp.args,stream=sys.stderr)
+#      traceback.print_tb(inp.__traceback__)
+#    else:
+#      print("Error: ",end="",file=sys.stderr)
+#      pprint.pprint(inp,stream=sys.stderr)
 
 #not domain saved with cert but domain on server
 def scn_verify_ncert(_domain,pub_cert,_certhash):
@@ -194,7 +195,7 @@ def scn_check_return(_socket):
         _socket.send("error"+sepc+"scn_check_return")
       else:
         temp+=temp2+", "
-    printerror(temp[:-2])
+    logging.error(temp[:-2])
     return False
 
 #a socket wrapper maybe used in future
@@ -253,13 +254,13 @@ class scn_socket(object):
       else:
         raise(e)
     except (socket.timeout, SSL.WantReadError):
-      printdebug("Command: Timeout or SSL.WantReadError")
+      logging.debug("Command: Timeout or SSL.WantReadError")
     #except (socket.ECONNRESET, socket.EPIPE):
     #  pass
       temp=None
     except Exception as e:
-      printerror("Command: Unknown error while receiving")
-      printerror(e)
+      logging.error("Command: Unknown error while receiving")
+      logging.error(e)
       temp=None
     return temp
 
@@ -273,7 +274,7 @@ class scn_socket(object):
       maxlength=minlength
       minlength=0
     if maxlength>buffersize-1:
-      printdebug("Receiving command longer than buffersize-1 is dangerous: use send_bytes and receive_bytes instead")
+      logging.debug("Receiving command longer than buffersize-1 is dangerous: use send_bytes and receive_bytes instead")
     if len(self._buffer)>1 and (self._buffer[-1]==sepm or self._buffer[-1]==sepc):
       return self.decode_command(minlength,maxlength)
     elif self._buffer==sepm or self._buffer==sepc:
@@ -299,8 +300,8 @@ class scn_socket(object):
     try:
       _request_size=int(self.receive_one())
     except Exception as e:
-      printerror("Bytesequence: Conversion into len (Int) failed")
-      printerror(e)
+      logging.error("Bytesequence: Conversion into len (Int) failed")
+      logging.error(e)
       self.send("error"+sepc+"int conversion"+sepm)
       raise(scnNoByteseq("int convert"))
     if max_size is None and _request_size==min_size+1: #for sepc/sepm
@@ -308,7 +309,7 @@ class scn_socket(object):
     elif min_size<=_request_size and _request_size<=max_size+1: #for sepc/sepm
       self.send("success"+sepm)
     else:
-      printdebug(str(min_size)+","+str(max_size)+" ("+str(_request_size)+")")
+      logging.debug(str(min_size)+","+str(max_size)+" ("+str(_request_size)+")")
       self.send("error"+sepc+"wrong size"+sepm)
       raise(scnNoByteseq("size"))
     scn_format2=struct.Struct(">"+str(_request_size)+"s")
@@ -362,7 +363,7 @@ class scn_socket(object):
           reject_reason+=","+self.receive_one()
         raise(scnRejectException("reject:"+reject_reason))
     except BrokenPipeError as e:
-      printdebug("Bytesequence: BrokenPipe")
+      logging.debug("Bytesequence: BrokenPipe")
       raise(e)
   def close(self):
     self._socket.shutdown()
@@ -378,9 +379,9 @@ def generate_certs(_path):
     genproc=Popen(["openssl", "req", "-x509", "-aes256", "-newkey", "rsa:"+str(key_size),"-keyout",_path+".priv", "-out",_path+".pub"], stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     _answer=genproc.communicate(_passphrase.strip("\n")+"\n"+_passphrase.strip("\n")+"\nIA\n\n\n\nscn.nodes\n\nsecure communication nodes\n")
 
-  #printdebug(_answer[0])
+  #logging.debug(_answer[0])
   if _answer[1]!="":
-    printdebug(_answer[1])
+    logging.debug(_answer[1])
 
 def check_certs(_path):
   if os.path.exists(_path+".priv")==False or os.path.exists(_path+".pub")==False:
@@ -404,7 +405,7 @@ def check_certs(_path):
         #_c.check_privatekey()
         is_ok=True
       except Exception as e:
-        printerror(e)
+        logging.error(e)
     if is_ok==True:
       return True
   return False
@@ -1231,7 +1232,7 @@ class scn_base_client(scn_base_base):
   #@scn_setup
   def c_delete_domain(self,_servername,_domain):
     if _domain=="admin":
-      printerror("Undeleteable specialdomain admin")
+      logging.error("Undeleteable specialdomain admin")
       return False
 
     
@@ -1266,7 +1267,7 @@ class scn_base_client(scn_base_base):
   #@scn_setup
   def c_delete_channel(self,_servername,_domain,_channel):
     if _channel=="admin":
-      printerror("Undeleteable specialchannel admin")
+      logging.error("Undeleteable specialchannel admin")
       return False
     
     _socket=scn_socket(self.connect_to(_servername))
@@ -1299,7 +1300,7 @@ class scn_base_client(scn_base_base):
     _secret=os.urandom(secret_size)
     temp=self.scn_servers.get_channel(_servername,_domain,_channel)
     if temp is None:
-      printerror("Can't update secret without an old secret")
+      logging.error("Can't update secret without an old secret")
       return False
     _socket.send("update_secret"+sepc)
     temp=self._c_channel_auth(_socket,_servername,_domain,_channel)
@@ -1334,7 +1335,7 @@ class scn_base_client(scn_base_base):
         
         temp=_socket.receive_one(hash_hex_size+max_cmd_size).split(sepu)
         if len(temp)!=2:
-          printdebug("invalid node object parsed")
+          logging.debug("invalid node object parsed")
           continue
         _node_list += [temp,]
     else:
@@ -1359,7 +1360,7 @@ class scn_base_client(scn_base_base):
           break
         temp=_socket.receive_one().split(sepu)
         if len(temp)!=3:
-          printdebug("invalid node addr object parsed")
+          logging.debug("invalid node addr object parsed")
           continue
         _node_list += [temp,]
     else:
@@ -1496,10 +1497,10 @@ class scn_base_client(scn_base_base):
   def c_del_serve(self,_servername,_domain,_channel,force=False):
     temp=self.scn_servers.get_channel(_servername,_domain,_channel)
     if temp is None:
-      printerror("not node of channel")
+      logging.error("not node of channel")
       return False
     if _channel=="admin" and temp[4]==False: # if is not pending
-      printerror("revoking node rights as admin")
+      logging.error("revoking node rights as admin")
       return False
     
     _socket=scn_socket(self.connect_to(_servername))  
@@ -1508,7 +1509,7 @@ class scn_base_client(scn_base_base):
     _server_response=scn_check_return(_socket)
     _socket.close()
     if _server_response==False and temp[4]==False: # if is not pending
-      printerror("deleting on server failed")
+      logging.error("deleting on server failed")
       if force==False:
         return False
     if self.scn_servers.del_channel(_servername,_domain,_channel)==False:
@@ -1581,7 +1582,7 @@ class scn_base_client(scn_base_base):
   def c_add_server(self,_servername,_url,_certname=None):
     _socket=scn_socket(self.connect_to_ip(_url))
     if _socket is None:
-      printerror("Error: connection failed")
+      logging.error("Error: connection failed")
       return False
     
     _socket.send("get_cert"+sepm)
@@ -1593,18 +1594,18 @@ class scn_base_client(scn_base_base):
     if self.scn_servers.add_server(_servername,_url,_cert,_certname)==True:
       return True
     else:
-      printdebug("server creation failed")
+      logging.debug("server creation failed")
       return False
 
   #@scn_setup
   def c_update_server(self,_servername,_url): #, update_cert_hook):
     
     if self.scn_servers.get_server(_servername) is None:
-      printerror("Error: server doesn't exist")
+      logging.error("Error: server doesn't exist")
       return False
     _socket=scn_socket(self.connect_to_ip(_url))
     if _socket is None:
-      printerror("Error: connection failed")
+      logging.error("Error: connection failed")
       return False
     #neccessary?
     #masquerade, nobody should know if this server is being added or updated
@@ -1616,7 +1617,7 @@ class scn_base_client(scn_base_base):
     #_socket.receive_one()#version
     #_socket.receive_one()#_serversecretsize
     #if _socket.is_end() == False:
-    #  printerror("Error: is_end false before second command")
+    #  logging.error("Error: is_end false before second command")
     #  _socket.close()
     #  return False
 
@@ -1627,11 +1628,11 @@ class scn_base_client(scn_base_base):
     _newcert=_socket.receive_bytes(0,max_cert_size)
     _socket.close()
     if _newcert!=self.scn_servers.get_server(_servername)[1]:
-      printdebug("Certs missmatch, update because of missing hook")
+      logging.debug("Certs missmatch, update because of missing hook")
     if self.scn_servers.update_server(_servername,_url,_newcert)==True:
       return True
     else:
-      printdebug("server update failed")
+      logging.debug("server update failed")
       return False
 
   #@scn_setup
@@ -1640,7 +1641,7 @@ class scn_base_client(scn_base_base):
       return True
       #return self.scn_friends.del_server_all(_servername)
     else:
-      printerror("server deletion failed")
+      logging.error("server deletion failed")
       return False
   def c_check_perm(self,_servername,_domain,_channel):
     _socket=scn_socket(self.connect_to(_servername))
