@@ -369,7 +369,7 @@ class scn_socket(object):
 
 def generate_certs(_path):
   genproc=None
-  _passphrase=interact("(optional) Enter passphrase for encrypting key:\n")
+  _passphrase=input("(optional) Enter passphrase for encrypting key:\n")
   if _passphrase=="":
     genproc=Popen(["openssl", "req", "-x509", "-nodes", "-newkey", "rsa:"+str(key_size), "-keyout",_path+".priv", "-out",_path+".pub"],stdin=PIPE,stdout=PIPE, stderr=PIPE,universal_newlines=True)
     _answer=genproc.communicate("IA\n\n\n\nscn.nodes\n\nsecure communication nodes\n")
