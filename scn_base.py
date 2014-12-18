@@ -13,7 +13,6 @@ import os
 import os.path
 import hashlib
 import threading
-import multiprocessing
 import random
 import time
 import logging
@@ -98,13 +97,13 @@ class TimeoutError(Exception):
 
 
 #time limiting function
-def ltfunc(timelimit=2):
+def lt_load(timelimit=2):
   def tfunc (func):
     def tfunc1(*args,**kwargs):
       # thanks to Aaron Swartz
-      class stateProcess(multiprocessing.Process):
+      class stateThread(threading.Thread):
         def __init__(self):
-          multiprocessing.Process.__init__(self)
+          threading.Thread.__init__(self)
           self.result = None
           self.error = None
           self.daemon = False
@@ -114,11 +113,11 @@ def ltfunc(timelimit=2):
             self.result = func(*args, **kwargs)
           except:
             self.error = sys.exc_info()[0]
-      __proc=stateProcess()
+      __proc=stateThread()
       __proc.start()
       __proc.join(timelimit)
       if __proc.is_alive()==True:
-        __proc.terminate()
+        __proc.exit()
         raise (TimeoutError)
       if __proc.error is not None:
         raise (__proc.error)
@@ -126,8 +125,6 @@ def ltfunc(timelimit=2):
     return tfunc1
   return tfunc
 
-def interact(inp):
-  return input(inp)
 
 #def printdebug(inp):
 #  if debug_mode==True:
@@ -198,7 +195,6 @@ def scn_check_return(_socket):
     logging.error(temp[:-2])
     return False
 
-#a socket wrapper maybe used in future
 class scn_socket(object):
   _buffer=""
   is_end_state=False
@@ -207,6 +203,12 @@ class scn_socket(object):
 
   def __init__(self,_socket):
     self._socket=_socket
+
+  #@ltfunc(10)
+  def _receive(self,_size):
+    return self._socket.recv(_size)
+  
+
   def decode_command(self,minlength,maxlength):
     temp=self._buffer.split(sepc,1)
     if len(temp)==1 and len(temp[0])>=1 and temp[0][-1]==sepm:
@@ -232,13 +234,12 @@ class scn_socket(object):
       raise(scnReceiveError("decode_command: Contains invalid characters"))
     return temp[0]
   
-  #@ltfunc(10)
   def load_socket(self):
     temp=None
     try:
       #cleanup invalid data
       for protcount in range(0,protcount_max):
-        temp1=self._socket.recv(buffersize)
+        temp1=self._receive(buffersize)
         tmp_scn_format=struct.Struct(">"+str(len(temp1))+"s")
         #cleanup invalid chars
         temp=tmp_scn_format.unpack(temp1)[0].decode("utf-8").replace("\n","").replace("\0","")
@@ -290,9 +291,7 @@ class scn_socket(object):
       self._buffer+=temp2
       return self.decode_command(minlength,maxlength)
 
-  #@ltfunc(10)
-  def _receive_bytes(self,_size):
-    return self._socket.recv(_size)
+  
   #if no max size is specified, take _minsize as min max
   def receive_bytes(self,min_size,max_size=None):
     if self.receive_one()!="bytes":
@@ -317,10 +316,10 @@ class scn_socket(object):
     remaining=_request_size+buffersize-(_request_size%buffersize) #load also padding
     while True:
       if remaining-buffersize>0:
-        temp+=self._receive_bytes(buffersize)
+        temp+=self._receive(buffersize)
         remaining-=buffersize
       else:
-        temp+=self._receive_bytes(remaining)
+        temp+=self._receive(remaining)
         break
     temp=bytes(scn_format2.unpack(temp[0:_request_size])[0])
     #[-1:] because of strange python behaviour.
@@ -334,7 +333,6 @@ class scn_socket(object):
       raise(scnNoByteseq("termination"))
     return temp[0:-1]
 
-  #@ltfunc(10)
   def send(self,_string):
     temp=bytes(_string,"utf-8")
     tmp_scn_format=struct.Struct(">"+str(len(temp))+"s"+str(ra.randint(0,buffersize-(len(temp)%(buffersize+1))))+"x") # zero padding if buffersize is filled, not an additional packet
@@ -415,7 +413,8 @@ def init_config_folder(_dir):
     os.makedirs(_dir,0o700)
   else:
     os.chmod(_dir,0o700)
-    
+
+
 class rwlock(object):
   readlock=None
   writelock=None

@@ -338,6 +338,6 @@ if __name__ == "__main__":
   client_thread = threading.Thread(target=cm.receiver.serve_forever)
   client_thread.daemon = True
   client_thread.start()
+  cm.main.update_serves()
   cm.main.debug()
-  
   sys.exit(0)

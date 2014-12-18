@@ -30,30 +30,23 @@ icons=Gtk.IconTheme.get_default()
 
 
 
-class scnGUI(servernavtab):
+
+class scnGUI(logging.NullHandler,servernavtab):
   state_widget=None
   note_main=None
   linkback=None
   builder=None
-  cur_server=None #use only after set by scnupdate
-  cur_domain=None #use only after set by scnupdate
-  cur_channel=None #use only after set by scnupdate
-  box_select_handler_id=None
-  box_activate_handler_id=None
-
-  navbar=None
-  navbox=None
-  navcontent=None
-  listelems=None
+  
   statusbar=None
   messagecount=0
   messageid=1
   win=None
-  clip=None
-  _cache_request_channel=None
-  _cache_request_hashes=None
-  
+  clip=None #clipboard
+
+
   def __init__(self,_linkback,_uipath):
+    logging.NullHandler.__init__(self)
+    #logging.basicConfig(handlers=self)
     self.linkback=_linkback
     self.builder=Gtk.Builder()
     self.builder.add_from_file(_uipath)
@@ -80,6 +73,7 @@ class scnGUI(servernavtab):
       time.sleep(5)
       #self.messagecount-=1
       self.statusbar.pop(self.messageid)
+
   def pushmanage(self,*args):
     #self.messagecount+=1
     #if self.messagecount>1:
@@ -87,7 +81,10 @@ class scnGUI(servernavtab):
     t.daemon = True
     t.start()
 
-      
+  def handle(self,record):
+    self.statusbar.push(self.messageid,record)
+    
+    
 run=True
 
 def signal_handler(*args):

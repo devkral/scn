@@ -12,7 +12,7 @@ import logging
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm,sepc #,sepu
-from scn_base import scn_base_server,scn_base_base,scn_socket,init_config_folder,check_certs,generate_certs,interact
+from scn_base import scn_base_server,scn_base_base,scn_socket,init_config_folder,check_certs,generate_certs
 
 from scn_config import scn_host,scn_server_port,default_config_folder
 #,scn_cache_timeout
@@ -77,7 +77,7 @@ class scn_server(scn_base_server):
     self.refresh_domains_thread=threading.Thread(target=self.refresh_domain_list)
     self.refresh_domains_thread.daemon = True
     self.refresh_domains_thread.start()
-    logging.debug("Server init finished")
+    logging.info("Server init finished")
 
 """
   def callback(self,_socket,_name,_store_name):
@@ -156,7 +156,7 @@ class scn_sock_server(socketserver.TCPServer):
     socketserver.BaseServer.__init__(self, server_address, HandlerClass)
     self.linkback=_linkback
     def interact_wrap():
-      return interact("Please enter passphrase:\n")
+      return input("Please enter passphrase:\n")
     
     temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
     temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)

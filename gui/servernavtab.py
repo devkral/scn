@@ -9,6 +9,18 @@ import logging
 class servernavtab(object):
   confirm_button_id=None
   reset_button_id=None
+  _cache_request_channel=None
+  _cache_request_hashes=None
+  cur_server=None #use only after set by scnupdate
+  cur_domain=None #use only after set by scnupdate
+  cur_channel=None #use only after set by scnupdate
+  box_select_handler_id=None
+  box_activate_handler_id=None
+  listelems=None
+
+  navbar=None
+  navbox=None
+  navcontent=None
 
   def __init__(self):
     self.navcontent=self.builder.get_object("navcontent")
