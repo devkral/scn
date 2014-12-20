@@ -1,13 +1,18 @@
 important
--rename service to channel, exposed services as service
+
+-clients have method c/s_verify_pubhashlist: with certificate signed pubhashlist with timestamp
+calculation takes place on client
+-main creates two channels head and main
+
 -fix multithreading (later)
 -finish gui
--expose real services
+-expose real services as services
 -client connection timeouts (put it in socket)
 -move special services to admin
--rename admin to main
+
 
 future:
+-fix sqlite hack, key is updated manually
 rename specialservices to plugin
 
 enhancements:

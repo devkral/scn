@@ -20,6 +20,7 @@ class scn_friends_sql(object):
       logging.error(e)
       return
     try:
+      #TODO: cert is pub cert used for signing the certhashlist
       con.execute('''CREATE TABLE if not exists
       scn_friends(friendname TEXT, cert BLOB, PRIMARY KEY(friendname))''')
       con.execute('''CREATE TABLE if not exists
