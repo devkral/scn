@@ -205,7 +205,7 @@ Request</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="halign">end</property>
+            <property name="halign">baseline</property>
             <property name="valign">start</property>
             <signal name="clicked" handler="add_req" swapped="no"/>
           </object>
@@ -766,6 +766,26 @@ family </property>
             <property name="top_attach">0</property>
           </packing>
         </child>
+        <child>
+          <object class="GtkButton" id="startstopservechannel">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="tooltip_text" translatable="yes">Start/Stop serving a channel</property>
+            <property name="halign">center</property>
+            <child>
+              <object class="GtkImage" id="startstopservechannelimg">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_name">media-playback-start</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">4</property>
+          </packing>
+        </child>
       </object>
       <packing>
         <property name="left_attach">0</property>
@@ -814,58 +834,28 @@ family </property>
     <property name="hexpand">True</property>
     <property name="vexpand">True</property>
     <child>
-      <object class="GtkAlignment" id="channelspecialdropin">
+      <object class="GtkButton" id="addfriend">
+        <property name="label" translatable="yes">addfriend</property>
         <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <child>
-          <placeholder/>
-        </child>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+      </object>
+      <packing>
+        <property name="left_attach">0</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkButton" id="button8">
+        <property name="label" translatable="yes">Contact</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
       </object>
       <packing>
         <property name="left_attach">0</property>
         <property name="top_attach">1</property>
       </packing>
-    </child>
-    <child>
-      <object class="GtkGrid" id="grid14">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <child>
-          <object class="GtkAlignment" id="reqdatadropin">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="contactb">
-            <property name="label" translatable="yes">Contact</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-          </object>
-          <packing>
-            <property name="left_attach">0</property>
-            <property name="top_attach">1</property>
-          </packing>
-        </child>
-      </object>
-      <packing>
-        <property name="left_attach">1</property>
-        <property name="top_attach">1</property>
-      </packing>
-    </child>
-    <child>
-      <placeholder/>
-    </child>
-    <child>
-      <placeholder/>
     </child>
   </object>
   <object class="GtkAdjustment" id="maxlength">
@@ -1873,6 +1863,26 @@ family </property>
             <property name="top_attach">0</property>
           </packing>
         </child>
+        <child>
+          <object class="GtkButton" id="startstopservedomain">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="tooltip_text" translatable="yes">Start/Stop serving a domain</property>
+            <property name="halign">center</property>
+            <child>
+              <object class="GtkImage" id="startstopservedomainimg">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="icon_name">media-playback-start</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">4</property>
+          </packing>
+        </child>
       </object>
       <packing>
         <property name="left_attach">0</property>
@@ -1960,29 +1970,6 @@ family </property>
       </packing>
     </child>
     <child>
-      <object class="GtkButton" id="copyreq">
-        <property name="visible">True</property>
-        <property name="can_focus">True</property>
-        <property name="receives_default">True</property>
-        <property name="tooltip_text" translatable="yes">Copy with header</property>
-        <property name="halign">start</property>
-        <property name="valign">center</property>
-        <signal name="clicked" handler="copy_req_clipboard" swapped="no"/>
-        <child>
-          <object class="GtkImage" id="image26">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="icon_name">edit-copy</property>
-          </object>
-        </child>
-      </object>
-      <packing>
-        <property name="left_attach">2</property>
-        <property name="top_attach">1</property>
-        <property name="height">2</property>
-      </packing>
-    </child>
-    <child>
       <object class="GtkButton" id="labelrequest">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
@@ -1999,7 +1986,49 @@ family </property>
       </packing>
     </child>
     <child>
-      <placeholder/>
+      <object class="GtkButton" id="deleteself1">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="can_default">True</property>
+        <property name="receives_default">True</property>
+        <property name="tooltip_text" translatable="yes">Delete own node from channel</property>
+        <property name="halign">center</property>
+        <property name="valign">center</property>
+        <signal name="clicked" handler="delete_self" swapped="no"/>
+        <child>
+          <object class="GtkImage" id="image25">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="icon_name">edit-delete</property>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">2</property>
+        <property name="top_attach">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkButton" id="copyreq">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="receives_default">True</property>
+        <property name="tooltip_text" translatable="yes">Copy with header</property>
+        <property name="halign">start</property>
+        <signal name="clicked" handler="copy_req_clipboard" swapped="no"/>
+        <child>
+          <object class="GtkImage" id="image26">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="icon_name">edit-copy</property>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="left_attach">2</property>
+        <property name="top_attach">1</property>
+        <property name="height">2</property>
+      </packing>
     </child>
   </object>
 </interface>

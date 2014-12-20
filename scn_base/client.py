@@ -10,7 +10,7 @@ from scn_base._base import scn_base_base
 from scn_base._base import scn_check_return
 from scn_base._base import scnReceiveError
 
-from scn_base._socket import scn_socket
+from scn_base._socket import scn_socket,scn_connect_nocert
 from scn_base._crypto import scn_gen_ncert
 
 from scn_config import max_name_length,max_message_length
@@ -487,7 +487,7 @@ class scn_base_client(scn_base_base):
 
   #@scn_setup
   def c_add_server(self,_servername,_url,_certname=None):
-    _socket=scn_socket(self.connect_to_ip(_url))
+    _socket=scn_socket(scn_connect_nocert(_url))
     if _socket is None:
       logging.error("Error: connection failed")
       return False
@@ -510,7 +510,7 @@ class scn_base_client(scn_base_base):
     if self.scn_servers.get_server(_servername) is None:
       logging.error("Error: server doesn't exist")
       return False
-    _socket=scn_socket(self.connect_to_ip(_url))
+    _socket=scn_socket(scn_connect_nocert(_url))
     if _socket is None:
       logging.error("Error: connection failed")
       return False
@@ -560,7 +560,7 @@ class scn_base_client(scn_base_base):
     return True
   
   def c_update_pending(self,_servername,_domain,_channel):
-    result=not self.c_check_perm(_servername,_domain,_channel)
-    self.scn_servers.update_serve_pendingstate(_servername,_domain,_channel,result)
+    result=self.c_check_perm(_servername,_domain,_channel)
+    self.scn_servers.update_serve_pendingstate(_servername,_domain,_channel,not result)
     return result
     

@@ -17,6 +17,13 @@ from scn_base._base import scnReceiveError
 from scn_config import max_message_length,secret_size,hash_hex_size
 from scn_config import min_name_length,max_name_length,max_user_channels,max_channel_nodes
 
+# special channels:
+# main:
+# 1. generate channel: head (points to latest serve request)
+# 2.          channel: main (hierarchy by nodeid)
+
+
+
 class scn_base_server(scn_base_base):
   scn_domains=None #scn_domain_list()
   scn_store=None #scn_ip_store()

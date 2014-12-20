@@ -224,7 +224,11 @@ class scn_base_base(object):
 
 #channel_types:
 #  "admin": special channel, not disclosed
-#  "main": points to current used computer
+#  "main": special channel:
+#    1. generate channel: head (points to latest serve request of main)
+#    2. channel         : main (hierarchy of main by nodeid)
+#convention:
+
 #  "store": points to storage
 #  "notify": points to primary message device
 #  "special": group for using special_channels <with auth to be implemented again>

@@ -5,11 +5,11 @@ import logging
 
 import socket
 import struct
-from OpenSSL import SSL
+from OpenSSL import SSL,crypto
 
-from scn_base._base import sepm,sepc,_check_invalid_chars_base
+from scn_base._base import sepm,sepc,sepu,_check_invalid_chars_base
 from scn_base._base import scnNoByteseq,scnReceiveError,scnRejectException
-from scn_config import buffersize,max_cmd_size,protcount_max
+from scn_config import buffersize,max_cmd_size,protcount_max,scn_server_port
 
 import random
 ra=random.SystemRandom()
@@ -212,5 +212,68 @@ class scn_socket(object):
     except BrokenPipeError as e:
       logging.debug("Bytesequence: BrokenPipe")
       raise(e)
+
   def close(self):
     self._socket.shutdown()
+
+  #def upgrade(self, cert):
+  #
+
+
+#secure connection
+def scn_connect_cert(_url, _cert, tries=1):
+  #split ip address and port 
+  tempconnectdata=_url.split(sepu)
+  #if len(tempconnectdata)<2:
+  #  logging.error("invalid connect data")
+  #  return
+  if len(tempconnectdata)<2:
+    tempconnectdata+=[scn_server_port,]
+    
+  temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
+  temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+  temp_context.set_cipher_list("HIGH")
+  temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,_cert))
+  for count in range(0,tries):
+    tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #don't use settimeout, pyopenssl error
+    tempsocket = SSL.Connection(temp_context,tempsocket)
+    try:
+      #connect with ssl handshake
+      tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
+      tempsocket.do_handshake()
+    except Exception as e:
+      raise(e)
+    # TODO: works because loop broken
+    tempsocket.setblocking(True)
+    return tempsocket
+  return None
+
+  # ok for the first step
+def scn_connect_nocert(_url,tries=1):
+  if bool(_url)==False:
+    return None
+  tempconnectdata=_url.split(sepu)
+  #if len(tempconnectdata)<2:
+  #  logging.error("invalid connect data")
+  #  return
+  if len(tempconnectdata)<2:
+    tempconnectdata+=[scn_server_port,]
+  temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
+  temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
+  temp_context.set_cipher_list("HIGH")
+
+  for count in range(0,tries):
+    tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #don't use settimeout, pyopenssl error
+    tempsocket = SSL.Connection(temp_context,tempsocket)
+    try:
+      #connect with ssl handshake
+      tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
+      tempsocket.do_handshake()
+    except Exception as e:
+      raise(e)
+    # TODO: works because loop broken
+    tempsocket.setblocking(True)
+    return tempsocket
+  return None

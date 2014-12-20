@@ -16,9 +16,10 @@ import os
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
-from scn_base import scn_base_client,scn_base_base, scn_socket, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_ncert
+from scn_base import scn_base_client,scn_base_base, scn_socket, scn_check_return,init_config_folder, check_certs, generate_certs, scnConnectException,scn_verify_ncert,scn_connect_nocert,scn_connect_cert,scnConnectException
 #,scn_check_return
-from scn_config import client_show_incomming_commands, default_config_folder, scn_server_port, max_cert_size, protcount_max,scn_host
+from scn_config import client_show_incomming_commands, default_config_folder,\
+  max_cert_size, protcount_max,scn_host
 
 from backend.sqlite.client import scn_friends_sql,scn_servs_sql
 
@@ -53,101 +54,38 @@ class scn_client(scn_base_client):
     self.scn_servers=scn_servs_sql(self.config_path+"scn_client_server_db")
     self.scn_friends=scn_friends_sql(self.config_path+"scn_client_friend_db")
 
-#connect methods
+  ### connect methods ###
   def connect_to(self,_server):
     tempdata=self.scn_servers.get_server(_server)
-    if tempdata == None:
+    if tempdata is None:
       raise (scnConnectException("connect_to: servername doesn't exist"))
-    return self.connect_to_url(*tempdata[:2])
-      
-  def connect_to_url(self,_url,_cert):
-    #split ip address and port 
-    tempconnectdata=_url.split(sepu)
-    if len(tempconnectdata)==1:
-      tempconnectdata+=[scn_server_port,]
-    
-    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
-    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    temp_context.set_cipher_list("HIGH")
-    temp_context.use_certificate(crypto.load_certificate(crypto.FILETYPE_PEM,_cert))
-    for count in range(0,3):
-      tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      #don't use settimeout, pyopenssl error
-      tempsocket = SSL.Connection(temp_context,tempsocket)
-      try:
-        #connect with ssl handshake
-        tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
-        tempsocket.do_handshake()
-        break
-      except Exception as e:
-        raise(e)
-      #  if count<2:
-      #    logging.debug(e)
-      #  else:
-      #    raise(e)
-    tempsocket.setblocking(True)
-    return tempsocket
-  
-  def connect_to_ip(self,_url):
-    if bool(_url)==False:
-      return None
-    tempconnectdata=_url.split(sepu)
-    if len(tempconnectdata)==1:
-      tempconnectdata+=[scn_server_port,]
-    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
-    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    temp_context.set_cipher_list("HIGH")
+    return scn_connect_cert(*tempdata[:2])
 
-    for count in range(0,3):
-      tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      #don't use settimeout, pyopenssl error
-      tempsocket = SSL.Connection(temp_context,tempsocket)
-      try:
-        #connect with ssl handshake
-        tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
-        tempsocket.do_handshake()
-        break
-      except Exception as e:
-        raise(e)
-    tempsocket.setblocking(True)
-    return tempsocket
   
-  def c_connect_to_node(self,_server,_domain,_channel="main",_com_method=None):
-    temp_context = SSL.Context(SSL.TLSv1_2_METHOD)
-    temp_context.set_options(SSL.OP_NO_COMPRESSION) #compression insecure (or already fixed??)
-    temp_context.set_cipher_list("HIGH")
-    tempsocket=None
-    method=_com_method
-    _cert=None
-    for elem in self.c_get_channel(_server,_domain,_channel):
-      if _com_method is None:
+  def c_connect_to_node(self, _server,_domain,_channel="main",_addrtype=None):
+    t=self.c_get_channel(_server,_domain,_channel)
+    for elem in t:
+      if _addrtype is None:
         method=elem[0]
+      else:
+        method=_addrtype
       if method=="ip" or method=="wrap":
-        tempconnectdata=elem[1].split(sepu)
-        if len(tempconnectdata)==1:
-          tempconnectdata+=[scn_server_port,]
-        for count in range(0,3):
-          tempsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-          #don't use settimeout, pyopenssl error
-          tempsocket = SSL.Connection(temp_context,tempsocket)
-          try:
-            #connect with ssl handshake
-            tempsocket.connect((tempconnectdata[0],int(tempconnectdata[1])))
-            tempsocket.do_handshake()
-            tempsocket.setblocking(True)
-            break
-          except Exception as e:
-            raise(e)
-      if tempsocket is not None:
-        tempcomsock2=scn_socket(tempsocket)
+        temp=scn_connect_nocert(elem[1])
+        if temp is None:
+          continue
+        tempcomsock2=scn_socket(temp)
         tempcomsock2.send("get_cert")
-        if scn_check_return(tempcomsock2)==True:
-          _cert=tempcomsock2.receive_bytes(0,max_cert_size)
-          if scn_verify_ncert(_domain,_cert,elem[2])==True:
-            break
-    if tempsocket == None:
-      return None
-    return [tempsocket, method, _cert]
+        if scn_check_return(tempcomsock2)==False:
+          tempcomsock2.close()
+          continue
+        _cert=tempcomsock2.receive_bytes(0,max_cert_size)
+        tempcomsock2.close()
+        if scn_verify_ncert(_domain,_cert,elem[2])==False:
+          continue
+        tsock=scn_connect_cert(elem[1],_cert)
+        return [tsock,_cert,method]
+    #raise(scnConnectException)
+    return [None,None,None]
 
   def update_serves(self):
     for serveob in self.scn_servers.list_serves(True):

@@ -153,3 +153,27 @@ class scnNameAddDialog(Gtk.Dialog):
 
     self.show_all()
 
+
+class scnAddFriendDialog(Gtk.Dialog):
+  name=None
+  def __init__(self, _parent, _title,_server,_domain,_nodename):
+    self.parent=_parent
+    self.name=Gtk.Entry()
+    self.name.set_hexpand(True)
+#    self.name.set_text(_name)
+    
+    Gtk.Dialog.__init__(self, _title, self.parent,
+                        Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
+    self.set_default_size(150, 100)
+    
+    self.add_button("Cancel", Gtk.ResponseType.CANCEL)
+    self.add_button("OK", Gtk.ResponseType.OK)
+    box = self.get_content_area()
+    cont=Gtk.Grid()
+    box.add(cont)
+    message=Gtk.Label("Add {}/{} as:".format(_server,_domain))
+    self.name=_nodename
+    cont.attach(message,0,0,1,1)
+    cont.attach(self.name,0,1,1,1)
+
+    self.show_all()

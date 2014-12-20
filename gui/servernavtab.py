@@ -254,12 +254,11 @@ class servernavtab(object):
     else:
       domainmessagebuffer.set_text(tempmes)
 
+    is_admin=True
     tnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
     if tnode is None:
       is_admin=False
-    else:
-      is_admin=True
-    if tnode is not None and tnode[4]==True:
+    if is_admin==True and bool(tnode[4])==True:
       is_admin=self.linkback.main.c_update_pending(self.cur_server,self.cur_domain,"admin")
       
     #hide controls if client has no admin rights
@@ -372,11 +371,13 @@ class servernavtab(object):
     elif _channel=="main":
       self.builder.get_object("channel1").set_text("Main")
       self.builder.get_object("channel2").set_text("Main")
-      _channeldata.add(self.builder.get_object("mainchannel"))
+      #_channeldata.add(self.builder.get_object("mainchannel"))
+      _channeldata.add(self.builder.get_object("genericchannel"))
     elif _channel=="notify":
       self.builder.get_object("channel1").set_text("Notify")
       self.builder.get_object("channel2").set_text("Notify")
-      _channeldata.add(self.builder.get_object("notifychannel"))
+      #_channeldata.add(self.builder.get_object("notifychannel"))
+      _channeldata.add(self.builder.get_object("genericchannel"))
     else:
       self.builder.get_object("channel1").set_text("__"+_channel)
       self.builder.get_object("channel2").set_text("__"+_channel)
@@ -898,3 +899,20 @@ class servernavtab(object):
   def copy_req_clipboard(self,*args):
     self.builder.get_object("usreqresultb").copy_clipboard(self.clip)
     
+
+  def add_friend(self,*args):
+    """dialog = scnAddFriendDialog(self.win,self.cur_server,self.cur_domain,self.cur_channel,nname)
+    try:
+      if dialog.run()==Gtk.ResponseType.OK:
+        #returnel=Gtk.Label("Success")  
+        for elem in tsecretlistin:
+          if count!=searchedposition:
+            tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
+            count+=1
+        self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,self.cur_channel,tsecretlistout[:-1])
+      else:
+        self.statusbar.push(self.messageid,"Error, something happened")
+    except Exception as e:
+      self.statusbar.push(self.messageid,str(e))
+    dialog.destroy()"""
+    pass
