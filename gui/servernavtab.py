@@ -1,6 +1,6 @@
 
 from gi.repository import Gtk,Gdk
-from gui.dialogs import scnDeletionDialog,scnServerAddDialog,scnServerEditDialog,scnNameAddDialog
+from gui.dialogs import scnDeletionDialog,scnServerAddDialog,scnServerEditDialog,scnNameAddDialog,scnSelfDeletionDialog
 from scn_base import check_invalid_s,sepc,sepu,scn_gen_ncert
 
 import hashlib
@@ -11,6 +11,7 @@ class servernavtab(object):
   reset_button_id=None
   _cache_request_channel=None
   _cache_request_hashes=None
+  _cache_request_name_field=None
   cur_server=None #use only after set by scnupdate
   cur_domain=None #use only after set by scnupdate
   cur_channel=None #use only after set by scnupdate
@@ -25,6 +26,7 @@ class servernavtab(object):
   def __init__(self):
     self.navcontent=self.builder.get_object("navcontent")
     self.navbox=self.builder.get_object("navbox")
+    self._cache_request_name_field=self.builder.get_object("usreqname")
     renderer = Gtk.CellRendererText()
     renderer2 = Gtk.CellRendererText()
     tempelem = Gtk.TreeViewColumn("", renderer2, text=0)
@@ -291,8 +293,18 @@ class servernavtab(object):
     if self.box_activate_handler_id!=None:
       self.navbox.disconnect(self.box_activate_handler_id)
       self.box_activate_handler_id=None
-
     
+    if self.cur_channel!="admin":
+      self.builder.get_object("showaddrtype").show()
+      self.builder.get_object("addrtypelabel").show()
+      self.builder.get_object("showaddr").show()
+      self.builder.get_object("addrlabel").show()
+    else:
+      self.builder.get_object("showaddrtype").hide()
+      self.builder.get_object("addrtypelabel").hide()
+      self.builder.get_object("showaddr").hide()
+      self.builder.get_object("addrlabel").hide()
+      
     newob=self.builder.get_object("channelcontext")
     cdin=self.builder.get_object("contextdropin")
     if len(cdin.get_children())==1:
@@ -399,7 +411,7 @@ class servernavtab(object):
       # if special channel deactivate completely elsewise
       # offer menu to select connect type
       if _channel=="admin":
-        _dropinob.add(self.builder.get_object("alreadyreqdropel"))
+        pass
     else:
       _dropinob.add(self.builder.get_object("requestdropelem"))
       #TODO: ease for admins
@@ -409,15 +421,17 @@ class servernavtab(object):
         namefield.set_text(self.linkback.main.name)
       domaincerthash=scn_gen_ncert(self.cur_domain,self.linkback.main.pub_cert)
       hashed_secret=hashlib.sha256(tempnode[2]).hexdigest()
-      self._cache_request_channel=_channel
-      self._cache_request_hashes=str(hashed_secret)+","+domaincerthash
+      self._cache_request_channel=_channel # channel
+      self._cache_request_hashes="{},{}".format(hashed_secret,domaincerthash)
+      self.builder.get_object("labelrequest").set_label("domain:{},channel:{}".format(self.cur_domain,self._cache_request_channel))
       self.fill_req_result()
       
   def fill_req_result(self,*args):
     if self._cache_request_channel is None or self._cache_request_hashes is None:
       return
-    tempname=self.builder.get_object("usreqname").get_text()
-    self.builder.get_object("usreqresult").set_text(self._cache_request_channel+","+tempname+","+self._cache_request_hashes)
+    tempname=self._cache_request_name_field.get_text()
+    self.builder.get_object("usreqresultb")\
+    .set_text("{},{},{},{}".format(self.cur_domain,self._cache_request_channel,tempname,self._cache_request_hashes))
 
 
     
@@ -430,19 +444,25 @@ class servernavtab(object):
         tempnodeid=int(tempnodeid[0][tempnodeid[1]][0])
       except Exception:
         return
+    addrtype=self.builder.get_object("showaddrtype")
+    addr=self.builder.get_object("showaddr")
+    nodehash=self.builder.get_object("shownodecerthash")
+
+    if self.cur_channel=="admin":
+      tempnodel=self.linkback.main.c_get_channel_nodes(self.cur_server,self.cur_domain,self.cur_channel,tempnodeid)
+    else:
+      tempnodel=self.linkback.main.c_get_channel_addr(self.cur_server,self.cur_domain,self.cur_channel,tempnodeid)
     
-    tempnodel=self.linkback.main.c_get_channel_addr(self.cur_server,self.cur_domain,self.cur_channel,tempnodeid)
-    addrtype=self.builder.get_object("addrtypelabel")
-    addr=self.builder.get_object("addrlabel")
-    nodehash=self.builder.get_object("nodecerthashlabel")
     if bool(tempnodel)==False:
       addrtype.set_text("N/A")
       addr.set_text("N/A")
       nodehash.set_text("N/A")
+    elif self.cur_channel=="admin":
+      nodehash.set_text(tempnodel[0][1])
     else:
       addrtype.set_text(tempnodel[0][0])
       addr.set_text(tempnodel[0][1])
-      nodehash.set_text(tempnodel[0][1])
+      nodehash.set_text(tempnodel[0][2])
     
   ### select section  ###
   def goback_none(self,*args):
@@ -827,15 +847,21 @@ class servernavtab(object):
     temp=self.builder.get_object("reqaduser").get_text()
     self.builder.get_object("reqaduser").set_text("")
     t=temp.split(",")
-    if len(t)!=4:
+    if len(t)!=5:
       self.statusbar.push(self.messageid,"Error, invalid request")
       return
-    reqadnamein,reqadchannel,reqadshashin,reqadphashin=t
+    checkdomain,reqadnamein,reqadchannel,reqadshashin,reqadphashin=t
+    if checkdomain!=self.cur_domain:
+      self.statusbar.push(self.messageid,"Error, wrong domain")
+      return
     self.builder.get_object("reqadname").set_text(reqadnamein)
     self.builder.get_object("reqadchannel").set_text(reqadchannel)
     self.builder.get_object("reqadphash").set_text(reqadphashin) # hash public
     self.builder.get_object("reqadshash").set_text(reqadshashin) # hash secret
-    self.builder.get_object("reqadnodeposition").set_value(0)
+    nodecount= self.linkback.main.c_length_channel(self.cur_server,self.cur_domain,reqadchannel)
+    rpos=self.builder.get_object("reqadnodeposition")
+    rpos.set_range(0,nodecount)
+    rpos.set_value(nodecount) #set to last position
   
   def confirm_request(self,*args): #reqadname,reqadhash,reqadnodeposition
     aname=self.builder.get_object("reqadname").get_text()
@@ -848,6 +874,12 @@ class servernavtab(object):
     tsecretlistin=self.linkback.main.c_get_channel_secrethash(self.cur_server,self.cur_domain,ctemp)
     if tsecretlistin is None:
       return
+    #shortcut if bigger
+    if dpos>=len(tsecretlistin):
+      tsecretlistin+=aname+sepu+bhash+sepu+chash
+      self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,ctemp,tsecretlistin)
+      return
+    
     tsecretlistout=""
     count=0
     for elem in tsecretlistin:
@@ -856,13 +888,13 @@ class servernavtab(object):
       else:
         tsecretlistout+=aname+sepu+bhash+chash+sepc
         tsecretlistout+=elem[0]+sepu+elem[1]+sepu+elem[2]+sepc
-    if dpos>=len(tsecretlistin):
-      tsecretlistout+=aname+sepu+bhash+sepu+chash+sepc
+      count+=1
     self.linkback.main.c_update_channel(self.cur_server,self.cur_domain,ctemp,tsecretlistout[:-1])
 
-  def select_all_clipboard(self,*args):
-    t=self.builder.get_object("usreqresult")
-    t.select_region(0,len(t.get_text()))
+  def select_all_req_clipboard(self,*args):
+    t=self.builder.get_object("usreqresultb")
+    t.select_range(*t.get_bounds())
     
-    self.clip.set_text(t.get_text(), -1)
-
+  def copy_req_clipboard(self,*args):
+    self.builder.get_object("usreqresultb").copy_clipboard(self.clip)
+    
