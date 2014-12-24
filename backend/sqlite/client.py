@@ -20,9 +20,15 @@ class scn_friends_sql(object):
       logging.error(e)
       return
     try:
-      #TODO: cert is pub cert used for signing the certhashlist
+      # pservername TEXT, pdomain TEXT: primary server,domain; for updates
       con.execute('''CREATE TABLE if not exists
-      scn_friends(friendname TEXT, cert BLOB, PRIMARY KEY(friendname))''')
+      scn_friends(friendname TEXT, pservername TEXT, pdomain TEXT, PRIMARY KEY(friendname))''')
+
+      con.execute('''CREATE TABLE if not exists
+      scn_friends_cert(friendname TEXT,clientname TEXT, cert BLOB, PRIMARY KEY(clientname)
+      FOREIGN KEY(friendname) REFERENCES scn_friends(friendname) ON UPDATE CASCADE ON DELETE CASCADE,
+      PRIMARY KEY(friendname,clientname))''')
+      
       con.execute('''CREATE TABLE if not exists
       scn_friends_server(friendname TEXT, servername TEXT, domain TEXT,
       FOREIGN KEY(friendname) REFERENCES scn_friends(friendname) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -33,7 +39,7 @@ class scn_friends_sql(object):
       logging.error(u)
     con.close()
 
-  def get_friend(self,_friendname):
+  def get_friend_cert(self,_friendname):
     temp=None
     try:
       con=sqlite3.connect(self.db_path)
@@ -42,14 +48,14 @@ class scn_friends_sql(object):
       return None
     try:
       cur = con.cursor()
-      cur.execute('''SELECT cert
-      FROM scn_friends
-      WHERE  friendname=?''',(_friendname,))
+      cur.execute('''SELECT clientname,cert
+      FROM scn_friends_cert
+      WHERE friendname=?''',(_friendname,))
       temp=cur.fetchall()
     except Exception as u:
       logging.error(u)
     con.close()
-    return temp #return cert
+    return temp #return clientname,cert list
 
   #if servername=None return all
   def get_server(self,_friendname,_servername=None):
@@ -99,18 +105,22 @@ class scn_friends_sql(object):
     return True
 
   def del_friend(self,_friendname):
+    if self.get_friend(_friendname) is None:
+      logging.error("Deletion of non-existent object")
+      return True
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
       logging.error(u)
       return False
-    if self.get_friend(_friendname) is None:
-      logging.error("Deletion of non-existent object")
-      return True
     try:
       #con.beginn()
       cur = con.cursor()
       cur.execute('''DELETE FROM scn_friends
+      WHERE friendname=?;''',(_friendname,))
+      cur.execute('''DELETE FROM scn_friends_cert
+      WHERE friendname=?;''',(_friendname,))
+      cur.execute('''DELETE FROM scn_friends_server
       WHERE friendname=?;''',(_friendname,))
       con.commit();
     except Exception as u:
@@ -120,6 +130,24 @@ class scn_friends_sql(object):
     con.close()
     return True
 
+  def del_friend_cert(self,_friendname,_clientname):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      logging.error(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''DELETE FROM scn_friends_cert
+      WHERE friendname=? AND clientname=?;''',(_friendname,_clientname))
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      logging.error(u)
+      return False
+    con.close()
+    return True
 
 
   def update_server(self,_friendname,_servername,_domain):
@@ -178,7 +206,6 @@ class scn_friends_sql(object):
       return False
     con.close()
     return True
-
 
 #scn_servs: _channelname: _server,_name:secret
 class scn_servs_sql(object):
