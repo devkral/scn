@@ -81,7 +81,49 @@ class scn_friends_sql(object):
     con.close()
     return temp #return servernamelist
 
-  def update_friend(self,_friendname,_cert=None):
+  def add_server(self,_friendname,_servername,_domain):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      logging.error(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''INSERT into scn_friends_server(friendname,servername,domain) values(?,?,?);''',(_friendname,_servername,_domain))
+      
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      logging.error(u)
+      return False
+    con.close()
+    return True
+  
+  # update an existing server
+  def update_server(self,_servername_old,_servername_new,_friendname=None):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      logging.error(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      if _friendname is None:
+        cur.execute('''UPDATE scn_friends_server SET servername=? WHERE servername=?;''',(_servername_new,_servername_old))
+      else:
+        cur.execute('''UPDATE scn_friends_server SET servername=? WHERE servername=? AND friendname=?;''',(_servername_new,_servername_old,_friendname))
+        
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      logging.error(u)
+      return False
+    con.close()
+    return True
+
+  def update_friend_cert(self,_friendname,_client,_cert=None):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -93,7 +135,7 @@ class scn_friends_sql(object):
     try:
       cur = con.cursor()
       if _cert is not None:
-        cur.execute('''INSERT OR REPLACE into scn_friends(friendname,cert) values(?,?);''',(_friendname,_cert))
+        cur.execute('''INSERT OR REPLACE into scn_friends_server(friendname,cert) values(?,?);''',(_friendname,_cert))
       else:
         cur.execute('''INSERT OR REPLACE into scn_friends(friendname) values(?);''',(_friendname,))
       con.commit();
@@ -149,26 +191,7 @@ class scn_friends_sql(object):
     con.close()
     return True
 
-
-  def update_server(self,_friendname,_servername,_domain):
-    try:
-      con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      logging.error(u)
-      return False
-    try:
-      #con.beginn()
-      cur = con.cursor()
-      cur.execute('''INSERT OR REPLACE into scn_friends_server(friendname,servername,domain) values(?,?,?);''',(_friendname,_servername,_domain))
-      
-      con.commit();
-    except Exception as u:
-      con.rollback()
-      logging.error(u)
-      return False
-    con.close()
-    return True
-
+  
   def del_server_friend(self,_friendname,_servername):
     try:
       con=sqlite3.connect(self.db_path)
@@ -187,6 +210,7 @@ class scn_friends_sql(object):
       return False
     con.close()
     return True
+  
 
   #delete server from all friends
   def del_server_all(self,_servername):

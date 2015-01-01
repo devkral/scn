@@ -106,7 +106,7 @@ if __name__ == "__main__":
   client_thread.daemon = True
   client_thread.start()
 
-  scnGUI(cm,"guiscn.glade")
+  scnGUI(cm,"gui/guiscn.glade")
   while run==True:
     Gtk.main_iteration_do(True)
   
