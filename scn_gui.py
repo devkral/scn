@@ -35,7 +35,6 @@ icons=Gtk.IconTheme.get_default()
 
 class scnApp(Gtk.Application,logging.NullHandler):
   linkback=None
-  mainbuilder=None
   def __init__(self,_linkback):
     Gtk.Application.__init__(self,
                              application_id="org.scn.scn",
@@ -44,17 +43,13 @@ class scnApp(Gtk.Application,logging.NullHandler):
     #logging.NullHandler.__init__(self)
     #logging.basicConfig(handlers=self)
     self.linkback=_linkback
-    self.mainbuilder=Gtk.Builder.new_from_file("gui/guiscn.glade")
     self.connect("activate", self.createMainWin)
     
   def createMainWin(self,app):
-    t=scnGUI(app.linkback,self.mainbuilder)
+    t=scnGUI(app.linkback)
     app.add_window(t.win)
+
     
-  def createFriendWin(self,app):
-    pass
-
-
 
   
 class scnGUI(servernavtab):
@@ -71,11 +66,11 @@ class scnGUI(servernavtab):
   clip=None #clipboard
 
 
-  def __init__(self,_linkback,_builder):
+  def __init__(self,_linkback):
     #logging.NullHandler.__init__(self)
     #logging.basicConfig(handlers=self)
     self.linkback=_linkback
-    self.builder=_builder
+    self.builder=Gtk.Builder.new_from_file("gui/guiscn.glade")
     self.clip=Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     self.win=self.builder.get_object("mainwindow")
     self.navbar=self.builder.get_object("navbar")
@@ -122,6 +117,19 @@ if __name__ == "__main__":
   logging.basicConfig(level=logging.DEBUG)
   cm.main=scn_client(cm,default_config_folder)
 
+  
+  cm.gui=scnApp(cm)
+  if cm.gui.register()==False:
+    logging.error("Couldn't register")
+    sys.exit(1)
+  if cm.gui.get_is_remote()==True:
+    #try:
+    #cm.gui.get_active_window().present()
+    #except Exception:
+    #  pass
+    logging.debug("Instance already exists")
+    sys.exit(0)
+    
   handler=scn_server_client
   handler.linkback=cm
   cm.receiver = scn_sock_client((scn_host, 0),handler, cm)
@@ -131,8 +139,6 @@ if __name__ == "__main__":
   client_thread.daemon = True
   client_thread.start()
 
-  cm.gui=scnApp(cm)
-  cm.gui.register()
   cm.gui.activate()
   while run==True:
     Gtk.main_iteration_do(True)
