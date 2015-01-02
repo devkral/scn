@@ -45,7 +45,7 @@ class scnGUI(logging.NullHandler,servernavtab):
 
 
   def __init__(self,_linkback,_uipath):
-    logging.NullHandler.__init__(self)
+    #logging.NullHandler.__init__(self)
     #logging.basicConfig(handlers=self)
     self.linkback=_linkback
     self.builder=Gtk.Builder()

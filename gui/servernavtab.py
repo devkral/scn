@@ -1,6 +1,6 @@
 
 from gi.repository import Gtk,Gdk
-from gui.dialogs import scnDeletionDialog,scnServerAddDialog,scnServerEditDialog,scnNameAddDialog,scnSelfDeletionDialog
+from gui.dialogs import scnDeletionDialog,scnServerAddDialog,scnServerEditDialog,scnNameAddDialog,scnSelfDeletionDialog,scnForceDeletionDialog
 from scn_base import check_invalid_s,sepc,sepu,scn_gen_ncert
 
 import hashlib
@@ -17,16 +17,25 @@ class servernavtab(object):
   cur_channel=None #use only after set by scnupdate
   box_select_handler_id=None
   box_activate_handler_id=None
+  start_stop_handler_id=None
+  
   listelems=None
 
-  navbar=None
+  navbar=None # needed???
   navbox=None
   navcontent=None
+  scn_servers=None
+  scn_friends=None
+  
 
   def __init__(self):
-    self.navcontent=self.builder.get_object("navcontent")
+    self.navbar=self.builder.get_object("navbar")
     self.navbox=self.builder.get_object("navbox")
+    self.navcontent=self.builder.get_object("navcontent")
+    self.scn_servers=self.linkback.main.scn_servers
+    self.scn_friends=self.linkback.main.scn_friends
     self._cache_request_name_field=self.builder.get_object("usreqname")
+    
     renderer = Gtk.CellRendererText()
     renderer2 = Gtk.CellRendererText()
     tempelem = Gtk.TreeViewColumn("", renderer2, text=0)
@@ -74,7 +83,7 @@ class servernavtab(object):
     self.update(*splitnavbar[:3])
 
   def updateserverlist(self, *args):
-    temp2=self.linkback.main.scn_servers.list_servers()
+    temp2=self.scn_servers.list_servers()
     if temp2 is None:
       return False
     self.listelems.set_title("Server")
@@ -90,8 +99,8 @@ class servernavtab(object):
     if _tremote_domains is None:
       return False
     # more validation would be better
-    _tadmin_domains=self.linkback.main.scn_servers.list_domains(self.cur_server,"admin",False)
-    _tlocal_domains=self.linkback.main.scn_servers.list_domains(self.cur_server,False)
+    _tadmin_domains=self.scn_servers.list_domains(self.cur_server,"admin",False)
+    _tlocal_domains=self.scn_servers.list_domains(self.cur_server,False)
     self.navbox.show()
     self.listelems.set_title("Domain")
     self.navcontent.clear()
@@ -115,13 +124,35 @@ class servernavtab(object):
     return True
 
   def updatechannellist(self, *args):
-    temp2=self.linkback.main.c_list_channels(self.cur_server,self.cur_domain)
-    if temp2 is None:
+    _tremote_channels=self.linkback.main.c_list_channels(self.cur_server,self.cur_domain)
+    if _tremote_channels is None:
+      return False
+    _tlocal_channels=self.scn_servers.list_channels(self.cur_server,self.cur_domain)
+    if _tlocal_channels is None:
       return False
     self.navbox.show()
     self.listelems.set_title("Channel")
     self.navcontent.clear()
-    for elem in temp2:
+
+    for elem in _tlocal_channels:
+      prefix=""
+      if elem[0] in _tremote_channels:
+        _tremote_channels.remove(elem[0])
+      else:
+        prefix+="l"
+
+      if elem[0]=="admin" and elem[1]==0:
+        prefix+=" a"
+      elif elem[1]==1 and elem[2]==1:
+        prefix+=" \u231B"
+      elif elem[2]==1:
+        prefix+=" \u25B6"
+      else:
+        prefix+=" \u25AE\u25AE"
+      self.navcontent.append((prefix,elem[0]))
+
+    # add remaining channels
+    for elem in _tremote_channels:
       self.navcontent.append(("",elem))
     self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
     return True
@@ -196,7 +227,7 @@ class servernavtab(object):
       servermessagebuffer.set_text(tempmes)
       
     #hide controls if client is not server admin      
-    if self.linkback.main.scn_servers.get_channel(self.cur_server,"admin","admin") is None:
+    if self.scn_servers.get_channel(self.cur_server,"admin","admin") is None:
       self.builder.get_object("servermessagecontrols").hide()
     else:
       servermessage.set_editable(True)
@@ -255,7 +286,7 @@ class servernavtab(object):
       domainmessagebuffer.set_text(tempmes)
 
     is_admin=True
-    tnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+    tnode=self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
     if tnode is None:
       is_admin=False
     if is_admin==True and bool(tnode[4])==True:
@@ -311,7 +342,7 @@ class servernavtab(object):
     cdin.add(newob)
 
     #hide renew secret if no secret is available or it isn't confirmed
-    tnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel)
+    tnode=self.scn_servers.get_channel(self.cur_server,self.cur_domain,self.cur_channel)
     if tnode is not None: # and tnode[4]==False:
       self.builder.get_object("renewsecret").show()
       self.builder.get_object("deleteself").show()
@@ -320,7 +351,7 @@ class servernavtab(object):
       self.builder.get_object("deleteself").hide()
       
     #hide admin options for non-admins
-    tadmin=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+    tadmin=self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
     if tadmin is None or tadmin[4]==True:
       self.builder.get_object("pinchannelorderb").hide()
       self.builder.get_object("addnodeb").hide()
@@ -353,7 +384,7 @@ class servernavtab(object):
     if _channel=="admin":
       self.builder.get_object("channel1").set_text("Admin")
       self.builder.get_object("channel2").set_text("Admin")
-      atemp=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+      atemp=self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
       if atemp is not None and bool(atemp[4])==False:
         _channeldata.add(self.builder.get_object("adminchannel"))
       else:
@@ -389,7 +420,7 @@ class servernavtab(object):
     _channel=self.get_cur_channel()
     if _channel is None:
       return
-    tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server, 
+    tempnode=self.scn_servers.get_channel(self.cur_server, 
     self.cur_domain, _channel)
     #protection against double add if some gui runs wild
     if tempnode is None:
@@ -401,7 +432,7 @@ class servernavtab(object):
     #cleanup
     if len(_dropinob.get_children())==1:
       _dropinob.remove(_dropinob.get_children()[0])
-    tempnode=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
+    tempnode=self.scn_servers.get_channel(self.cur_server,self.cur_domain,_channel)
     if tempnode is None:
       _dropinob.add(self.builder.get_object("genrequestb"))
       self._cache_request_channel=None
@@ -416,7 +447,7 @@ class servernavtab(object):
     else:
       _dropinob.add(self.builder.get_object("requestdropelem"))
       #TODO: ease for admins
-      #tempnodeadmin=self.linkback.main.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
+      #tempnodeadmin=self.scn_servers.get_channel(self.cur_server,self.cur_domain,"admin")
       namefield=self.builder.get_object("usreqname")
       if namefield.get_text().strip()=="":
         namefield.set_text(self.linkback.main.name)
@@ -548,6 +579,33 @@ class servernavtab(object):
         messagebuffer.set_text(tempmessage)
 
   def select_context_channel(self,*args):
+    _imgob=self.builder.get_object("startstopservechannelimg")
+    _butob=self.builder.get_object("startstopservechannel")
+    
+    _tchannelname=self.get_cur_channel()
+    if _tchannelname is not None:
+      _tchannelinf=self.scn_servers.get_channel(
+        self.cur_server, self.cur_domain, _tchannelname)
+    else:
+      _tchannelinf=None
+    if self.start_stop_handler_id!=None:
+      _butob.disconnect(self.start_stop_handler_id)
+      self.start_stop_handler_id=None
+    
+    if _tchannelname=="admin" or \
+       _tchannelinf is None:
+      _butob.hide()
+    else:
+      if _tchannelinf[5]==1:
+        # channel is active, so add stop button
+        _imgob.set_from_icon_name("media-playback-pause",0)
+        self.start_stop_handler_id=_butob.connect("clicked",self.pause_serve)
+      else:
+        # channel is inactive
+        _imgob.set_from_icon_name("media-playback-start",0)
+        self.start_stop_handler_id=_butob.connect("clicked",self.unpause_serve)
+      _butob.show_all()
+    
     channelfold=self.builder.get_object("dropinchannelcontext2")
     if len(channelfold.get_children())>=1:
       channelfold.remove(channelfold.get_children()[0])
@@ -620,7 +678,7 @@ class servernavtab(object):
 
   def edit_server_intern(self,_server):
     returnstate=False
-    temp=self.linkback.main.scn_servers.get_server(_server)
+    temp=self.scn_servers.get_server(_server)
     if temp is None:
       self.statusbar.push(self.messageid,"\""+_server +"\" does not exist")
       return
@@ -635,17 +693,17 @@ class servernavtab(object):
           return False
         if tempcertname!="" and tempcertname!=temp[2]:
           if dialog.certchange.get_active()==False:
-            if self.linkback.main.scn_servers.update_cert_name(temp[2],tempcertname)==False:
+            if self.scn_servers.update_cert_name(temp[2],tempcertname)==False:
               dialog.destroy()
               self.statusbar.push(self.messageid,"Certificate renaming failed")
               return False
           else:
-            if self.linkback.main.scn_servers.change_cert(_server,tempcertname)==False:
+            if self.scn_servers.change_cert(_server,tempcertname)==False:
               self.statusbar.push(self.messageid,"Changing certificate failed")
               dialog.destroy()
               return False
         if dialog.servername!=_server:
-          self.linkback.main.scn_servers.update_server_name(_server,dialog.servername.get_text())
+          self.scn_servers.update_server_name(_server,dialog.servername.get_text())
           
         if self.linkback.main.c_update_server(dialog.servername.get_text(),dialog.url.get_text())==True:
           returnstate=True
@@ -684,21 +742,27 @@ class servernavtab(object):
     try:
       if dialog.run()==Gtk.ResponseType.OK:
         if self.linkback.main.c_delete_domain(self.cur_server,_delete_domain)==True:
-          self.linkback.main.scn_servers.del_domain(self.cur_server,_delete_domain)
+          self.scn_servers.del_domain(self.cur_server,_delete_domain)
           self.statusbar.push(self.messageid,"Success")
           returnstate=True
           #returnel=Gtk.Label("Success")
         else:
           self.statusbar.push(self.messageid,"Error, something happened")
-        
           
     except Exception as e:
       self.statusbar.push(self.messageid,str(e))
     dialog.destroy()
     if returnstate==False:
-      pass
-      #delete anyway dialog
-      #self.linkback.main.scn_servers.del_domain(self.cur_server,_delete_domain)
+      dforce = scnForceDeletionDialog(self.win)
+      try:
+        if dforce.run()==Gtk.ResponseType.OK:
+          returnstate=self.scn_servers.del_domain(self.cur_server,_delete_domain)
+          self.updatedomainlist()
+          self.statusbar.push(self.messageid,"Success")
+      except Exception as e:
+        self.statusbar.push(self.messageid,str(e))
+      dforce.destroy()
+ 
 
     return returnstate
 
@@ -746,6 +810,7 @@ class servernavtab(object):
     except Exception as e:
       self.statusbar.push(self.messageid,str(e))
     dialog.destroy()
+      
     return returnstate
 
   def delete_channel(self, *args):
@@ -831,18 +896,28 @@ class servernavtab(object):
     dialog = scnSelfDeletionDialog(self.win,self.cur_server,self.cur_domain,self.cur_channel)
     try:
       if dialog.run()==Gtk.ResponseType.OK:
-        if self.linkback.main.c_del_serve(self.cur_server,self.cur_domain,self.cur_channel)==False:
-          self.statusbar.push(self.messageid,"Error deleting self")
-          #TODO: ask for force
-        else:
+        returnstate=self.linkback.main.c_del_serve(self.cur_server,self.cur_domain,self.cur_channel)
+        if returnstate==True:
           self.statusbar.push(self.messageid,"Success")
           self.updatenodelist()
       else:
-        self.statusbar.push(self.messageid,"Error, something happened")
+        returnstate=True
     except Exception as e:
       self.statusbar.push(self.messageid,str(e))
     dialog.destroy()
+
     
+    if returnstate==False:
+      dforce = scnForceDeletionDialog(self.win)
+      try:
+        if dforce.run()==Gtk.ResponseType.OK:
+          returnstate=self.scn_servers.del_channel(self.cur_server,self.cur_domain,self.cur_channel)
+          #returnstate=self.scn_friends.del_node_all(_delete_server)
+          self.updatenodelist()
+          self.statusbar.push(self.messageid,"Success")
+      except Exception as e:
+        self.statusbar.push(self.messageid,str(e))
+      dforce.destroy()
     
   def load_request(self,*args):
     temp=self.builder.get_object("reqaduser").get_text()
@@ -898,8 +973,16 @@ class servernavtab(object):
     
   def copy_req_clipboard(self,*args):
     self.builder.get_object("usreqresultb").copy_clipboard(self.clip)
-    
 
+  def pause_serve(self,*args):
+    self.scn_servers.set_active_serve(self.cur_server,self.cur_domain,self.get_cur_channel(),False)
+    self.select_context_channel()
+    
+  def unpause_serve(self,*args):
+    self.scn_servers.set_active_serve(self.cur_server,self.cur_domain,self.get_cur_channel(),True)
+    self.select_context_channel()
+
+  
   def add_friend(self,*args):
     """dialog = scnAddFriendDialog(self.win,self.cur_server,self.cur_domain,self.cur_channel,nname)
     try:

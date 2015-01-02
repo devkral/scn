@@ -142,7 +142,6 @@ class scn_base_client(scn_base_base):
       logging.error("Undeleteable specialdomain admin")
       return False
 
-    
     if self.c_check_domain(_servername,_domain)==False:
       self.scn_servers.del_domain(_servername,_domain)
       return True
@@ -152,11 +151,12 @@ class scn_base_client(scn_base_base):
     temp=self._c_admin_auth(_socket,_domain)
     if temp is None:
       return False
-    if scn_check_return(_socket)==False:
-      _socket.close()
+    returnvar=scn_check_return(_socket)
+    _socket.close()
+    if returnvar==False:
       return False
     self.scn_servers.del_domain(_servername,_domain)
-    _socket.close()
+    self.scn_friends.del_node_all(_servername,_domain)
     return True
     
   #@scn_setup
@@ -185,6 +185,10 @@ class scn_base_client(scn_base_base):
     _socket.send(_channel+sepm)
     _server_response=scn_check_return(_socket)
     _socket.close()
+    
+    if _server_response==True:
+      self.scn_servers.del_channel(_servername,_domain,_channel)
+      self.scn_friends.del_node_all(_servername,_domain,_channel)
     return _server_response
   
   #@scn_setup
@@ -401,7 +405,7 @@ class scn_base_client(scn_base_base):
     return [_servername,_domain,_channel,hashlib.sha256(_secret).hexdigest()]
 
   #@scn_setup
-  def c_del_serve(self,_servername,_domain,_channel,force=False):
+  def c_del_serve(self,_servername,_domain,_channel):
     temp=self.scn_servers.get_channel(_servername,_domain,_channel)
     if temp is None:
       logging.error("not node of channel")
@@ -417,11 +421,8 @@ class scn_base_client(scn_base_base):
     _socket.close()
     if _server_response==False and temp[4]==False: # if is not pending
       logging.error("deleting on server failed")
-      if force==False:
-        return False
-    if self.scn_servers.del_channel(_servername,_domain,_channel)==False:
       return False
-    return True
+    return self.scn_servers.del_channel(_servername,_domain,_channel)
 
   def c_serve_channel(self,_servername,_domain,_channel,_addr_type,_addr):
     _socket=scn_socket(self.connect_to(_servername))
@@ -545,10 +546,12 @@ class scn_base_client(scn_base_base):
   #@scn_setup
   def c_delete_server(self,_servername):
     if self.scn_servers.del_server(_servername)==True:
-      return True
-      #return self.scn_friends.del_server_all(_servername)
+      if self.scn_friends.del_server_all(_servername)==True:
+        return True
+      logging.error("server deletion failed in scn_friends")
+      return False
     else:
-      logging.error("server deletion failed")
+      logging.error("server deletion failed in scn_servers")
       return False
   def c_check_perm(self,_servername,_domain,_channel):
     _socket=scn_socket(self.connect_to(_servername))

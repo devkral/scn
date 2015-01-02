@@ -25,7 +25,7 @@ class scn_friends_sql(object):
       scn_friends(friendname TEXT, pservername TEXT, pdomain TEXT, PRIMARY KEY(friendname))''')
 
       con.execute('''CREATE TABLE if not exists
-      scn_friends_cert(friendname TEXT,clientname TEXT, cert BLOB, PRIMARY KEY(clientname)
+      scn_friends_cert(friendname TEXT,clientname TEXT, cert BLOB,
       FOREIGN KEY(friendname) REFERENCES scn_friends(friendname) ON UPDATE CASCADE ON DELETE CASCADE,
       PRIMARY KEY(friendname,clientname))''')
       
@@ -231,6 +231,55 @@ class scn_friends_sql(object):
     con.close()
     return True
 
+  # delete node=domain/channel of friend
+  def del_node_friend(self,_friendname,_servername,_domain,_channel=None):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      logging.error(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      if _channel is None:
+        cur.execute('''DELETE FROM scn_friends_server
+        WHERE friendname=? AND servername=? and domain=?;''',(_friendname,_servername,_domain))
+      else:
+        cur.execute('''DELETE FROM scn_friends_server
+        WHERE friendname=? AND servername=? and domain=? and channel=?;''',(_friendname,_servername,_domain,_channel))
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      logging.error(u)
+      return False
+    con.close()
+    return True
+
+  # delete node=domain/channel
+  def del_node_all(self,_friendname,_servername,_domain,_channel=None):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      logging.error(u)
+      return False
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      if _channel is None:
+        cur.execute('''DELETE FROM scn_friends_server
+        WHERE servername=? and domain=?;''',(_servername,_domain))
+      else:
+        cur.execute('''DELETE FROM scn_friends_server
+        WHERE servername=? and domain=? and channel=?;''',(_servername,_domain,_channel))
+      con.commit();
+    except Exception as u:
+      con.rollback()
+      logging.error(u)
+      return False
+    con.close()
+    return True
+
+  
 #scn_servs: _channelname: _server,_name:secret
 class scn_servs_sql(object):
   db_path=None
@@ -471,7 +520,7 @@ class scn_servs_sql(object):
     con.close()
     return True
   
-  def pause_serve(self,_servername,_domain,_channel,_active=False):
+  def set_active_serve(self,_servername,_domain,_channel,_active):
     try:
       con=sqlite3.connect(self.db_path)
     except Exception as u:
@@ -523,7 +572,6 @@ class scn_servs_sql(object):
       tempnew+=[elem[0],]
     return tempnew #domain
 
-  
   def list_channels(self,_servername,_domain):
     temp=None
     try:
@@ -532,17 +580,40 @@ class scn_servs_sql(object):
       logging.error(u)
       return None
     try:
-      #con.beginn()
       cur = con.cursor()
-      cur.execute('''SELECT channel
+      cur.execute('''SELECT channel,pending,active
       FROM scn_serves
       WHERE servername=? AND domain=?;''',(_servername,_domain))
       temp=cur.fetchall()
     except Exception as u:
       logging.error(u)
     con.close()
-    return temp #channelname
+    return temp #channelname,pending,active
 
+  
+  def list_serves(self):
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as u:
+      logging.error(u)
+      return None
+    temp=None
+    try:
+      #con.beginn()
+      cur = con.cursor()
+      cur.execute('''SELECT servername,domain,channel,type,pending
+      FROM scn_serves
+      WHERE channel!='admin' AND active=1
+      ORDER BY servername,domain,channel ASC''')
+      
+      temp=cur.fetchall()
+    except Exception as u:
+      logging.error(u)
+      return None
+    con.close()
+    return temp
+
+  
   def get_channel(self,_servername,_domain,_channelname):
     tempfetch=None
     try:
@@ -624,6 +695,7 @@ class scn_servs_sql(object):
       return False
     con.close()
     return True
+
   def get_cert(self,_certname):
     tempfetch=None
     try:
@@ -645,6 +717,7 @@ class scn_servs_sql(object):
     if tempfetch is not None:
       tempfetch=tempfetch[0]
     return tempfetch #cert or None
+
   def get_cert_name(self,_cert):
     tempfetch=None
     try:
@@ -722,23 +795,6 @@ class scn_servs_sql(object):
     return temp # [(servername),...]
 
 
-  def list_serves(self):
-    try:
-      con=sqlite3.connect(self.db_path)
-    except Exception as u:
-      logging.error(u)
-      return None
-    temp=None
-    try:
-      #con.beginn()
-      cur = con.cursor()
-      cur.execute('''SELECT servername,domain,channel,type,pending,active
-      FROM scn_serves AND active=1
-      ORDER BY servername,domain,channel ASC''')
-      
-      temp=cur.fetchall()
-    except Exception as u:
-      logging.error(u)
-      return None
-    con.close()
-    return temp
+
+class exposed_services(object):
+  pass

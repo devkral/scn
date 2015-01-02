@@ -21,6 +21,19 @@ class scnDeletionDialog(Gtk.Dialog):
     box.add(label)
     self.show_all()
 
+class scnForceDeletionDialog(Gtk.Dialog):
+  def __init__(self,_parent):
+    Gtk.Dialog.__init__(self, "Confirm Deletion", _parent,
+                        Gtk.DialogFlags.MODAL|Gtk.DialogFlags.DESTROY_WITH_PARENT)
+    self.set_default_size(150, 100)
+    self.add_button("Cancel", Gtk.ResponseType.CANCEL)
+    self.add_button("OK", Gtk.ResponseType.OK)
+    label = Gtk.Label("Deletion serverside failed\nForce local deletion?")
+    box = self.get_content_area()
+    box.add(label)
+    self.show_all()
+
+    
 class scnSelfDeletionDialog(Gtk.Dialog):
   def __init__(self, _parent, _server,_domain,_channel):
     Gtk.Dialog.__init__(self, "Confirm Deletion", _parent,

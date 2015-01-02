@@ -1991,7 +1991,7 @@ family </property>
         <property name="can_focus">True</property>
         <property name="can_default">True</property>
         <property name="receives_default">True</property>
-        <property name="tooltip_text" translatable="yes">Delete own node from channel</property>
+        <property name="tooltip_text" translatable="yes">Delete noderequest from channel</property>
         <property name="halign">center</property>
         <property name="valign">center</property>
         <signal name="clicked" handler="delete_self" swapped="no"/>
