@@ -92,7 +92,7 @@ class servernavtab(object):
     for elem in temp2:
       self.navcontent.append(("",elem[0]))
     self.navbox.get_selection().select_path(Gtk.TreePath.new_first())
-    return True 
+    return True
 
   def updatedomainlist(self, *args):
     _tremote_domains=self.linkback.main.c_list_domains(self.cur_server)

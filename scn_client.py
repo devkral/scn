@@ -28,6 +28,7 @@ curdir=os.path.dirname(__file__)
 class client_master(object):
   receiver=None
   main=None
+  gui=None
 cm=client_master()
 
 

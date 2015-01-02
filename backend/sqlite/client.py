@@ -39,6 +39,24 @@ class scn_friends_sql(object):
       logging.error(u)
     con.close()
 
+  def list_friends(self):
+    temp=None
+    try:
+      con=sqlite3.connect(self.db_path)
+    except Exception as e:
+      logging.error(e)
+      return None
+    try:
+      cur = con.cursor()
+      cur.execute('''SELECT friendname
+      FROM scn_friends''')
+      temp=cur.fetchall()
+    except Exception as u:
+      logging.error(u)
+    con.close()
+    return temp #return clientname,cert list
+
+    
   def get_friend_cert(self,_friendname):
     temp=None
     try:

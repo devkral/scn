@@ -824,8 +824,8 @@ family </property>
   </object>
   <object class="GtkListStore" id="friendstore">
     <columns>
-      <!-- column-name Friends -->
-      <column type="GtkExpander"/>
+      <!-- column-name name -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkGrid" id="genericchannel">
@@ -858,29 +858,14 @@ family </property>
       </packing>
     </child>
   </object>
-  <object class="GtkAdjustment" id="maxlength">
-    <property name="upper">100</property>
-    <property name="step_increment">1</property>
-    <property name="page_increment">10</property>
-  </object>
-  <object class="GtkAdjustment" id="navboxbar">
-    <property name="upper">100</property>
-    <property name="step_increment">1</property>
-    <property name="page_increment">10</property>
-  </object>
-  <object class="GtkListStore" id="navcontent">
-    <columns>
-      <!-- column-name first -->
-      <column type="gchararray"/>
-      <!-- column-name title -->
-      <column type="gchararray"/>
-    </columns>
-  </object>
-  <object class="GtkWindow" id="mainwindow">
+  <object class="GtkApplicationWindow" id="mainwindow">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
-    <property name="hide_titlebar_when_maximized">True</property>
+    <property name="title" translatable="yes">Secure Communication Nodes</property>
     <property name="icon">icon.png</property>
+    <property name="gravity">static</property>
+    <property name="has_resize_grip">True</property>
+    <property name="show_menubar">False</property>
     <child>
       <object class="GtkGrid" id="grid1">
         <property name="visible">True</property>
@@ -919,8 +904,6 @@ family </property>
           <object class="GtkNotebook" id="mainnote">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
-            <property name="margin_left">5</property>
-            <property name="margin_right">5</property>
             <property name="margin_top">5</property>
             <property name="hexpand">True</property>
             <property name="vexpand">True</property>
@@ -928,7 +911,6 @@ family </property>
               <object class="GtkGrid" id="servergrid">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="margin_left">3</property>
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
                 <property name="border_width">2</property>
@@ -988,7 +970,6 @@ family </property>
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <property name="halign">start</property>
-                        <property name="margin_right">7</property>
                         <property name="label" translatable="yes">Navigation</property>
                         <attributes>
                           <attribute name="weight" value="ultraheavy"/>
@@ -1069,9 +1050,10 @@ family </property>
                         <property name="model">navcontent</property>
                         <property name="reorderable">True</property>
                         <property name="rules_hint">True</property>
+                        <property name="search_column">0</property>
                         <property name="hover_expand">True</property>
                         <child internal-child="selection">
-                          <object class="GtkTreeSelection" id="navboxselection"/>
+                          <object class="GtkTreeSelection" id="treeview-selection"/>
                         </child>
                       </object>
                     </child>
@@ -1204,6 +1186,17 @@ family </property>
                     <property name="hexpand">True</property>
                     <property name="vexpand">True</property>
                     <property name="shadow_type">in</property>
+                    <child>
+                      <object class="GtkTreeView" id="friendbox">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="model">friendstore</property>
+                        <property name="search_column">0</property>
+                        <child internal-child="selection">
+                          <object class="GtkTreeSelection" id="treeview-selection3"/>
+                        </child>
+                      </object>
+                    </child>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -1299,7 +1292,7 @@ family </property>
                             <property name="can_focus">True</property>
                             <property name="model">csettingstore</property>
                             <child internal-child="selection">
-                              <object class="GtkTreeSelection" id="treeview-selection"/>
+                              <object class="GtkTreeSelection" id="treeview-selection4"/>
                             </child>
                           </object>
                         </child>
@@ -1424,6 +1417,24 @@ family </property>
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkAdjustment" id="maxlength">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="navboxbar">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkListStore" id="navcontent">
+    <columns>
+      <!-- column-name first -->
+      <column type="gchararray"/>
+      <!-- column-name title -->
+      <column type="gchararray"/>
+    </columns>
   </object>
   <object class="GtkLabel" id="noperml">
     <property name="visible">True</property>

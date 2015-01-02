@@ -7,21 +7,24 @@ import sys
 import time
 import logging
 
-from scn_client import client_master,scn_client,scn_server_client,scn_sock_client
+from scn_client import scn_client,scn_server_client,scn_sock_client
+from scn_client import cm # client_master
 
-
-from gi.repository import Gtk,Gdk
+from gi.repository import Gtk,Gdk,Gio
 
 from scn_config import default_config_folder, scn_host
 
 
 from gui.servernavtab import servernavtab
 
-cm=client_master()
+
+icons=Gtk.IconTheme.get_default()
+
+#cm=client_master()
 
 
 #normalflag=Gtk.StateFlags.NORMAL|Gtk.StateFlags.ACTIVE
-icons=Gtk.IconTheme.get_default()
+
 
 
 #TODO: redesign: use splitscreen: a small tree with servernames,
@@ -30,41 +33,63 @@ icons=Gtk.IconTheme.get_default()
 
 
 
-
-class scnGUI(logging.NullHandler,servernavtab):
-  state_widget=None
-  note_main=None
+class scnApp(Gtk.Application,logging.NullHandler):
   linkback=None
-  builder=None
-  
-  statusbar=None
-  messagecount=0
-  messageid=1
-  win=None
-  clip=None #clipboard
-
-
-  def __init__(self,_linkback,_uipath):
+  mainbuilder=None
+  def __init__(self,_linkback):
+    Gtk.Application.__init__(self,
+                             application_id="org.scn.scn",
+                             flags=Gio.ApplicationFlags.FLAGS_NONE)
+    
     #logging.NullHandler.__init__(self)
     #logging.basicConfig(handlers=self)
     self.linkback=_linkback
-    self.builder=Gtk.Builder()
-    self.builder.add_from_file(_uipath)
-    self.clip=Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    #_uipath);
-    #win=self.builder.get_object("mainwindow")
-    #win.
+    self.mainbuilder=Gtk.Builder.new_from_file("gui/guiscn.glade")
+    self.connect("activate", self.createMainWin)
     
+  def createMainWin(self,app):
+    t=scnGUI(app.linkback,self.mainbuilder)
+    app.add_window(t.win)
+    
+  def createFriendWin(self,app):
+    pass
+
+
+
+  
+class scnGUI(servernavtab):
+  
+  linkback=None
+  builder=None
+  
+  messagecount=0
+  messageid=1
+  
+  statusbar=None
+  win=None
+  mainnote=None
+  clip=None #clipboard
+
+
+  def __init__(self,_linkback,_builder):
+    #logging.NullHandler.__init__(self)
+    #logging.basicConfig(handlers=self)
+    self.linkback=_linkback
+    self.builder=_builder
+    self.clip=Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     self.win=self.builder.get_object("mainwindow")
     self.navbar=self.builder.get_object("navbar")
     self.statusbar=self.builder.get_object("statusbar")
+    self.mainnote=self.builder.get_object("mainnote")
 
     servernavtab.__init__(self)
     
-    
+
     self.builder.connect_signals(self)
-    self.update()
     
+    self.update()
+  
+  
 
   def destroy_handler(self,*args):
     signal_handler()
@@ -106,7 +131,9 @@ if __name__ == "__main__":
   client_thread.daemon = True
   client_thread.start()
 
-  scnGUI(cm,"gui/guiscn.glade")
+  cm.gui=scnApp(cm)
+  cm.gui.register()
+  cm.gui.activate()
   while run==True:
     Gtk.main_iteration_do(True)
   
