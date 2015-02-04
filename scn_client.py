@@ -12,7 +12,7 @@ import signal
 
 
 import os
-
+import ssl
 from OpenSSL import SSL,crypto
 
 from scn_base import sepm, sepc, sepu
@@ -242,7 +242,7 @@ class scn_sock_client(socketserver.ThreadingMixIn, socketserver.TCPServer):
                              self.linkback.main.priv_cert))
     temp_context.use_certificate(crypto.load_certificate(
       crypto.FILETYPE_PEM,self.linkback.main.pub_cert))
-    self.socket = SSL.Connection(temp_context,
+    self.socket = ssl.Connection(temp_context,
                                  socket.socket(self.address_family, self.socket_type))
     self.host=self.socket.getsockname()
     #self.socket.set_accept_state()
